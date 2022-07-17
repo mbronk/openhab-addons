@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--suppress XmlDefaultAttributeValue -->
+<thing:thing-descriptions bindingId="argoclima"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
+	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
+
+	<thing-type id="argoclima">
+		<label>ArgoClima A/C - local</label>
+		<description>ArgoClima Air Conditioner (local LAN connection)</description>
+		<category>HVAC</category>
+
+		<channel-groups>
+			<channel-group id="acControls" typeId="acControls-group"/>
+			<channel-group id="modes" typeId="modes-group"/>
+			<channel-group id="timers" typeId="timers-group"/>
+			<channel-group id="unsupported" typeId="unsupported-group"/>
+			<channel-group id="settings" typeId="settings-group"/>
+		</channel-groups>
+
+		<properties>
+			<property name="vendor">ArgoClima</property>
+			<property name="modelId">Ulisse Eco 13 DCI??</property> <!--TODO-->
+			<property name="protocol">WiFi - local network</property> <!--TODO (maybe update dynamically: https://www.openhab.org/docs/developer/bindings/thing-handler.html)-->
+		</properties>
+
+		<representation-property>hostname</representation-property>
+
+		<config-description>
+			<parameter-group name="connection">
+				<label>Connection</label>
+				<description>Connection settings.</description>
+			</parameter-group>
+			<parameter-group name="settings">
+				<label>Settings</label>
+				<description>Connection settings.</description>
+			</parameter-group>
+			<parameter-group name="schedule1">
+				<label>Schedule 1</label>
+				<description>Schedule timer - profile 1.</description>
+			</parameter-group>
+
+			<parameter name="hostname" type="text" required="true" readOnly="true" groupName="connection">
+				<context>network-address</context>
+				<label>Hostname</label>
+				<description>Hostname or IP address of the device</description>
+			</parameter>
+			<!-- <parameter name="password" type="text" required="true">
+				<context>password</context>
+				<label>Password</label>
+				<description>Password to access the device</description>
+				</parameter> -->
+			<parameter name="refreshInterval" type="integer" unit="s" min="1" groupName="connection">
+				<label>Refresh Interval</label>
+				<description>Interval the device is polled in sec.</description>
+				<default>30</default>
+				<advanced>true</advanced>
+			</parameter>
+
+			<parameter name="schedule1DayOfWeek" type="text" required="false" multiple="true" groupName="schedule1">
+				<context>dayofWeek</context>
+				<label>Day</label>
+				<description>Days when the schedule is run</description>
+				<default>MON,TUE,WED,THU,FRI,SAT,SUN</default>
+				<multipleLimit>7</multipleLimit>
+			</parameter>
+			<parameter name="schedule1OnTime" type="text" required="false" groupName="schedule1">
+				<context>time</context>
+				<label>Day</label>
+				<description>Time when the AC is on</description>
+				<default>08:00</default>
+			</parameter>
+			<parameter name="schedule1OffTime" type="text" required="false" groupName="schedule1">
+				<context>time</context>
+				<label>When the AC is off</label>
+				<description>Time when the AC is off</description>
+				<default>18:00</default>
+			</parameter>
+
+		</config-description>
+	</thing-type>
+
+	<channel-group-type id="acControls-group">
+		<label>A/C Controls</label>
+		<!--<description></description>
+			<category></category> -->
+		<channels>
+			<channel id="power" typeId="system.power"/>
+			<channel id="mode" typeId="modeBasic-channel"/>
+			<channel id="setTemperature" typeId="setTemperature-channel"/>
+			<channel id="currentTemperature" typeId="currentTemperature-channel"/>
+			<channel id="fanSpeed" typeId="fanSpeed-channel"/>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="modes-group">
+		<label>Operation Modes</label>
+		<!--<description></description>
+			<category></category> -->
+		<channels>
+			<channel id="ecoMode" typeId="ecoModeModifier-channel">
+				<label>Eco Mode</label>
+			</channel>
+			<channel id="turboMode" typeId="turboModeModifier-channel">
+				<label>Turbo Mode</label>
+			</channel>
+			<channel id="nightMode" typeId="nightModeModifier-channel">
+				<label>Night Mode</label>
+			</channel>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="timers-group" >
+		<!--advanced="true"-->
+		<label>Timers</label>
+		<!--<description></description>
+			<category></category> -->
+		<channels>
+			<channel id="activeTimer" typeId="activeTimer-channel"/>
+			<channel id="delayTimer" typeId="delayTimer-channel"/>
+			<channel id="scheduleTimer1" typeId="scheduleTimer-channel">
+				<label>Timer 1</label>
+			</channel>
+			<channel id="scheduleTimer2" typeId="scheduleTimer-channel">
+				<label>Timer 2</label>
+			</channel>
+			<channel id="scheduleTimer3" typeId="scheduleTimer-channel">
+				<label>Timer 3</label>
+			</channel>
+			<!--<channel id="filterMode" typeId="filterMode-channel" /> -->
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="unsupported-group">
+		<label>Unsupported modes</label>
+		<!--<description></description>
+			<category></category> -->
+		<channels>
+			<channel id="modeEx" typeId="modeExtended-channel"/>
+			<channel id="swingMode" typeId="swingMode-channel"/>
+			<channel id="filterMode" typeId="filterModeModifier-channel">
+				<label>Filter Mode</label>
+			</channel>
+		</channels>
+	</channel-group-type>
+
+	<channel-group-type id="settings-group">
+		<label>Settings</label>
+		<!--<description></description>
+			<category></category> -->
+		<channels>
+			<channel id="preset" typeId="preset-channel"/>
+			<channel id="iFeelEnabled" typeId="iFeel-channel"/>
+			<channel id="currentTime" typeId="currentTime-channel"/>
+			<channel id="currentWeekday" typeId="currentWeekday-channel"/>
+			<channel id="deviceLights" typeId="deviceLights-channel"/>
+			<channel id="temperatureDisplayUnit" typeId="temperatureDisplayUnit-channel"/>
+			<channel id="ecoPowerLimit" typeId="ecoPowerLimit-channel"/>
+			<channel id="firmwareVersion" typeId="firmwareVersion-channel"/>
+			<channel id="reset" typeId="reset-channel"/>
+			<channel id="health" typeId="health-channel"/>
+		</channels>
+	</channel-group-type>
+
+
+	<!--
+		*** CHANNELS ***
+	-->
+	<channel-type id="modeBasic-channel">
+		<item-type>String</item-type>
+		<label>Mode</label> <!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
+		<state readOnly="false">
+			<options>
+				<option value="COOL">Cool</option>
+				<!--<option value="HEAT">Heat</option> -->
+				<option value="DRY">Dry</option>
+				<option value="FAN">Fan</option>
+				<option value="AUTO">Auto</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="setTemperature-channel">
+		<item-type>Number:Temperature</item-type>
+		<label>Set Temperature</label><!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
+		<description>The device's target temperature</description>
+		<category>Temperature</category>
+		<tags>
+			<tag>Setpoint</tag>
+			<tag>Temperature</tag>
+		</tags>
+		<state min="10" max="32" step="0.5" pattern="%.1f %unit%" readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="currentTemperature-channel">
+		<item-type>Number:Temperature</item-type>
+		<label>Actual temperature</label>
+		<category>Temperature</category>
+		<tags>
+			<tag>Measurement</tag>
+			<tag>Temperature</tag>
+		</tags>
+		<state readOnly="true" pattern="%.1f %unit%"/>
+
+	</channel-type>
+
+	<channel-type id="fanSpeed-channel">
+		<item-type>Number:Dimensionless</item-type>
+		<label>Fan speed</label>
+		<state readOnly="false">
+			<options>
+				<option value="0">AUTO</option>
+				<option value="1">Level 1</option>
+				<option value="2">Level 2</option>
+				<option value="3">Level 3</option>
+				<option value="4">Level 4</option>
+				<option value="5">Level 5</option>
+				<option value="6">Level 6</option>
+			</options>
+		</state>
+	</channel-type>
+
+
+	<channel-type id="ecoModeModifier-channel">
+		<item-type>Switch</item-type>
+		<label>Eco Mode</label>
+		<category>Switch</category>
+		<state readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="turboModeModifier-channel">
+		<item-type>Switch</item-type>
+		<label>Turbo Mode</label>
+		<category>Switch</category>
+		<state readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="filterModeModifier-channel" advanced="true">
+		<item-type>Switch</item-type>
+		<label>Filter Mode</label>
+		<category>Switch</category>
+		<state readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="nightModeModifier-channel">
+		<item-type>Switch</item-type>
+		<label>Night Mode</label>
+		<category>Switch</category>
+		<state readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="activeTimer-channel" advanced="true">
+		<item-type>String</item-type>
+		<label>Active timer</label>
+		<state readOnly="false">
+			<options>
+				<option value="NO_TIMER">No Timer</option>
+				<option value="DELAY_TIMER">Delay Timer</option>
+				<option value="SCHEDULE_1">Schedule Timer 1</option>
+				<option value="SCHEDULE_2">Schedule Timer 2</option>
+				<option value="SCHEDULE_3">Schedule Timer 3</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="delayTimer-channel" advanced="true">
+		<item-type>Number:Time</item-type>
+		<label>Delay timer value</label>
+
+		<!-- remote: min: 0:10 <> max 19:50h -->
+		<!-- TODO: nice HH:MM display format -->
+		<state readOnly="false" min="10" max="1190" step="10.0"/>
+	</channel-type>
+
+	<channel-type id="scheduleTimer-channel" advanced="true">
+		<item-type>String</item-type>
+		<label>Schedule timer</label>
+		<description><![CDATA[
+			TODO: this would be a complex syntax :/
+			Configurable are:
+			- days to work (each day selective on-off)
+			- on
+			time (am/pm format on remote, 10min increments)
+			- off time (am/pm format on remote, 10min increments)
+]]></description>
+	</channel-type>
+
+	<channel-type id="modeExtended-channel" advanced="true">
+		<item-type>String</item-type>
+		<label>Extended Mode</label> <!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
+		<state readOnly="false">
+			<options>
+				<option value="COOL">Cool</option>
+				<option value="HEAT">Heat</option>
+				<option value="DRY">Dry</option>
+				<option value="FAN">Fan</option>
+				<option value="AUTO">Auto</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="swingMode-channel" advanced="true">
+		<item-type>Number:Dimensionless</item-type>
+		<label>Airflow Direction</label>
+		<state readOnly="false">
+			<options>
+				<option value="0">Swing</option>
+				<option value="1">Swing - Upper Half</option>
+				<option value="2">Static - Lowest</option>
+				<option value="3">Static - Low</option>
+				<option value="4">Static - Mid-low</option>
+				<option value="5">Static - Mid-high</option>
+				<option value="6">Static - High</option>
+				<option value="7">Static - Highest</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="preset-channel" advanced="true">
+		<item-type>Switch</item-type>
+		<label>Preset</label>
+	</channel-type>
+
+	<channel-type id="iFeel-channel">
+		<item-type>Switch</item-type>
+		<label>Use iFeel Temperature</label>
+		<state readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="currentTime-channel" advanced="true">
+		<item-type>DateTime</item-type>
+		<label>Set the AC unit time</label>
+		<command>
+			<options>
+				<option value="0">SET</option>
+			</options>
+		</command>
+	</channel-type>
+
+	<channel-type id="currentWeekday-channel" advanced="true">
+		<item-type>String</item-type>
+		<label>Set the AC unit week day</label>
+		<command>
+			<options>
+				<option value="MON">Monday</option>
+				<option value="TUE">Tuesday</option>
+				<option value="WED">Wednesday</option>
+				<option value="THU">Thursday</option>
+				<option value="FRI">Friday</option>
+				<option value="SAT">Saturday</option>
+				<option value="SUN">Sunday</option>
+			</options>
+		</command>
+	</channel-type>
+
+	<channel-type id="deviceLights-channel">
+		<item-type>Switch</item-type>
+		<label>Device Lights</label>
+		<state readOnly="false"/>
+	</channel-type>
+
+	<channel-type id="temperatureDisplayUnit-channel" advanced="true">
+		<item-type>Number</item-type>
+		<label>Temperature Display Unit</label>
+		<state readOnly="false">
+			<options>
+				<option value="0">Degrees Celsius</option>
+				<option value="1">Fahrenheit</option>
+			</options>
+		</state>
+	</channel-type>
+
+	<channel-type id="ecoPowerLimit-channel" advanced="true">
+		<item-type>Number:Dimensionless</item-type>
+		<label>Power limit in eco mode</label>
+		<state readOnly="false" min="30" max="99" step="1" pattern="%.0f %%"/>
+	</channel-type>
+
+	<channel-type id="firmwareVersion-channel" advanced="true">
+		<item-type>String</item-type>
+		<label>Firmware version</label>
+		<state readOnly="true"/>
+	</channel-type>
+
+	<channel-type id="reset-channel" advanced="true">
+		<item-type>Switch</item-type>
+		<label>Reset</label>
+		<command>
+			<options>
+				<option value="RESET">Reset</option>
+			</options>
+		</command>
+	</channel-type>
+
+	<channel-type id="health-channel" advanced="true">
+		<item-type>Switch</item-type>
+		<label>Health</label>
+		<state readOnly="true"/>
+	</channel-type>
+
+</thing:thing-descriptions>
