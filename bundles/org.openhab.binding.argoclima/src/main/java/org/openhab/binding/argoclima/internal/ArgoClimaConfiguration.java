@@ -28,4 +28,21 @@ public class ArgoClimaConfiguration {
     public String hostname = "";
     public String password = "";
     public int refreshInterval = 600;
+
+    public static final int LOCAL_PORT = 1001;
+
+    //
+    // /**
+    // * The currentTemperatureOffset is configureable in case the user wants to offset this temperature for calibration
+    // * of the temperature sensor.
+    // */
+    // public BigDecimal currentTemperatureOffset = new BigDecimal(0.0);
+    //
+    // @Override
+    // public String toString() {
+    // return "Config: ipAddress=" + ipAddress + ", broadcastAddress=" + broadcastAddress + ", refresh=" + refresh
+    // + ", currentTemperatureOffset=" + currentTemperatureOffset;
+    // }
+
+    // isValid
 }

@@ -31,16 +31,18 @@
 				<label>Connection</label>
 				<description>Connection settings.</description>
 			</parameter-group>
+			<!-- 
 			<parameter-group name="settings">
 				<label>Settings</label>
 				<description>Connection settings.</description>
 			</parameter-group>
+			 -->
 			<parameter-group name="schedule1">
 				<label>Schedule 1</label>
 				<description>Schedule timer - profile 1.</description>
 			</parameter-group>
 
-			<parameter name="hostname" type="text" required="true" readOnly="true" groupName="connection">
+			<parameter name="hostname" type="text" required="true" readOnly="false" groupName="connection">
 				<context>network-address</context>
 				<label>Hostname</label>
 				<description>Hostname or IP address of the device</description>
@@ -56,7 +58,7 @@
 				<default>30</default>
 				<advanced>true</advanced>
 			</parameter>
-
+            <!-- 
 			<parameter name="schedule1DayOfWeek" type="text" required="false" multiple="true" groupName="schedule1">
 				<context>dayofWeek</context>
 				<label>Day</label>
@@ -76,7 +78,7 @@
 				<description>Time when the AC is off</description>
 				<default>18:00</default>
 			</parameter>
-
+            -->
 		</config-description>
 	</thing-type>
 

@@ -29,6 +29,32 @@ public class ArgoClimaBindingConstants {
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_TYPE_ARGOCLIMA_LOCAL = new ThingTypeUID(BINDING_ID, "argoclima");
 
+    // Thing configuration parameters
+    public static final String PARAMETER_HOSTNAME = "hostname";
+
+    // // Thing configuration items
+    // public static final String PROPERTY_IP = "ipAddress";
+    // public static final String PROPERTY_BROADCAST = "broadcastAddress";
+
     // List of all Channel ids
     public static final String CHANNEL_1 = "channel1";
+    public static final String CHANNEL_POWER = "power";
+    public static final String CHANNEL_MODE = "mode";
+    public static final String CHANNEL_SET_TEMPERATURE = "setTemperature";
+    public static final String CHANNEL_CURRENT_TEMPERATURE = "currentTemperature";
+    public static final String CHANNEL_FAN_SPEED = "fanSpeed";
+    public static final String CHANNEL_ECO_MODE = "ecoMode";
+    public static final String CHANNEL_TURBO_MODE = "turboMode";
+    public static final String CHANNEL_NIGHT_MODE = "nightMode";
+    public static final String CHANNEL_ACTIVE_TIMER = "activeTimer";
+    public static final String CHANNEL_DELAY_TIMER = "delayTimer";
+    public static final String CHANNEL_SCHEDULE_TIMER_1 = "scheduleTimer1";
+    public static final String CHANNEL_SCHEDULE_TIMER_2 = "scheduleTimer2";
+    public static final String CHANNEL_SCHEDULE_TIMER_3 = "scheduleTimer3";
+    public static final String CHANNEL_MODE_EX = "modeEx";
+    public static final String CHANNEL_SWING_MODE = "swingMode";
+    public static final String CHANNEL_FILTER_MODE = "filterMode";
+
+    public static final int REFRESH_INTERVAL_SEC = 5;
+    public static final int MAX_API_RETRIES = 3;
 }
