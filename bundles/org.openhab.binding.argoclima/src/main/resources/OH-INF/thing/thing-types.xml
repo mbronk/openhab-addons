@@ -22,6 +22,12 @@
 			<property name="vendor">ArgoClima</property>
 			<property name="modelId">Ulisse Eco 13 DCI??</property> <!--TODO-->
 			<property name="protocol">WiFi - local network</property> <!--TODO (maybe update dynamically: https://www.openhab.org/docs/developer/bindings/thing-handler.html)-->
+			
+			<!-- 
+			public static final String PROPERTY_CPU_ID = "cpuId";
+    public static final String PROPERTY_LOCAL_IP_ADDRESS = "localIpAddress";
+    public static final String PROPERTY_UNIT_FW = "unitFirmwareVersion";
+    public static final String PROPERTY_WIFI_FW= "wifiFirmwareVersion"; -->
 		</properties>
 
 		<representation-property>hostname</representation-property>
@@ -47,14 +53,28 @@
 				<label>Hostname</label>
 				<description>Hostname or IP address of the device</description>
 			</parameter>
+			
+			<parameter name="localDeviceIP" type="text" required="false" readOnly="false" groupName="connection">
+                <context>network-address</context>
+                <label>Local IP address</label>
+                <description>Local IP address of the device (may be different from hostname, if behind NAT). Optional, value is used for detecting device update in push mode</description>
+                <advanced>true</advanced>
+            </parameter>
+            
+             <parameter name="deviceCpuId" type="text" required="false" readOnly="false" groupName="connection">
+                <label>CPU ID</label>
+                <description>CPU ID of the device. Optional, value is used for detecting device update in push mode.</description>
+                <advanced>true</advanced>
+            </parameter>
+            
 			<!-- <parameter name="password" type="text" required="true">
 				<context>password</context>
 				<label>Password</label>
 				<description>Password to access the device</description>
 				</parameter> -->
-			<parameter name="refreshInterval" type="integer" unit="s" min="1" groupName="connection">
+			<parameter name="refreshInterval" type="integer" unit="s" min="0" groupName="connection">
 				<label>Refresh Interval</label>
-				<description>Interval the device is polled in sec.</description>
+				<description>Interval the device is polled in seconds. 0 - to disable polling (must use push model, w/ Server Stub)</description>
 				<default>30</default>
 				<advanced>true</advanced>
 			</parameter>

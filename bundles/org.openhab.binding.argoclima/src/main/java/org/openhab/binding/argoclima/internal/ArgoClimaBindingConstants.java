@@ -24,17 +24,21 @@ import org.openhab.core.thing.ThingTypeUID;
 @NonNullByDefault
 public class ArgoClimaBindingConstants {
 
-    private static final String BINDING_ID = "argoclima";
+    public static final String BINDING_ID = "argoclima";
 
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_TYPE_ARGOCLIMA_LOCAL = new ThingTypeUID(BINDING_ID, "argoclima");
 
     // Thing configuration parameters
     public static final String PARAMETER_HOSTNAME = "hostname";
-
+    public static final String PARAMETER_LOCAL_DEVICE_IP = "localDeviceIP";
+    public static final String PARAMETER_DEVICE_CPU_ID = "deviceCpuId";
     // // Thing configuration items
     // public static final String PROPERTY_IP = "ipAddress";
-    // public static final String PROPERTY_BROADCAST = "broadcastAddress";
+    public static final String PROPERTY_CPU_ID = "cpuId";
+    public static final String PROPERTY_LOCAL_IP_ADDRESS = "localIpAddress";
+    public static final String PROPERTY_UNIT_FW = "unitFirmwareVersion";
+    public static final String PROPERTY_WIFI_FW = "wifiFirmwareVersion";
 
     // List of all Channel ids
     public static final String CHANNEL_1 = "channel1";

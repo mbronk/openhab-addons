@@ -29,6 +29,9 @@ public class ArgoClimaConfiguration {
     public String password = "";
     public int refreshInterval = 600;
 
+    public String localDeviceIP = ""; // TODO: parameterize
+    public String deviceCpuId = "";
+
     public static final int LOCAL_PORT = 1001;
     // hvacChangeDebounce
     //

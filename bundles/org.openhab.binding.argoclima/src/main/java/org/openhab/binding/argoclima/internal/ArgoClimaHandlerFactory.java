@@ -18,7 +18,6 @@ import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.jetty.client.HttpClient;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
@@ -38,13 +37,13 @@ import org.osgi.service.component.annotations.Reference;
 @NonNullByDefault
 @Component(configurationPid = "binding.argoclima", service = ThingHandlerFactory.class)
 public class ArgoClimaHandlerFactory extends BaseThingHandlerFactory {
-    private final HttpClient httpClient;
+    private final HttpClientFactory httpClientFactory;
 
     private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_ARGOCLIMA_LOCAL);
 
     @Activate
     public ArgoClimaHandlerFactory(final @Reference HttpClientFactory httpClientFactory) {
-        this.httpClient = httpClientFactory.getCommonHttpClient();
+        this.httpClientFactory = httpClientFactory;
     }
 
     @Override
@@ -57,7 +56,7 @@ public class ArgoClimaHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (THING_TYPE_ARGOCLIMA_LOCAL.equals(thingTypeUID)) {
-            return new ArgoClimaHandler(thing, httpClient);
+            return new ArgoClimaHandler(thing, httpClientFactory);
         }
 
         return null;

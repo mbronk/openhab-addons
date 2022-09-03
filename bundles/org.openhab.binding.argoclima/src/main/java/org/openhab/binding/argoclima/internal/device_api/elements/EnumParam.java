@@ -35,7 +35,7 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
 
     }
 
-    @SuppressWarnings("null") // TODO
+    // @SuppressWarnings("null") // TODO
     private Optional<E> fromInt(int value) {
         return EnumSet.allOf(this.cls).stream().filter(p -> p.getIntValue() == value).findFirst();
     }

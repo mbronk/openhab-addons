@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -33,9 +34,11 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
+import org.openhab.binding.argoclima.internal.device_api.PassthroughHttpClient;
 import org.openhab.binding.argoclima.internal.device_api.RemoteArgoApiServerStub;
 import org.openhab.binding.argoclima.internal.device_api.Retrier;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
+import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
@@ -58,9 +61,10 @@ public class ArgoClimaHandler extends BaseThingHandler {
 
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
 
-    private @Nullable ArgoClimaConfiguration config;
+    private Optional<ArgoClimaConfiguration> config;
 
     private final HttpClient client;
+    private final HttpClientFactory clientFactory;
     private Optional<ArgoClimaLocalDevice> deviceApi;
     private @Nullable ScheduledFuture<?> refreshTask;
     private @Nullable Future<?> initializeFuture;
@@ -75,10 +79,12 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private long lastUpdateTime = 0;
     private int MAX_UPDATE_RETRIES = 3;
 
-    public ArgoClimaHandler(Thing thing, HttpClient client) {
+    public ArgoClimaHandler(Thing thing, HttpClientFactory clientFactory) {
         super(thing);
-        this.client = client;
+        this.client = clientFactory.getCommonHttpClient();
         this.deviceApi = Optional.empty();
+        this.clientFactory = clientFactory;
+        this.config = Optional.empty();
     }
 
     // public CompletableFuture<Boolean> executeStateUpdateWithRetries(Supplier<CompletableFuture<Boolean>> action, int
@@ -163,7 +169,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
-            this.deviceApi.get().updateStateFromDevice();
+            this.deviceApi.get().queryDeviceForUpdatedState();
 
             if (this.deviceApi.get().hasPendingCommands()) {
                 throw new RuntimeException("Update not confirmed. Value was not set");
@@ -323,16 +329,8 @@ public class ArgoClimaHandler extends BaseThingHandler {
 
     @Override
     public void initialize() {
-        config = getConfigAs(ArgoClimaConfiguration.class);
-
-        // TODO: configure all this
-        serverStub = new RemoteArgoApiServerStub("127.0.0.1", 8239, this.getThing().getUID().toString());
-        try {
-            serverStub.start();
-        } catch (IOException e1) {
-            // TODO Auto-generated catch block
-            logger.error("Failed to start rpc server", e1); // TODO: crash
-        }
+        this.config = Optional.of(getConfigAs(ArgoClimaConfiguration.class));
+        Objects.requireNonNull(config);
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly, i.e. any network access must be done in
@@ -342,18 +340,33 @@ public class ArgoClimaHandler extends BaseThingHandler {
         // In case you can not decide the thing status directly (e.g. for long running connection handshake using WAN
         // access or similar) you should set status UNKNOWN here and then decide the real status asynchronously in the
         // background.
-        if ((config.hostname.isEmpty()) || (config.refreshInterval <= 0)) {
+        if ((config.get().hostname.isEmpty()) || (config.get().refreshInterval < 0)) {
             String message = "Invalid thing configuration";
             logger.warn("{}: {}", getThing().getUID().getId(), message);
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, message);
             return;
         }
         try {
-            this.deviceApi = Optional.of(new ArgoClimaLocalDevice(InetAddress.getByName(config.hostname),
-                    ArgoClimaConfiguration.LOCAL_PORT, this.client));
+            var targetCpuID = config.get().deviceCpuId.isBlank() ? Optional.<String>empty()
+                    : Optional.of(config.get().deviceCpuId); // TODO
+            var localIpAddress = config.get().localDeviceIP.isBlank() ? Optional.<InetAddress>empty()
+                    : Optional.of(InetAddress.getByName(config.get().localDeviceIP)); // TODO
+
+            this.deviceApi = Optional.of(new ArgoClimaLocalDevice(InetAddress.getByName(config.get().hostname),
+                    ArgoClimaConfiguration.LOCAL_PORT, localIpAddress, targetCpuID, this.client));
         } catch (UnknownHostException e) {
             // TODO Auto-generated catch block
             logger.warn("Unable to get local device address", e);
+        }
+
+        // TODO: configure all this
+        serverStub = new RemoteArgoApiServerStub("127.0.0.1", 8239, this.getThing().getUID().toString(),
+                Optional.of(new PassthroughHttpClient("31.14.128.210", 80, clientFactory)), this.deviceApi);
+        try {
+            serverStub.start();
+        } catch (IOException e1) {
+            // TODO Auto-generated catch block
+            logger.error("Failed to start rpc server", e1); // TODO: crash
         }
 
         // set the thing status to UNKNOWN temporarily and let the background task decide for the real status.
@@ -362,7 +375,9 @@ public class ArgoClimaHandler extends BaseThingHandler {
 
         updateStatus(ThingStatus.UNKNOWN);
 
-        startAutomaticRefresh();
+        if (this.config.get().refreshInterval > 0) {
+            startAutomaticRefresh();
+        }
         initializeFuture = scheduler.submit(this::initializeThing);
         // Example for background initialization:
         // scheduler.execute(() -> {
@@ -404,7 +419,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
                         return;
                     }
 
-                    Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().updateStateFromDevice();
+                    Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().queryDeviceForUpdatedState();
                     logger.info(newState.toString());
                     updateChannelsFromDevice(newState);
 
@@ -455,9 +470,10 @@ public class ArgoClimaHandler extends BaseThingHandler {
         };
 
         if (refreshTask == null) {
-            refreshTask = scheduler.scheduleWithFixedDelay(refresher, 0, config.refreshInterval, TimeUnit.SECONDS);
+            refreshTask = scheduler.scheduleWithFixedDelay(refresher, 0, config.get().refreshInterval,
+                    TimeUnit.SECONDS);
             logger.debug("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
-                    config.refreshInterval);
+                    config.get().refreshInterval);
             forceRefresh = true;
         }
     }
@@ -550,7 +566,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private boolean isMinimumRefreshTimeExceeded() {
         long currentTime = Instant.now().toEpochMilli();
         long timeSinceLastRefresh = currentTime - lastRefreshTime;
-        if (!forceRefresh && (timeSinceLastRefresh < config.refreshInterval * 1000)) {
+        if (!forceRefresh && (timeSinceLastRefresh < config.get().refreshInterval * 1000)) {
             return false;
         }
         lastRefreshTime = currentTime;
@@ -560,13 +576,19 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private void initializeThing() {
         String message = "";
         try {
-            boolean isAlive = this.deviceApi.get().isReachable();
-            if (isAlive) {
+            // TODO: do a few retries here?
+            // boolean isAlive =
+            this.deviceApi.get().isReachable(isAlive -> {
                 updateStatus(ThingStatus.ONLINE);
                 return;
-            }
+            });
+            // if (isAlive) {
+            // updateStatus(ThingStatus.ONLINE);
+            // return;
+            // }
             message = "Device is not alive";
         }
+
         // if (!clientSocket.isPresent()) {
         // clientSocket = Optional.of(new DatagramSocket());
         // clientSocket.get().setSoTimeout(DATAGRAM_SOCKET_TIMEOUT);
@@ -607,6 +629,15 @@ public class ArgoClimaHandler extends BaseThingHandler {
         if (getThing().getStatus() != ThingStatus.OFFLINE) {
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, message);
         }
+        // getThing().set
+        this.updateProperties(this.editProperties()); // TODO: wip
+        this.updateThingProperties(Map.of(ArgoClimaBindingConstants.PROPERTY_CPU_ID, "something"));
+    }
+
+    private void updateThingProperties(Map<String, String> entries) {
+        var currentProps = this.editProperties();
+        entries.entrySet().stream().forEach(x -> currentProps.put(x.getKey(), x.getValue()));
+        this.updateProperties(currentProps);
     }
 
     private void stopRefreshTask() {

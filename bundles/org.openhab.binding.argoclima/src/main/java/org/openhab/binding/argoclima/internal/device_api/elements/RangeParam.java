@@ -4,7 +4,7 @@ import java.util.Optional;
 
 import javax.measure.quantity.Dimensionless;
 
-import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.Units;
@@ -12,15 +12,15 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
 
-//@NonNullByDefault
-public class RangeParam<T extends Number & Comparable<Integer>> extends ArgoApiElementBase {
+@NonNullByDefault
+public class RangeParam extends ArgoApiElementBase {
 
-    private Optional<@NonNull Number> currentValue = Optional.empty();
+    private Optional<Number> currentValue = Optional.empty();
 
-    private T minValue;
-    private T maxValue;
+    private double minValue;
+    private double maxValue;
 
-    public RangeParam(T min, T max) {
+    public RangeParam(double min, double max) {
         this.minValue = min;
         this.maxValue = max;
     }
@@ -49,6 +49,7 @@ public class RangeParam<T extends Number & Comparable<Integer>> extends ArgoApiE
         if (currentValue.isEmpty()) {
             return UnDefType.UNDEF;
         }
+
         return new QuantityType<Dimensionless>(currentValue.get(), Units.PERCENT);
     }
 
