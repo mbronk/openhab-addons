@@ -1,6 +1,15 @@
 package org.openhab.binding.argoclima.internal.device_api;
 
-public class ArgoApiDataElement {
+import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.jdt.annotation.NonNull;
+import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.core.types.Command;
+import org.openhab.core.types.State;
+import org.openhab.core.types.UnDefType;
+
+@NonNullByDefault
+public class ArgoApiDataElement<T extends org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement> {
     public enum DataElementType {
         READ_WRITE,
         READ_ONLY,
@@ -10,39 +19,75 @@ public class ArgoApiDataElement {
     private int queryResponseIndex;
     private int statusUpdateRequestIndex;
     private DataElementType type;
-    private String rawValue;
+    // private @Nullable String rawValue;
+    private T lastReadValue;
+    // private @Nullable T valueToSet;
 
-    private ArgoApiDataElement(int queryIndex, int updateIndex, DataElementType type) {
+    private ArgoApiDataElement(T rawValue, int queryIndex, int updateIndex, DataElementType type) {
         this.queryResponseIndex = queryIndex;
         this.statusUpdateRequestIndex = updateIndex;
         this.type = type;
+        this.lastReadValue = rawValue;
     }
 
-    public static ArgoApiDataElement readWriteElement(int queryIndex, int updateIndex) {
-        return new ArgoApiDataElement(queryIndex, updateIndex, DataElementType.READ_WRITE);
+    public static <T extends org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement> ArgoApiDataElement<T> readWriteElement(T rawValue, int queryIndex,
+            int updateIndex) {
+        return new ArgoApiDataElement<>(rawValue, queryIndex, updateIndex, DataElementType.READ_WRITE);
     }
 
-    public static ArgoApiDataElement readOnlyElement(int queryIndex) {
-        return new ArgoApiDataElement(queryIndex, -1, DataElementType.READ_ONLY);
+    public static <T extends org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement> ArgoApiDataElement<T> readOnlyElement(T rawValue, int queryIndex) {
+        return new ArgoApiDataElement<>(rawValue, queryIndex, -1, DataElementType.READ_ONLY);
     }
 
-    public static ArgoApiDataElement writeOnlyElement(int updateIndex) {
-        return new ArgoApiDataElement(-1, updateIndex, DataElementType.WRITE_ONLY);
+    public static <T extends org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement> ArgoApiDataElement<T> writeOnlyElement(T rawValue,
+            int updateIndex) {
+        return new ArgoApiDataElement<>(rawValue, -1, updateIndex, DataElementType.WRITE_ONLY);
     }
 
-    public void fromDeviceResponse(String[] responseElements) {
+    public State fromDeviceResponse(String[] responseElements) {
         if (this.type == DataElementType.READ_WRITE || this.type == DataElementType.READ_ONLY) {
-            this.rawValue = responseElements[queryResponseIndex];
+            // this.rawValue = responseElements[queryResponseIndex];
+            // State newState =
+            return this.lastReadValue.updateFromApiResponse(responseElements[queryResponseIndex]);
             // TODO: err handling
         }
+        return UnDefType.NULL;
     }
 
-    public String getValue() {
-        return rawValue;
+    public @Nullable Pair<Integer, String> toDeviceResponse() {
+        if (this.lastReadValue.isUpdatePending()) {
+            return Pair.of(this.statusUpdateRequestIndex, this.lastReadValue.getDeviceApiValue());
+        }
+        return null;
+    }
+
+    public boolean isUpdatePending() {
+        return this.lastReadValue.isUpdatePending();
+    }
+
+    //
+    // public String getValue() {
+    // return rawValue;
+    // }
+
+    public boolean isReadable() {
+        return this.type == DataElementType.READ_ONLY || this.type == DataElementType.READ_WRITE;
+    }
+
+    public State getState() {
+        return lastReadValue.toState();
     }
 
     @Override
     public String toString() {
-        return rawValue;
+        return lastReadValue.toString();
+    }
+
+    public boolean handleCommand(Command command) {
+        if (this.type != DataElementType.READ_ONLY && this.type != DataElementType.READ_WRITE) {
+            return false; // attempting to write a R/O value
+        }
+
+        return lastReadValue.handleCommand(command);
     }
 }

@@ -38,14 +38,14 @@ public class ArgoClimaBindingConstants {
 
     // List of all Channel ids
     public static final String CHANNEL_1 = "channel1";
-    public static final String CHANNEL_POWER = "power";
-    public static final String CHANNEL_MODE = "mode";
-    public static final String CHANNEL_SET_TEMPERATURE = "setTemperature";
-    public static final String CHANNEL_CURRENT_TEMPERATURE = "currentTemperature";
-    public static final String CHANNEL_FAN_SPEED = "fanSpeed";
-    public static final String CHANNEL_ECO_MODE = "ecoMode";
-    public static final String CHANNEL_TURBO_MODE = "turboMode";
-    public static final String CHANNEL_NIGHT_MODE = "nightMode";
+    public static final String CHANNEL_POWER = "acControls#power";
+    public static final String CHANNEL_MODE = "acControls#mode";
+    public static final String CHANNEL_SET_TEMPERATURE = "acControls#setTemperature";
+    public static final String CHANNEL_CURRENT_TEMPERATURE = "acControls#currentTemperature";
+    public static final String CHANNEL_FAN_SPEED = "acControls#fanSpeed";
+    public static final String CHANNEL_ECO_MODE = "modes#ecoMode";
+    public static final String CHANNEL_TURBO_MODE = "modes#turboMode";
+    public static final String CHANNEL_NIGHT_MODE = "modes#nightMode";
     public static final String CHANNEL_ACTIVE_TIMER = "activeTimer";
     public static final String CHANNEL_DELAY_TIMER = "delayTimer";
     public static final String CHANNEL_SCHEDULE_TIMER_1 = "scheduleTimer1";
@@ -54,6 +54,9 @@ public class ArgoClimaBindingConstants {
     public static final String CHANNEL_MODE_EX = "modeEx";
     public static final String CHANNEL_SWING_MODE = "swingMode";
     public static final String CHANNEL_FILTER_MODE = "filterMode";
+
+    public static final String CHANNEL_I_FEEL_ENABLED = "settings#iFeelEnabled";
+    public static final String CHANNEL_DEVICE_LIGHTS = "settings#deviceLights";
 
     public static final int REFRESH_INTERVAL_SEC = 5;
     public static final int MAX_API_RETRIES = 3;

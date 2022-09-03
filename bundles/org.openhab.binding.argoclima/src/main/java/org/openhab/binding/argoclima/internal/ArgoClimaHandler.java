@@ -14,18 +14,28 @@ package org.openhab.binding.argoclima.internal;
 
 import static org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants.CHANNEL_1;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
+import org.openhab.binding.argoclima.internal.device_api.RemoteArgoApiServerStub;
+import org.openhab.binding.argoclima.internal.device_api.Retrier;
+import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
@@ -33,6 +43,7 @@ import org.openhab.core.thing.ThingStatusDetail;
 import org.openhab.core.thing.binding.BaseThingHandler;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.RefreshType;
+import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,10 +64,16 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private Optional<ArgoClimaLocalDevice> deviceApi;
     private @Nullable ScheduledFuture<?> refreshTask;
     private @Nullable Future<?> initializeFuture;
+    private @Nullable Future<?> settingsUpdateFuture;
+
+    private @Nullable RemoteArgoApiServerStub serverStub;
 
     private boolean forceRefresh = false;
     private long lastRefreshTime = 0;
     private long apiRetries = 0;
+    private long updateRetries = 0;
+    private long lastUpdateTime = 0;
+    private int MAX_UPDATE_RETRIES = 3;
 
     public ArgoClimaHandler(Thing thing, HttpClient client) {
         super(thing);
@@ -64,8 +81,185 @@ public class ArgoClimaHandler extends BaseThingHandler {
         this.deviceApi = Optional.empty();
     }
 
+    // public CompletableFuture<Boolean> executeStateUpdateWithRetries(Supplier<CompletableFuture<Boolean>> action, int
+    // maxRetries, int delayMs) {
+    // CompletableFuture<T> future = new CompletableFuture<>();
+    // action.get().thenAccept(t -> future.complete(t))
+    // .exceptionally(ex -> {
+    // if(maxRetries <= 0) {
+    // future.completeExceptionally(ex);
+    // } else {
+    // executeStateUpdateWithRetries(x -> scheduler.sendCommandsToDeviceAwaitConfirmation(),maxRetries--, delayMs);
+    // }
+    // return null;
+    // });
+    // return future;
+    //
+    //// return sendCommandsToDeviceAwaitConfirmation().thenApply(CompletableFuture::completedFuture)
+    //// .exceptionally(t -> retry(t, 0)).thenCompose(Function.identity());
+    // }
+    //
+    // private CompletableFuture<Boolean> retry(Throwable first, int retry) {
+    // if (retry >= MAX_UPDATE_RETRIES) {
+    // return CompletableFuture.failedFuture(first);
+    // }
+    // logger.warn("Retrying...");
+    // return sendCommandsToDeviceAwaitConfirmation().thenApply(CompletableFuture::completedFuture)
+    // .exceptionally(t -> {
+    // first.addSuppressed(t);
+    // return retry(first, retry + 1);
+    // }).thenCompose(Function.identity());
+    // }
+    //
+    // private CompletableFuture<Boolean> sendCommandsToDeviceAwaitConfirmation() {
+    // CompletableFuture<Boolean> wasUpdated = new CompletableFuture<>();
+    //
+    //
+    // if (settingsUpdateFuture != null) {
+    // settingsUpdateFuture.cancel(true); // ?
+    // settingsUpdateFuture = null;
+    // }
+    //
+    // settingsUpdateFuture = scheduler.submit(() -> {
+    //
+    // if (!this.deviceApi.get().hasPendingCommands()) {
+    // logger.debug("Nothing to update... skipping");
+    // wasUpdated.complete(false);
+    // }
+    // this.deviceApi.get().sendCommandsToDevice();
+    // this.deviceApi.get().updateStateFromDevice();
+    //
+    // if (this.deviceApi.get().hasPendingCommands()) {
+    // throw new RuntimeException("Update not confirmed. Value was not set");
+    // }
+    // wasUpdated.complete(true);
+    // });
+    //
+    // return wasUpdated;
+    // }
+    //
+    private boolean sendCommandsToDeviceAwaitConfirmation() {
+        // TODO
+        // if (settingsUpdateFuture != null) {
+        // settingsUpdateFuture.cancel(true); // ?
+        // settingsUpdateFuture = null;
+        // }
+        //
+
+        Supplier<Boolean> fn = () -> {
+            if (!this.deviceApi.get().hasPendingCommands()) {
+                logger.debug("Nothing to update... skipping");
+                return false;
+            }
+            this.deviceApi.get().sendCommandsToDevice();
+            if (!this.deviceApi.get().hasPendingCommands()) {
+                logger.info("ALL UPDATED ON 1st try!!");
+                return false;
+            }
+
+            try {
+                Thread.sleep(1000); // TODO: this needs *BETTER* delay logic
+            } catch (InterruptedException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            this.deviceApi.get().updateStateFromDevice();
+
+            if (this.deviceApi.get().hasPendingCommands()) {
+                throw new RuntimeException("Update not confirmed. Value was not set");
+            }
+            return true;
+        };
+
+        Supplier<CompletableFuture<Boolean>> asyncFn = () -> CompletableFuture.supplyAsync(fn);
+
+        try {
+            Boolean result = Retrier.<Boolean>withRetries(scheduler, asyncFn, t -> true, // should retry
+                    MAX_UPDATE_RETRIES, Duration.ofMillis(1500)).get();
+            return result;
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
+        boolean hasUpdates = false;
+        if (ArgoClimaBindingConstants.CHANNEL_POWER.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.POWER, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ACTIVE_TIMER, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_CURRENT_TEMPERATURE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ACTUAL_TEMPERATURE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_ECO_MODE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ECO_MODE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_FAN_SPEED.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FAN_LEVEL, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_FILTER_MODE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FILTER_MODE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_SWING_MODE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FLAP_LEVEL, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_I_FEEL_ENABLED.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.I_FEEL_TEMPERATURE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_DEVICE_LIGHTS.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.LIGHT, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_MODE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.MODE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_NIGHT_MODE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.NIGHT_MODE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_SET_TEMPERATURE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TARGET_TEMPERATURE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TIMER_TYPE, command, channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_TURBO_MODE.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TURBO_MODE, command, channelUID);
+        }
+
+        // case DISPLAY_TEMPERATURE_SCALE:
+        // break;
+        // case ECO_POWER_LIMIT:
+        // break;
+        // case RESET_TO_FACTORY_SETTINGS:
+        // break;
+        // case TIMER_0_DELAY_TIME:
+        // channelName = ArgoClimaBindingConstants.CHANNEL_DELAY_TIMER;
+        // break;
+        // case TIMER_N_ENABLED_DAYS:
+        // // Scheduletimer
+        // break;
+        // case TIMER_N_OFF_TIME:
+        // break;
+        // case TIMER_N_ON_TIME:
+        // break;
+        // case UNIT_FIRMWARE_VERSION:
+        // break;
+        // default:
+        // break;
+        // }
+
+        if (hasUpdates) {
+            sendCommandsToDeviceAwaitConfirmation();
+            // executeStateUpdateWithRetries();
+        }
+
         if (CHANNEL_1.equals(channelUID.getId())) {
             if (command instanceof RefreshType) {
                 // TODO: handle data refresh
@@ -80,9 +274,65 @@ public class ArgoClimaHandler extends BaseThingHandler {
         }
     }
 
+    // private boolean updateValue(int attemptNumber) {
+    // try {
+    // if (attemptNumber > 3) {
+    //
+    // return false;
+    // }
+    // // safeguard for multiple REFRESH commands
+    // if (isMinimumRefreshTimeExceeded()) {
+    // if (getThing().getStatus() == ThingStatus.OFFLINE) {
+    // // try to re-initialize thing access
+    // logger.debug("{}: Re-initialize device", getThing().getUID().getId());
+    // initializeThing();
+    // return true;
+    // }
+    //
+    // Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().updateStateFromDevice();
+    // logger.info(newState.toString());
+    // updateChannelsFromDevice(newState);
+    //
+    // }
+    // } catch (RuntimeException e) {
+    // String message = "Runtime exception on update";
+    // logger.warn("{}: {}", getThing().getUID().getId(), message, e);
+    // return false;
+    // }
+    // return forceRefresh;
+    // }
+
+    private boolean handleIndividualSettingCommand(ArgoDeviceSettingType settingType, Command command,
+            ChannelUID channelUID) {
+
+        if (command instanceof RefreshType) {
+            // TODO: handle data refresh
+            // set value to undef for a while?? drop pending state!!
+            return true;
+        }
+        boolean updateInitiated = this.deviceApi.get().handleSettingCommand(settingType, command);
+        if (updateInitiated) {
+            State currentState = this.deviceApi.get().getCurrentStateNoPoll(settingType);
+            logger.info("State of {} after update: {}", channelUID, currentState);
+            updateState(channelUID, currentState);
+        }
+        return updateInitiated;
+
+        // this.deviceApi.get().
+    }
+
     @Override
     public void initialize() {
         config = getConfigAs(ArgoClimaConfiguration.class);
+
+        // TODO: configure all this
+        serverStub = new RemoteArgoApiServerStub("127.0.0.1", 8239, this.getThing().getUID().toString());
+        try {
+            serverStub.start();
+        } catch (IOException e1) {
+            // TODO Auto-generated catch block
+            logger.error("Failed to start rpc server", e1); // TODO: crash
+        }
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly, i.e. any network access must be done in
@@ -154,7 +404,15 @@ public class ArgoClimaHandler extends BaseThingHandler {
                         return;
                     }
 
-                    this.deviceApi.get().updateStateFromDevice();
+                    Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().updateStateFromDevice();
+                    logger.info(newState.toString());
+                    updateChannelsFromDevice(newState);
+
+                    // List<Channel> channels = getThing().getChannels();
+                    // for (Channel channel : channels) {
+                    // publishChannel(channel.getUID());
+                    // }
+
                     // updateStateFromDevice
                     // if (clientSocket.isPresent()) {
                     // device.getDeviceStatus(clientSocket.get());
@@ -201,6 +459,91 @@ public class ArgoClimaHandler extends BaseThingHandler {
             logger.debug("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
                     config.refreshInterval);
             forceRefresh = true;
+        }
+    }
+
+    // public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {
+    //
+    // }
+
+    private void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
+        for (Entry<ArgoDeviceSettingType, State> entry : deviceState.entrySet()) {
+            String channelName = null;
+            switch (entry.getKey()) {
+                case ACTIVE_TIMER:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER;
+                    break;
+                case ACTUAL_TEMPERATURE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_CURRENT_TEMPERATURE;
+                    break;
+                case CURRENT_DAY_OF_WEEK:
+                    break;
+                case CURRENT_TIME:
+                    break;
+                case DISPLAY_TEMPERATURE_SCALE:
+                    break;
+                case ECO_MODE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_ECO_MODE;
+                    break;
+                case ECO_POWER_LIMIT:
+                    break;
+                case FAN_LEVEL:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_FAN_SPEED;
+                    break;
+                case FILTER_MODE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_FILTER_MODE;
+                    break;
+                case FLAP_LEVEL:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_SWING_MODE;
+                    break;
+                case I_FEEL_TEMPERATURE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_I_FEEL_ENABLED;
+                    break;
+                case LIGHT:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_DEVICE_LIGHTS;
+                    break;
+                case MODE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_MODE;
+                    // TODO: ModeEX
+                    break;
+                case NIGHT_MODE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_NIGHT_MODE;
+                    break;
+                case POWER:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_POWER;
+                    break;
+                case RESET_TO_FACTORY_SETTINGS:
+                    break;
+                case TARGET_TEMPERATURE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_SET_TEMPERATURE;
+                    break;
+                case TIMER_0_DELAY_TIME:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_DELAY_TIMER;
+                    break;
+                case TIMER_N_ENABLED_DAYS:
+                    // Scheduletimer
+                    break;
+                case TIMER_N_OFF_TIME:
+                    break;
+                case TIMER_N_ON_TIME:
+                    break;
+                case TIMER_TYPE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER;
+                    break;
+                case TURBO_MODE:
+                    channelName = ArgoClimaBindingConstants.CHANNEL_TURBO_MODE;
+                    break;
+                case UNIT_FIRMWARE_VERSION:
+                    break;
+                default:
+                    break;
+            }
+
+            if (channelName != null) {
+                // TODO and check thing channels?
+                // logger.info("Updating {} with {}", channelName, entry.getValue());
+                updateState(channelName, entry.getValue());
+            }
         }
     }
 
@@ -285,9 +628,17 @@ public class ArgoClimaHandler extends BaseThingHandler {
             // deviceApi.get().close();
             deviceApi = Optional.empty();
         }
+
+        if (this.serverStub != null) {
+            this.serverStub.shutdown();
+            this.serverStub = null;
+        }
+
+        // stopUpdateTask();
         stopRefreshTask();
         if (initializeFuture != null) {
             initializeFuture.cancel(true);
         }
     }
+
 }

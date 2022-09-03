@@ -1,12 +1,30 @@
 package org.openhab.binding.argoclima.internal.device_api;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.ObjectUtils;
+import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaHandler;
+import org.openhab.binding.argoclima.internal.device_api.elements.EnumParam;
+import org.openhab.binding.argoclima.internal.device_api.elements.FwVersionParam;
+import org.openhab.binding.argoclima.internal.device_api.elements.OnOffParam;
+import org.openhab.binding.argoclima.internal.device_api.elements.RangeParam;
+import org.openhab.binding.argoclima.internal.device_api.elements.TemperatureParam;
+import org.openhab.binding.argoclima.internal.device_api.elements.TimeParam;
+import org.openhab.binding.argoclima.internal.device_api.elements.WeekdayParam;
+import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.device_api.types.FanLevel;
+import org.openhab.binding.argoclima.internal.device_api.types.FlapLevel;
+import org.openhab.binding.argoclima.internal.device_api.types.OperationMode;
+import org.openhab.binding.argoclima.internal.device_api.types.TemperatureScale;
+import org.openhab.binding.argoclima.internal.device_api.types.TimerType;
+import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@NonNullByDefault
 public class ArgoDeviceStatus {
 
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
@@ -32,47 +50,111 @@ public class ArgoDeviceStatus {
     // 0, //fw_version
     // 0,N,75,1416,0,N,N,N,N,N,N,N,N,N,N,N,N,N,N
     //
+    private Map<ArgoDeviceSettingType, ArgoApiDataElement<org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement>> dataElements = Map
+            .ofEntries(
+                    Map.entry(ArgoDeviceSettingType.TARGET_TEMPERATURE,
+                            ArgoApiDataElement.readWriteElement(new TemperatureParam(19.0, 36.0, 0.5), 0, 0)),
+                    Map.entry(ArgoDeviceSettingType.ACTUAL_TEMPERATURE,
+                            ArgoApiDataElement.readWriteElement(new TemperatureParam(19.0, 36.0, 0.5), 1, 1)),
+                    // ArgoApiDataElement.readOnlyElement(new TemperatureParam(), 1)),
 
-    private Map<String, ArgoApiDataElement> dataElements = Map.ofEntries(
-            Map.entry("target_temp", ArgoApiDataElement.readWriteElement(0, 0)),
-            Map.entry("actual_temp", ArgoApiDataElement.readOnlyElement(1)),
-            Map.entry("on_off", ArgoApiDataElement.readWriteElement(2, 2)),
-            Map.entry("mode", ArgoApiDataElement.readWriteElement(3, 3)),
-            Map.entry("fan", ArgoApiDataElement.readWriteElement(4, 4)),
-            Map.entry("swing", ArgoApiDataElement.readWriteElement(5, 5)),
-            Map.entry("remote_temperature", ArgoApiDataElement.readWriteElement(6, 6)),
-            // ?
-            Map.entry("filter_mode", ArgoApiDataElement.readWriteElement(7, 7)),
-            Map.entry("eco_mode", ArgoApiDataElement.readWriteElement(8, 8)),
-            Map.entry("turbo_mode", ArgoApiDataElement.readWriteElement(9, 9)),
-            Map.entry("night_mode", ArgoApiDataElement.readWriteElement(10, 10)),
-            Map.entry("light_mode", ArgoApiDataElement.readWriteElement(11, 11)),
-            Map.entry("timer_type", ArgoApiDataElement.readWriteElement(12, 12)),
-            // ??
-            Map.entry("current_weekday", ArgoApiDataElement.writeOnlyElement(18)),
-            Map.entry("timer_weekdays", ArgoApiDataElement.writeOnlyElement(19)),
-            Map.entry("time", ArgoApiDataElement.writeOnlyElement(20)),
-            Map.entry("delay_timer_duration", ArgoApiDataElement.writeOnlyElement(21)),
-            Map.entry("timer_on", ArgoApiDataElement.writeOnlyElement(22)),
-            Map.entry("timer_off", ArgoApiDataElement.writeOnlyElement(23)),
-            Map.entry("reset", ArgoApiDataElement.writeOnlyElement(24)),
-            Map.entry("eco_limit", ArgoApiDataElement.readWriteElement(22, 25)),
-            Map.entry("unit_of_measure", ArgoApiDataElement.readWriteElement(24, 26)),
-            Map.entry("firmware_version", ArgoApiDataElement.readOnlyElement(23)));
+                    Map.entry(ArgoDeviceSettingType.POWER, ArgoApiDataElement.readWriteElement(new OnOffParam(), 2, 2)),
 
-    private String[] values;
+                    Map.entry(ArgoDeviceSettingType.MODE,
+                            ArgoApiDataElement.readWriteElement(new EnumParam<>(OperationMode.class), 3, 3)),
+
+                    Map.entry(ArgoDeviceSettingType.FAN_LEVEL,
+                            ArgoApiDataElement.readWriteElement(new EnumParam<>(FanLevel.class), 4, 4)),
+
+                    Map.entry(ArgoDeviceSettingType.FLAP_LEVEL,
+                            ArgoApiDataElement.readWriteElement(new EnumParam<>(FlapLevel.class), 5, 5)),
+
+                    Map.entry(ArgoDeviceSettingType.I_FEEL_TEMPERATURE,
+                            ArgoApiDataElement.readWriteElement(new OnOffParam(), 6, 6)),
+                    Map.entry(ArgoDeviceSettingType.FILTER_MODE,
+                            ArgoApiDataElement.readWriteElement(new OnOffParam(), 7, 7)),
+                    Map.entry(ArgoDeviceSettingType.ECO_MODE,
+                            ArgoApiDataElement.readWriteElement(new OnOffParam(), 8, 8)),
+                    Map.entry(ArgoDeviceSettingType.TURBO_MODE,
+                            ArgoApiDataElement.readWriteElement(new OnOffParam(), 9, 9)),
+                    Map.entry(ArgoDeviceSettingType.NIGHT_MODE,
+                            ArgoApiDataElement.readWriteElement(new OnOffParam(), 10, 10)),
+                    Map.entry(ArgoDeviceSettingType.LIGHT,
+                            ArgoApiDataElement.readWriteElement(new OnOffParam(), 11, 11)),
+                    Map.entry(ArgoDeviceSettingType.ACTIVE_TIMER,
+                            ArgoApiDataElement.readWriteElement(new EnumParam<>(TimerType.class), 12, 12)),
+
+                    // ?????
+                    Map.entry(ArgoDeviceSettingType.CURRENT_DAY_OF_WEEK,
+                            ArgoApiDataElement.readWriteElement(new WeekdayParam(), 18, 18)), // TODO: js interface had
+                                                                                              // write-only!
+                    Map.entry(ArgoDeviceSettingType.TIMER_N_ENABLED_DAYS,
+                            ArgoApiDataElement.readWriteElement(new WeekdayParam(), 19, 19)), // TODO: js interface had
+                                                                                              // write-only!
+                    Map.entry(ArgoDeviceSettingType.CURRENT_TIME,
+                            ArgoApiDataElement.readWriteElement(new TimeParam(), 20, 20)), // TODO:
+                                                                                           // js
+                                                                                           // interface
+                                                                                           // had
+                                                                                           // write-only!
+                    Map.entry(ArgoDeviceSettingType.TIMER_0_DELAY_TIME, // TODO: should be a different type (interval!)
+                            ArgoApiDataElement.writeOnlyElement(
+                                    new TimeParam(TimeParam.fromHhMm(0, 0), TimeParam.fromHhMm(23, 30)), 21)), // TODO:
+                                                                                                               // js
+                                                                                                               // interface
+                                                                                                               // had
+                                                                                                               // write-only!
+                    Map.entry(ArgoDeviceSettingType.TIMER_N_ON_TIME,
+                            ArgoApiDataElement.writeOnlyElement(new TimeParam(), 22)), // TODO:
+                                                                                       // js
+                                                                                       // interface
+                                                                                       // had
+                                                                                       // write-only!
+                    Map.entry(ArgoDeviceSettingType.TIMER_N_OFF_TIME,
+                            ArgoApiDataElement.writeOnlyElement(new TimeParam(), 23)), // TODO:
+                                                                                       // js
+                                                                                       // interface
+                                                                                       // had
+                                                                                       // write-only!
+                    Map.entry(ArgoDeviceSettingType.RESET_TO_FACTORY_SETTINGS,
+                            ArgoApiDataElement.writeOnlyElement(new OnOffParam(), 24)),
+                    Map.entry(ArgoDeviceSettingType.ECO_POWER_LIMIT,
+                            ArgoApiDataElement.readWriteElement(new RangeParam<Integer>(30, 99), 22, 25)),
+                    Map.entry(ArgoDeviceSettingType.DISPLAY_TEMPERATURE_SCALE,
+                            ArgoApiDataElement.readWriteElement(new EnumParam<>(TemperatureScale.class), 24, 26)),
+                    Map.entry(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION,
+                            ArgoApiDataElement.readOnlyElement(new FwVersionParam(), 23))
+
+            // todo
+            );
+    // private String[] values;
+
+    public ArgoApiDataElement<org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement> getSetting(
+            ArgoDeviceSettingType type) {
+        if (dataElements.containsKey(type)) {
+            return ObjectUtils.firstNonNull(dataElements.get(type), null); // TODO?!!?
+        }
+        throw new RuntimeException("Wrong setting type");
+    }
 
     @Override
     public String toString() {
         // return String.join(",", values);
 
-        return dataElements.entrySet().stream().map(x -> String.format("%s=%s", x.getKey(), x.getValue()))
-                .collect(Collectors.joining(", ", "{", "}"));
+        return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
+                .map(x -> String.format("%s=%s", x.getKey(), x.getValue())).collect(Collectors.joining(", ", "{", "}"));
 
     }
 
+    public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {
+        // return null;
+        return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
+                .filter(x -> x.getValue().isReadable())
+                .collect(Collectors.toMap(Map.Entry::getKey, y -> y.getValue().getState()));
+    }
+
     public void fromDeviceString(String deviceOutput) {
-        values = deviceOutput.split(",");
+        String[] values = deviceOutput.split(",");
         if (values.length != 39) {
             throw new RuntimeException("Invalid device API response: " + deviceOutput);
         }
@@ -80,6 +162,22 @@ public class ArgoDeviceStatus {
 
         // logger.info(String.join(",", values));
         logger.info(this.toString());
+    }
+
+    public String getDeviceCommandStatus() {
+        String[] commands = new String[36];
+        Arrays.fill(commands, "N");
+
+        dataElements.entrySet().stream().filter(x -> x.getValue().isUpdatePending())
+                .map(x -> x.getValue().toDeviceResponse()).forEach(p -> commands[p.getLeft()] = p.getRight());
+
+        // TODO: add current time setting (can override internally etc, maybe?
+
+        return String.join(",", commands);
+    }
+
+    public boolean hasUpdatesPending() {
+        return this.dataElements.values().stream().anyMatch(x -> x.isUpdatePending());
     }
 }
 

@@ -30,7 +30,7 @@ public class ArgoClimaConfiguration {
     public int refreshInterval = 600;
 
     public static final int LOCAL_PORT = 1001;
-
+    // hvacChangeDebounce
     //
     // /**
     // * The currentTemperatureOffset is configureable in case the user wants to offset this temperature for calibration
