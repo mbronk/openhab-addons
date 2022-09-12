@@ -5,7 +5,6 @@ import java.util.Optional;
 import javax.measure.quantity.Dimensionless;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.Units;
 import org.openhab.core.types.Command;
@@ -44,24 +43,31 @@ public class RangeParam extends ArgoApiElementBase {
         return currentValue.get().toString();
     }
 
-    @Override
-    protected State getAsState() {
-        if (currentValue.isEmpty()) {
+    private static State valueToState(Optional<Number> value) {
+        if (value.isEmpty()) {
             return UnDefType.UNDEF;
         }
 
-        return new QuantityType<Dimensionless>(currentValue.get(), Units.PERCENT);
+        return new QuantityType<Dimensionless>(value.get(), Units.PERCENT);
     }
 
     @Override
-    protected @Nullable String handleCommandInternal(Command command) {
+    protected State getAsState() {
+        return valueToState(currentValue);
+    }
+
+    @Override
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
         if (command instanceof QuantityType<?>) {
             int newValue = ((QuantityType<?>) command).intValue();
             if (this.currentValue.isEmpty() || this.currentValue.get().intValue() != newValue) {
-                this.currentValue = Optional.of(newValue);
+                var targetValue = Optional.<Number>of(newValue);
+                this.currentValue = targetValue;
+                return new HandleCommandResult(Integer.toString(targetValue.get().intValue()),
+                        valueToState(targetValue));
             }
-            return Integer.toString(this.currentValue.get().intValue());
+            // return Integer.toString(this.currentValue.get().intValue());
         }
-        return null; // TODO
+        return new HandleCommandResult(false);
     }
 }

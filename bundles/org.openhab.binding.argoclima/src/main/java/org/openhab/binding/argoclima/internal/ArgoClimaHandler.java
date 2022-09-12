@@ -24,7 +24,6 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -34,10 +33,10 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
-import org.openhab.binding.argoclima.internal.device_api.PassthroughHttpClient;
-import org.openhab.binding.argoclima.internal.device_api.RemoteArgoApiServerStub;
-import org.openhab.binding.argoclima.internal.device_api.Retrier;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.PassthroughHttpClient;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.RemoteArgoApiServerStub;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
@@ -67,8 +66,11 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private final HttpClientFactory clientFactory;
     private Optional<ArgoClimaLocalDevice> deviceApi;
     private @Nullable ScheduledFuture<?> refreshTask;
+    // private Optional<Future> oneOffRefreshJob;
     private @Nullable Future<?> initializeFuture;
-    private @Nullable Future<?> settingsUpdateFuture;
+    private Optional<Future<?>> settingsUpdateFuture = Optional.empty();
+    // private Optional<CompletableFuture<Boolean>> sendCommandToDeviceFuture = Optional.empty();
+    private final int MAX_API_RETRIES = 3;
 
     private @Nullable RemoteArgoApiServerStub serverStub;
 
@@ -77,7 +79,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private long apiRetries = 0;
     private long updateRetries = 0;
     private long lastUpdateTime = 0;
-    private int MAX_UPDATE_RETRIES = 3;
+    private final int MAX_UPDATE_RETRIES = 3;
 
     public ArgoClimaHandler(Thing thing, HttpClientFactory clientFactory) {
         super(thing);
@@ -87,183 +89,293 @@ public class ArgoClimaHandler extends BaseThingHandler {
         this.config = Optional.empty();
     }
 
-    // public CompletableFuture<Boolean> executeStateUpdateWithRetries(Supplier<CompletableFuture<Boolean>> action, int
-    // maxRetries, int delayMs) {
-    // CompletableFuture<T> future = new CompletableFuture<>();
-    // action.get().thenAccept(t -> future.complete(t))
-    // .exceptionally(ex -> {
-    // if(maxRetries <= 0) {
-    // future.completeExceptionally(ex);
-    // } else {
-    // executeStateUpdateWithRetries(x -> scheduler.sendCommandsToDeviceAwaitConfirmation(),maxRetries--, delayMs);
-    // }
-    // return null;
+    private synchronized void cancelPendingSettingsUpdateJob() {
+        settingsUpdateFuture.ifPresent(x -> {
+            if (!x.isDone()) {
+                logger.info("Cancelling previous update job");
+                x.cancel(true);
+            }
+        });
+        settingsUpdateFuture = Optional.empty();
+    }
+
+    private void sendCommandsToDeviceAwaitConfirmation(boolean forceRefresh) throws ArgoLocalApiCommunicationException {
+
+        logger.warn("STARTING UPDATES!!!");
+        // TODO
+        cancelPendingSettingsUpdateJob();
+
+        Supplier<Boolean> fn = () -> {
+            try {
+                Thread.sleep(100); // naive debounce (not to overflow the device if multiple commands are sent at once)
+            } catch (InterruptedException e) {
+            }
+            var valuesToUpdate = this.deviceApi.get().getItemsWithPendingUpdates();
+            logger.info("Will UPDATE the following items: {}", valuesToUpdate);
+
+            int attempt = 0;
+            while (true) {
+                attempt++;
+                try {
+                    if (!this.deviceApi.get().hasPendingCommands()) {
+                        if (forceRefresh) {
+                            this.deviceApi.get().queryDeviceForUpdatedState(); // no updates but refresh was forced
+                        } else {
+                            logger.info("Nothing to update... skipping"); // update might have occured async
+                        }
+                        return false; // no update made
+                    }
+
+                    this.deviceApi.get().sendCommandsToDevice();
+                    if (!this.deviceApi.get().hasPendingCommands()) {
+                        logger.info("ALL UPDATED ON 1st try!!");
+                        return true;
+                    }
+
+                    try {
+                        Thread.sleep(3000); // Note: the device takes long to process commands. Giving it a few sec.
+                                            // before reconfirming
+                    } catch (InterruptedException e) {
+                        return true;
+                    }
+                    this.deviceApi.get().queryDeviceForUpdatedState();
+                    if (this.deviceApi.get().hasPendingCommands()) {
+                        throw new RuntimeException("Update not confirmed. Value was not set");
+                    }
+                    return true;
+
+                } catch (Exception ex) {
+                    if (attempt < MAX_UPDATE_RETRIES - 1) {
+                        try {
+                            Thread.sleep(Duration.ofMillis(1500).toMillis());
+                        } catch (InterruptedException e) {
+                            // TODO Auto-generated catch block
+                            return false;
+                        }
+                        continue; // try again
+                    } else {
+                        valuesToUpdate.stream().forEach(x -> x.abortPendingCommand());
+                        throw new RuntimeException("Device command failed", ex);
+                    }
+                }
+            }
+        };
+
+        synchronized (this) {
+            settingsUpdateFuture = Optional.of(scheduler.submit(() -> CompletableFuture.supplyAsync(fn)));
+        }
+        //
+        // Supplier<CompletableFuture<Boolean>> asyncFn = () -> CompletableFuture.supplyAsync(fn);
+        //
+        // try {
+        // sendCommandToDeviceFuture = Optional.of(Retrier.<Boolean>withRetries(scheduler, asyncFn, t -> true, // should
+        // // retry
+        // MAX_UPDATE_RETRIES, Duration.ofMillis(1500)));
+        //
+        // // THIS IS CRAP TODO
+        // // return sendCommandToDeviceFuture.get().get();
+        // // retry on exceptions
+        // sendCommandToDeviceFuture.get().exceptionally(x -> {
+        // valuesToUpdate.stream().forEach(val -> val.abortPendingCommand());
+        // throw new RuntimeException("Failed to send commands to device: " + x.getMessage(), x);
+        // }); // .thenApply(CompletableFuture::completedFuture); // NO LONGER ASYNC!!!
+        // return true;
+        // } catch (Exception e) {
+        // valuesToUpdate.stream().forEach(x -> x.abortPendingCommand());
+        // throw new ArgoLocalApiCommunicationException("Failed to send commands to device: " + e.getMessage(), e);
+        // }
+
+        // abortPendingCommand
+        // return false;
+    }
+
+    //
+    // private boolean sendCommandsToDeviceAwaitConfirmation(boolean forceRefresh)
+    // throws ArgoLocalApiCommunicationException {
+    //
+    // logger.warn("STARTING UPDATES!!!");
+    // // TODO
+    // sendCommandToDeviceFuture.ifPresent(x -> {
+    // logger.info("Cancelling previous update job");
+    // x.cancel(true);
     // });
-    // return future;
+    // sendCommandToDeviceFuture = Optional.empty();
     //
-    //// return sendCommandsToDeviceAwaitConfirmation().thenApply(CompletableFuture::completedFuture)
-    //// .exceptionally(t -> retry(t, 0)).thenCompose(Function.identity());
+    // // if (settingsUpdateFuture != null) {
+    // // settingsUpdateFuture.cancel(true); // ?
+    // // settingsUpdateFuture = null;
+    // // }
+    // //
+    //
+    // // // safeguard for multiple REFRESH commands
+    // // if (isMinimumRefreshTimeExceeded()) {
+    //
+    // var valuesToUpdate = this.deviceApi.get().getItemsWithPendingUpdates();
+    // logger.info("Will UPDATE the following items: {}", valuesToUpdate);
+    //
+    // Supplier<Boolean> fn = () -> {
+    // // return true;
+    // try {
+    // Thread.sleep(10000);
+    // } catch (InterruptedException e2) {
+    // // TODO Auto-generated catch block
+    // e2.printStackTrace();
+    // return false;
     // }
-    //
-    // private CompletableFuture<Boolean> retry(Throwable first, int retry) {
-    // if (retry >= MAX_UPDATE_RETRIES) {
-    // return CompletableFuture.failedFuture(first);
-    // }
-    // logger.warn("Retrying...");
-    // return sendCommandsToDeviceAwaitConfirmation().thenApply(CompletableFuture::completedFuture)
-    // .exceptionally(t -> {
-    // first.addSuppressed(t);
-    // return retry(first, retry + 1);
-    // }).thenCompose(Function.identity());
-    // }
-    //
-    // private CompletableFuture<Boolean> sendCommandsToDeviceAwaitConfirmation() {
-    // CompletableFuture<Boolean> wasUpdated = new CompletableFuture<>();
-    //
-    //
-    // if (settingsUpdateFuture != null) {
-    // settingsUpdateFuture.cancel(true); // ?
-    // settingsUpdateFuture = null;
-    // }
-    //
-    // settingsUpdateFuture = scheduler.submit(() -> {
-    //
+    // logger.warn("SATARTING UPDATES TURBOASYNC UPDATES!!!");
     // if (!this.deviceApi.get().hasPendingCommands()) {
-    // logger.debug("Nothing to update... skipping");
-    // wasUpdated.complete(false);
+    // if (forceRefresh) {
+    // try {
+    // this.deviceApi.get().queryDeviceForUpdatedState(); // no updates but refresh was forced
+    // } catch (ArgoLocalApiCommunicationException e) {
+    // throw new RuntimeException(e);
     // }
+    // } else {
+    // logger.info("Nothing to update... skipping"); // update might have occured async
+    // }
+    // return false;
+    // }
+    // try {
     // this.deviceApi.get().sendCommandsToDevice();
-    // this.deviceApi.get().updateStateFromDevice();
+    // } catch (ArgoLocalApiCommunicationException e1) {
+    // throw new RuntimeException(e1);
+    // }
+    // if (!this.deviceApi.get().hasPendingCommands()) {
+    // logger.info("ALL UPDATED ON 1st try!!");
+    // return false;
+    // }
+    //
+    // try {
+    // Thread.sleep(2000); // TODO: this needs *BETTER* delay logic
+    // } catch (InterruptedException e) {
+    // e.printStackTrace();
+    // return false;
+    // // TODO Auto-generated catch block
+    //
+    // }
+    // try {
+    // this.deviceApi.get().queryDeviceForUpdatedState();
+    // } catch (ArgoLocalApiCommunicationException e) {
+    // throw new RuntimeException(e);
+    // }
     //
     // if (this.deviceApi.get().hasPendingCommands()) {
     // throw new RuntimeException("Update not confirmed. Value was not set");
     // }
-    // wasUpdated.complete(true);
-    // });
+    // logger.warn("STOPPING UPDATES!!!");
+    // return true;
+    // };
     //
-    // return wasUpdated;
+    // Supplier<CompletableFuture<Boolean>> asyncFn = () -> CompletableFuture.supplyAsync(fn);
+    //
+    // try {
+    // sendCommandToDeviceFuture = Optional.of(Retrier.<Boolean>withRetries(scheduler, asyncFn, t -> true, // should
+    // // retry
+    // MAX_UPDATE_RETRIES, Duration.ofMillis(1500)));
+    //
+    // // THIS IS CRAP TODO
+    // // return sendCommandToDeviceFuture.get().get();
+    // // retry on exceptions
+    // sendCommandToDeviceFuture.get().exceptionally(x -> {
+    // valuesToUpdate.stream().forEach(val -> val.abortPendingCommand());
+    // throw new RuntimeException("Failed to send commands to device: " + x.getMessage(), x);
+    // }); // .thenApply(CompletableFuture::completedFuture); // NO LONGER ASYNC!!!
+    // return true;
+    // } catch (Exception e) {
+    // valuesToUpdate.stream().forEach(x -> x.abortPendingCommand());
+    // throw new ArgoLocalApiCommunicationException("Failed to send commands to device: " + e.getMessage(), e);
     // }
     //
-    private boolean sendCommandsToDeviceAwaitConfirmation() {
-        // TODO
-        // if (settingsUpdateFuture != null) {
-        // settingsUpdateFuture.cancel(true); // ?
-        // settingsUpdateFuture = null;
-        // }
-        //
-
-        Supplier<Boolean> fn = () -> {
-            if (!this.deviceApi.get().hasPendingCommands()) {
-                logger.debug("Nothing to update... skipping");
-                return false;
-            }
-            this.deviceApi.get().sendCommandsToDevice();
-            if (!this.deviceApi.get().hasPendingCommands()) {
-                logger.info("ALL UPDATED ON 1st try!!");
-                return false;
-            }
-
-            try {
-                Thread.sleep(1000); // TODO: this needs *BETTER* delay logic
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            this.deviceApi.get().queryDeviceForUpdatedState();
-
-            if (this.deviceApi.get().hasPendingCommands()) {
-                throw new RuntimeException("Update not confirmed. Value was not set");
-            }
-            return true;
-        };
-
-        Supplier<CompletableFuture<Boolean>> asyncFn = () -> CompletableFuture.supplyAsync(fn);
-
-        try {
-            Boolean result = Retrier.<Boolean>withRetries(scheduler, asyncFn, t -> true, // should retry
-                    MAX_UPDATE_RETRIES, Duration.ofMillis(1500)).get();
-            return result;
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        return false;
-    }
+    // // abortPendingCommand
+    // // return false;
+    // }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        boolean hasUpdates = false;
-        if (ArgoClimaBindingConstants.CHANNEL_POWER.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.POWER, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ACTIVE_TIMER, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_CURRENT_TEMPERATURE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ACTUAL_TEMPERATURE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_ECO_MODE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ECO_MODE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_FAN_SPEED.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FAN_LEVEL, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_FILTER_MODE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FILTER_MODE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_SWING_MODE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FLAP_LEVEL, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_I_FEEL_ENABLED.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.I_FEEL_TEMPERATURE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_DEVICE_LIGHTS.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.LIGHT, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_MODE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.MODE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_NIGHT_MODE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.NIGHT_MODE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_SET_TEMPERATURE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TARGET_TEMPERATURE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TIMER_TYPE, command, channelUID);
-        }
-        if (ArgoClimaBindingConstants.CHANNEL_TURBO_MODE.equals(channelUID.getId())) {
-            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TURBO_MODE, command, channelUID);
-        }
+        try {
+            if (command instanceof RefreshType) {
+                sendCommandsToDeviceAwaitConfirmation(true); // Irrespective of channel (the API gets all data points in
+                                                             // one
+                                                             // go)
+                return;
+            }
 
-        // case DISPLAY_TEMPERATURE_SCALE:
-        // break;
-        // case ECO_POWER_LIMIT:
-        // break;
-        // case RESET_TO_FACTORY_SETTINGS:
-        // break;
-        // case TIMER_0_DELAY_TIME:
-        // channelName = ArgoClimaBindingConstants.CHANNEL_DELAY_TIMER;
-        // break;
-        // case TIMER_N_ENABLED_DAYS:
-        // // Scheduletimer
-        // break;
-        // case TIMER_N_OFF_TIME:
-        // break;
-        // case TIMER_N_ON_TIME:
-        // break;
-        // case UNIT_FIRMWARE_VERSION:
-        // break;
-        // default:
-        // break;
-        // }
+            boolean hasUpdates = false;
+            if (ArgoClimaBindingConstants.CHANNEL_POWER.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.POWER, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ACTIVE_TIMER, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_CURRENT_TEMPERATURE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ACTUAL_TEMPERATURE, command,
+                        channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_ECO_MODE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ECO_MODE, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_FAN_SPEED.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FAN_LEVEL, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_FILTER_MODE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FILTER_MODE, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_SWING_MODE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.FLAP_LEVEL, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_I_FEEL_ENABLED.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.I_FEEL_TEMPERATURE, command,
+                        channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_DEVICE_LIGHTS.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.LIGHT, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_MODE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.MODE, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_NIGHT_MODE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.NIGHT_MODE, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_SET_TEMPERATURE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TARGET_TEMPERATURE, command,
+                        channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TIMER_TYPE, command, channelUID);
+            }
+            if (ArgoClimaBindingConstants.CHANNEL_TURBO_MODE.equals(channelUID.getId())) {
+                hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TURBO_MODE, command, channelUID);
+            }
 
-        if (hasUpdates) {
-            sendCommandsToDeviceAwaitConfirmation();
-            // executeStateUpdateWithRetries();
+            // case DISPLAY_TEMPERATURE_SCALE:
+            // break;
+            // case ECO_POWER_LIMIT:
+            // break;
+            // case RESET_TO_FACTORY_SETTINGS:
+            // break;
+            // case TIMER_0_DELAY_TIME:
+            // channelName = ArgoClimaBindingConstants.CHANNEL_DELAY_TIMER;
+            // break;
+            // case TIMER_N_ENABLED_DAYS:
+            // // Scheduletimer
+            // break;
+            // case TIMER_N_OFF_TIME:
+            // break;
+            // case TIMER_N_ON_TIME:
+            // break;
+            // case UNIT_FIRMWARE_VERSION:
+            // break;
+            // default:
+            // break;
+            // }
+
+            if (hasUpdates) {
+                sendCommandsToDeviceAwaitConfirmation(false);
+                // executeStateUpdateWithRetries();
+            }
+        } catch (ArgoLocalApiCommunicationException ex) {
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                    "Could not control device at IP address x.x.x.x | " + ex.getMessage());
         }
 
         if (CHANNEL_1.equals(channelUID.getId())) {
@@ -320,7 +432,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
         if (updateInitiated) {
             State currentState = this.deviceApi.get().getCurrentStateNoPoll(settingType);
             logger.info("State of {} after update: {}", channelUID, currentState);
-            updateState(channelUID, currentState);
+            updateState(channelUID, currentState); // TODO: assume new state
         }
         return updateInitiated;
 
@@ -353,7 +465,8 @@ public class ArgoClimaHandler extends BaseThingHandler {
                     : Optional.of(InetAddress.getByName(config.get().localDeviceIP)); // TODO
 
             this.deviceApi = Optional.of(new ArgoClimaLocalDevice(InetAddress.getByName(config.get().hostname),
-                    ArgoClimaConfiguration.LOCAL_PORT, localIpAddress, targetCpuID, this.client));
+                    ArgoClimaConfiguration.LOCAL_PORT, localIpAddress, targetCpuID, this.client,
+                    this::updateChannelsFromDevice, this::updateStatus));
         } catch (UnknownHostException e) {
             // TODO Auto-generated catch block
             logger.warn("Unable to get local device address", e);
@@ -422,6 +535,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
                     Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().queryDeviceForUpdatedState();
                     logger.info(newState.toString());
                     updateChannelsFromDevice(newState);
+                    apiRetries = 0;
 
                     // List<Channel> channels = getThing().getChannels();
                     // for (Channel channel : channels) {
@@ -462,10 +576,14 @@ public class ArgoClimaHandler extends BaseThingHandler {
             // }
             // }
             // }
-            catch (RuntimeException e) {
-                String message = "Runtime exception on update";
+            catch (RuntimeException | ArgoLocalApiCommunicationException e) {
+                String message = "Runtime exception on update. Exceeded retries";
                 logger.warn("{}: {}", getThing().getUID().getId(), message, e);
                 apiRetries++;
+                if (apiRetries > MAX_API_RETRIES) {
+                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR, message);
+                    apiRetries = 0;
+                }
             }
         };
 
@@ -577,15 +695,12 @@ public class ArgoClimaHandler extends BaseThingHandler {
         String message = "";
         try {
             // TODO: do a few retries here?
-            // boolean isAlive =
-            this.deviceApi.get().isReachable(isAlive -> {
+            boolean isAlive = this.deviceApi.get().isReachable();
+
+            if (isAlive) {
                 updateStatus(ThingStatus.ONLINE);
                 return;
-            });
-            // if (isAlive) {
-            // updateStatus(ThingStatus.ONLINE);
-            // return;
-            // }
+            }
             message = "Device is not alive";
         }
 
@@ -670,6 +785,10 @@ public class ArgoClimaHandler extends BaseThingHandler {
         if (initializeFuture != null) {
             initializeFuture.cancel(true);
         }
+
+        cancelPendingSettingsUpdateJob();
+        // sendCommandToDeviceFuture.ifPresent(x -> x.cancel(true));
+        // sendCommandToDeviceFuture = Optional.empty();
     }
 
 }

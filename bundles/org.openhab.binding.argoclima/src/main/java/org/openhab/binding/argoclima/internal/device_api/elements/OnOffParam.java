@@ -3,7 +3,6 @@ package org.openhab.binding.argoclima.internal.device_api.elements;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -32,6 +31,10 @@ public class OnOffParam extends ArgoApiElementBase {
         // TODO Auto-generated method stub
     }
 
+    private static State valueToState(Optional<Boolean> value) {
+        return value.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
+    }
+
     @Override
     public String toString() {
         if (currentValue.isEmpty()) {
@@ -43,25 +46,22 @@ public class OnOffParam extends ArgoApiElementBase {
 
     @Override
     protected State getAsState() {
-        return currentValue.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
-        // if (currentValue.isEmpty()) {
-        // return UnDefType.UNDEF;
-        // // UnDefType.NULL
-        // }
-        // return OnOffType.from(currentValue.get());
+        return valueToState(currentValue);
     }
 
     @Override
-    protected @Nullable String handleCommandInternal(Command command) {
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
         if (command instanceof OnOffType) {
             if (((OnOffType) command).equals(OnOffType.ON)) {
-                currentValue = Optional.of(true);
-                return VALUE_ON;
+                var targetValue = Optional.of(true);
+                currentValue = targetValue;
+                return new HandleCommandResult(VALUE_ON, valueToState(targetValue));
             } else if (((OnOffType) command).equals(OnOffType.OFF)) {
-                currentValue = Optional.of(false);
-                return VALUE_OFF;
+                var targetValue = Optional.of(false);
+                currentValue = targetValue;
+                return new HandleCommandResult(VALUE_OFF, valueToState(targetValue));
             }
         }
-        return null; // TODO
+        return new HandleCommandResult(false);
     }
 }

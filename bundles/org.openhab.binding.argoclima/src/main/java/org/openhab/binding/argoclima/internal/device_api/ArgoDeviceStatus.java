@@ -1,11 +1,11 @@
 package org.openhab.binding.argoclima.internal.device_api;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.argoclima.internal.ArgoClimaHandler;
 import org.openhab.binding.argoclima.internal.device_api.elements.EnumParam;
 import org.openhab.binding.argoclima.internal.device_api.elements.FwVersionParam;
@@ -129,11 +129,13 @@ public class ArgoDeviceStatus {
 
     public ArgoApiDataElement<IArgoElement> getSetting(ArgoDeviceSettingType type) {
         if (dataElements.containsKey(type)) {
-            @Nullable
-            ArgoApiDataElement<IArgoElement> retVal = dataElements.get(type);
-            if (retVal != null) {
-                return retVal;
-            }
+            return dataElements.get(type);
+
+            // @Nullable
+            // ArgoApiDataElement<IArgoElement> retVal = dataElements.get(type);
+            // if (retVal != null) {
+            // return retVal;
+            // }
             // return dataElements.get(type); // can this be NULL or can't it?
             // return ObjectUtils.firstNonNull(dataElements.get(type), null); // TODO?!!?
         }
@@ -162,7 +164,9 @@ public class ArgoDeviceStatus {
         if (values.length != 39) {
             throw new RuntimeException("Invalid device API response: " + deviceOutput);
         }
-        dataElements.entrySet().stream().forEach(v -> v.getValue().fromDeviceResponse(values));
+        synchronized (this) {
+            dataElements.entrySet().stream().forEach(v -> v.getValue().fromDeviceResponse(values));
+        }
 
         // logger.info(String.join(",", values));
         logger.info(this.toString());
@@ -173,7 +177,14 @@ public class ArgoDeviceStatus {
         Arrays.fill(commands, "N");
 
         dataElements.entrySet().stream().filter(x -> x.getValue().isUpdatePending())
-                .map(x -> x.getValue().toDeviceResponse()).forEach(p -> commands[p.getLeft()] = p.getRight());
+                .map(x -> x.getValue().toDeviceResponse()).forEach(p -> {
+                    if (p.getLeft() < 0 || p.getLeft() > commands.length) {
+                        throw new RuntimeException(String.format(
+                                "Attempting to set device command %d := %s, while only commands 0..%d are supported",
+                                p.getLeft(), p.getRight(), commands.length));
+                    }
+                    commands[p.getLeft()] = p.getRight();
+                });
 
         // TODO: add current time setting (can override internally etc, maybe?
 
@@ -182,6 +193,13 @@ public class ArgoDeviceStatus {
 
     public boolean hasUpdatesPending() {
         return this.dataElements.values().stream().anyMatch(x -> x.isUpdatePending());
+    }
+
+    public List<ArgoApiDataElement<IArgoElement>> getItemsWithPendingUpdates() {
+        logger.info("Items with update pending: {}",
+                this.dataElements.values().stream().filter(x -> x.isUpdatePending()).toArray());
+
+        return this.dataElements.values().stream().filter(x -> x.isUpdatePending()).collect(Collectors.toList());
     }
 }
 

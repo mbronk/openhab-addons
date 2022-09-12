@@ -5,7 +5,6 @@ import java.util.Optional;
 import javax.measure.quantity.Temperature;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.SIUnits;
 import org.openhab.core.types.Command;
@@ -30,6 +29,13 @@ public class TemperatureParam extends ArgoApiElementBase {
         this.minValue = Double.NEGATIVE_INFINITY;
         this.maxValue = Double.POSITIVE_INFINITY;
         this.step = 0.01;
+    }
+
+    private static State valueToState(Optional<Double> value) {
+        if (value.isEmpty()) {
+            return UnDefType.UNDEF;
+        }
+        return new QuantityType<Temperature>(value.get(), SIUnits.CELSIUS);
     }
 
     // @Override
@@ -60,21 +66,21 @@ public class TemperatureParam extends ArgoApiElementBase {
 
     @Override
     protected State getAsState() {
-        if (currentValue.isEmpty()) {
-            return UnDefType.UNDEF;
-        }
-        return new QuantityType<Temperature>(currentValue.get(), SIUnits.CELSIUS);
+        return valueToState(currentValue);
     }
 
     @Override
-    protected @Nullable String handleCommandInternal(Command command) {
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
         if (command instanceof QuantityType<?>) {
             double newValue = ((QuantityType<?>) command).doubleValue();
             if (this.currentValue.isEmpty() || this.currentValue.get().doubleValue() != newValue) {
-                this.currentValue = Optional.of(newValue);
+                var targetValue = Optional.<Double>of(newValue);
+                this.currentValue = targetValue;
+                return new HandleCommandResult(Integer.toUnsignedString((int) (targetValue.get() * 10.0)),
+                        valueToState(targetValue));
             }
-            return Integer.toUnsignedString((int) (this.currentValue.get() * 10.0));
+            // return Integer.toUnsignedString((int) (this.currentValue.get() * 10.0));
         }
-        return null; // TODO
+        return new HandleCommandResult(false);
     }
 }

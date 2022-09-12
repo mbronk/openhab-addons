@@ -21,14 +21,18 @@ public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
     private int statusUpdateRequestIndex;
     private DataElementType type;
     // private @Nullable String rawValue;
-    private T lastReadValue;
+    private T rawValue;
     // private @Nullable T valueToSet;
 
     private ArgoApiDataElement(T rawValue, int queryIndex, int updateIndex, DataElementType type) {
         this.queryResponseIndex = queryIndex;
         this.statusUpdateRequestIndex = updateIndex;
         this.type = type;
-        this.lastReadValue = rawValue;
+        this.rawValue = rawValue;
+    }
+
+    public void abortPendingCommand() {
+        this.rawValue.abortPendingCommand();
     }
 
     public static ArgoApiDataElement<IArgoElement> readWriteElement(IArgoElement rawValue, int queryIndex,
@@ -61,21 +65,21 @@ public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
         if (this.type == DataElementType.READ_WRITE || this.type == DataElementType.READ_ONLY) {
             // this.rawValue = responseElements[queryResponseIndex];
             // State newState =
-            return this.lastReadValue.updateFromApiResponse(responseElements[queryResponseIndex]);
+            return this.rawValue.updateFromApiResponse(responseElements[queryResponseIndex]);
             // TODO: err handling
         }
         return UnDefType.NULL;
     }
 
     public @Nullable Pair<Integer, String> toDeviceResponse() {
-        if (this.lastReadValue.isUpdatePending()) {
-            return Pair.of(this.statusUpdateRequestIndex, this.lastReadValue.getDeviceApiValue());
+        if (this.rawValue.isUpdatePending()) {
+            return Pair.of(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue());
         }
         return null;
     }
 
     public boolean isUpdatePending() {
-        return this.lastReadValue.isUpdatePending();
+        return this.rawValue.isUpdatePending();
     }
 
     //
@@ -88,12 +92,12 @@ public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
     }
 
     public State getState() {
-        return lastReadValue.toState();
+        return rawValue.toState();
     }
 
     @Override
     public String toString() {
-        return lastReadValue.toString();
+        return rawValue.toString();
     }
 
     public boolean handleCommand(Command command) {
@@ -101,6 +105,6 @@ public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
             return false; // attempting to write a R/O value
         }
 
-        return lastReadValue.handleCommand(command);
+        return rawValue.handleCommand(command);
     }
 }

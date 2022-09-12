@@ -211,7 +211,7 @@
 			<tag>Setpoint</tag>
 			<tag>Temperature</tag>
 		</tags>
-		<state min="10" max="32" step="0.5" pattern="%.1f %unit%" readOnly="false"/>
+		<state min="10" max="32" step="0.1" pattern="%.1f %unit%" readOnly="false"/>
 	</channel-type>
 
 	<channel-type id="currentTemperature-channel">

@@ -4,7 +4,6 @@ import java.util.EnumSet;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
@@ -33,6 +32,13 @@ public class WeekdayParam extends ArgoApiElementBase {
         public int getIntValue() {
             return this.value;
         }
+    }
+
+    private static State valueToState(Optional<EnumSet<Weekday>> value) {
+        if (value.isEmpty()) {
+            return UnDefType.UNDEF;
+        }
+        return new StringType(value.get().toString());
     }
 
     private Optional<EnumSet<Weekday>> currentValue = Optional.empty();
@@ -75,14 +81,11 @@ public class WeekdayParam extends ArgoApiElementBase {
 
     @Override
     protected State getAsState() {
-        if (currentValue.isEmpty()) {
-            return UnDefType.UNDEF;
-        }
-        return new StringType(currentValue.get().toString());
+        return valueToState(currentValue);
     }
 
     @Override
-    protected @Nullable String handleCommandInternal(Command command) {
-        return null; // TODO
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
+        return new HandleCommandResult(false);
     }
 }

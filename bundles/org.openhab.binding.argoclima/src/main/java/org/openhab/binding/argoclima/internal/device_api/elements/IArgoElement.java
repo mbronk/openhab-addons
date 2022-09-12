@@ -9,7 +9,7 @@ public interface IArgoElement {
 
     public State getLastStateFromDevice();
 
-    public State getCurentState();
+    // public State getCurentState();
 
     public boolean isUpdatePending();
 
@@ -26,4 +26,6 @@ public interface IArgoElement {
 
     @Override
     public String toString();
+
+    public void abortPendingCommand();
 }

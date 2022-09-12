@@ -1,10 +1,13 @@
 package org.openhab.binding.argoclima.internal.device_api.elements;
 
-import org.apache.commons.lang3.ObjectUtils;
+import java.time.Instant;
+import java.util.Optional;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
+import org.openhab.core.types.UnDefType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,26 +16,39 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     protected static final String NO_VALUE = "N";
     private final Logger logger = LoggerFactory.getLogger(ArgoApiElementBase.class);
 
-    private @Nullable String currentRawValue;
-    private @Nullable String targetRawValue;
-    private boolean updatePending = false;
+    private @Nullable String lastRawValueFromDevice;
+    private Optional<State> lastStateConfirmedByDevice = Optional.empty();
+    // private @Nullable String targetRawValue;
+    private Optional<HandleCommandResult> lastCommandResult = Optional.empty();
 
     @Override
     public State updateFromApiResponse(String responseValue) {
         if (this.isUpdatePending()) {
-            if (responseValue.equals(this.targetRawValue)) {
-                // TODO logger
-                this.updatePending = false;
-                this.targetRawValue = null;
+            if (responseValue.equals(this.lastCommandResult.get().deviceCommandToSend.get())) { // todo: compare by
+                                                                                                // stete
+                logger.info("Update confirmed!");
+                this.lastCommandResult = Optional.empty();
+                // this.targetRawValue = null;
+            } else if (this.lastCommandResult.get().isMinimumRefreshTimeExceeded()) {
+                logger.warn("Long-pending update found. Cancelling...");
+                this.lastCommandResult = Optional.empty();
             } else {
-                logger.warn("Update made, but values mismatch... {} != {}", responseValue, this.targetRawValue);
+                logger.warn("Update made, but values mismatch... {} != {}", responseValue,
+                        this.lastCommandResult.get().deviceCommandToSend.get());
             }
         }
         // TODO Auto-generated method stub
 
-        this.currentRawValue = responseValue;
+        this.lastRawValueFromDevice = responseValue;
         this.updateFromApiResponseInternal(responseValue);
+        this.lastStateConfirmedByDevice = Optional.of(this.getAsState());
         return this.getAsState();
+    }
+
+    @Override
+    public void abortPendingCommand() {
+        // this.targetRawValue = null;
+        this.lastCommandResult = Optional.empty();
     }
 
     protected abstract void updateFromApiResponseInternal(String responseValue);
@@ -64,44 +80,89 @@ public abstract class ArgoApiElementBase implements IArgoElement {
 
     @Override
     public String toString() {
-        return String.format("RAW[%s]", currentRawValue);
+        return String.format("RAW[%s]", lastRawValueFromDevice);
     }
 
     @Override
     public State getLastStateFromDevice() {
-        return this.getAsState(); // TODO: yagni?
+        return this.lastStateConfirmedByDevice.orElse(UnDefType.UNDEF); // TODO: yagni?
     }
 
-    @Override
-    public State getCurentState() {
-        return this.getAsState();
-    }
+    // @Override
+    // public State getCurentState() {
+    // return this.getAsState();
+    // }
 
     @Override
     public boolean isUpdatePending() {
-        // return this.updatePending; // TODO
-        return this.targetRawValue != null;
+        // logger.info("Is update pending: CURRENT_STATE=[{}], LAST_STATE_FROM_DEVICE=[{}], PLANNED_STATE=[{}]",
+        // toState(),
+        // getLastStateFromDevice(), this.lastCommandResult);
+
+        return this.lastCommandResult.isPresent() && this.lastCommandResult.get().handled
+                && this.lastCommandResult.get().deviceCommandToSend.get() != lastRawValueFromDevice;
     }
 
     @Override
     public String getDeviceApiValue() {
-        if (!isUpdatePending() || this.targetRawValue == null) {
+        if (!isUpdatePending()) {
             return NO_VALUE;
         }
-        return ObjectUtils.defaultIfNull(this.targetRawValue, ""); // TODO: null
-        // return NO_VALUE;// TODO
+        return this.lastCommandResult.get().deviceCommandToSend.get();
+    }
+
+    public class HandleCommandResult {
+        public final boolean handled;
+        public final Optional<String> deviceCommandToSend;
+        public final Optional<State> plannedState;
+        private final long updateRequestedTime;
+        private final long UPDATE_EXPIRE_TIME_MS = 120000;
+
+        public boolean isMinimumRefreshTimeExceeded() {
+            return (Instant.now().toEpochMilli() - updateRequestedTime) > UPDATE_EXPIRE_TIME_MS;
+        }
+
+        public HandleCommandResult(boolean handled) {
+            if (handled) {
+                throw new RuntimeException("This c-tor should be used for rejected only");
+            }
+            this.updateRequestedTime = Instant.now().toEpochMilli();
+            this.handled = false;
+            this.deviceCommandToSend = Optional.empty();
+            this.plannedState = Optional.empty();
+        }
+
+        public HandleCommandResult(String deviceCommandToSend, State plannedState) {
+            this.updateRequestedTime = Instant.now().toEpochMilli();
+            this.handled = true;
+            this.deviceCommandToSend = Optional.of(deviceCommandToSend);
+            this.plannedState = Optional.of(plannedState);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("HandleCommandResult(wasHandled=%s,deviceCommand=%s,plannedState=%s,isObsolete=%s)",
+                    handled, deviceCommandToSend, plannedState, isMinimumRefreshTimeExceeded());
+        }
     }
 
     @Override
     public boolean handleCommand(Command command) {
-        String newRawValue = this.handleCommandInternal(command);
-        if (newRawValue != null) {
-            this.targetRawValue = newRawValue; // do not touch otherwise
-            this.updatePending = true;
+        var result = this.handleCommandInternalEx(command);
+        if (result.handled) {
+            this.lastCommandResult = Optional.of(result);
+            // this.targetRawValue = result.deviceCommandToSend.get();
             return true;
         }
-        // this.updatePending = false;
-        return false; // TODO
+        return false;
+        //
+        // String newRawValue = this.handleCommandInternal(command);
+        // if (newRawValue != null) {
+        // this.targetRawValue = newRawValue; // do not touch otherwise
+        // return true;
+        // }
+        // // this.updatePending = false;
+        // return false; // TODO
     }
 
     /**
@@ -109,5 +170,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
      * @param command
      * @return Raw value to be sent to the device or null if no update needed
      */
-    protected abstract @Nullable String handleCommandInternal(Command command);
+    // protected abstract @Nullable String handleCommandInternal(Command command);
+
+    protected abstract HandleCommandResult handleCommandInternalEx(Command command);
 }

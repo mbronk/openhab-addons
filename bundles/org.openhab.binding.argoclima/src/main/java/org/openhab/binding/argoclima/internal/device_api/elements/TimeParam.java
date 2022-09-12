@@ -7,7 +7,6 @@ import java.time.ZonedDateTime;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -29,6 +28,14 @@ public class TimeParam extends ArgoApiElementBase {
     public TimeParam(int minValue, int maxValue) {
         this.minValue = minValue;
         this.maxValue = maxValue;
+    }
+
+    private static State valueToState(Optional<LocalTime> value) {
+        if (value.isEmpty()) {
+            return UnDefType.UNDEF;
+        }
+        // todo this is sketchy
+        return new DateTimeType(ZonedDateTime.of(LocalDate.now(), value.get(), ZoneId.systemDefault()));
     }
 
     public static int fromHhMm(int hour, int minute) {
@@ -56,16 +63,12 @@ public class TimeParam extends ArgoApiElementBase {
 
     @Override
     protected State getAsState() {
-        if (currentValue.isEmpty()) {
-            return UnDefType.UNDEF;
-        }
-        // todo this is sketchy
-        return new DateTimeType(ZonedDateTime.of(LocalDate.now(), currentValue.get(), ZoneId.systemDefault()));
+        return valueToState(currentValue);
     }
 
     @Override
-    protected @Nullable String handleCommandInternal(Command command) {
-        return null; // TODO
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
+        return new HandleCommandResult(false);
     }
 
 }

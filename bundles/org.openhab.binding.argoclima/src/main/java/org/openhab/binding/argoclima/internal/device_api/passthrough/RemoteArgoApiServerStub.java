@@ -10,19 +10,17 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api;
+package org.openhab.binding.argoclima.internal.device_api.passthrough;
 
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -30,9 +28,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.eclipse.jetty.util.UrlEncoded;
+import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.responses.RemoteGetUiFlgResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,6 @@ import org.slf4j.LoggerFactory;
 public class RemoteArgoApiServerStub {
 
     private final Logger logger = LoggerFactory.getLogger(RemoteArgoApiServerStub.class);
-    private static final String RPC_POOL_NAME = "argoclimaRpc";
     private final String ipAddress;
     private final int port;
     private final String id;
@@ -94,6 +95,7 @@ public class RemoteArgoApiServerStub {
     }
 
     private String getFakeResponse() {
+
         return "{|0|0|1|0|0|0|N,N,N,N,N,N,N,N,N,N,N,N,3,N,N,N,N,N,1,2,1360,N,0,NaN,N,N,N,N,N,N,N,N,N,N,N,N|}[|0|||]ACN_FREE <br>\t\t";
     }
 
@@ -113,46 +115,14 @@ public class RemoteArgoApiServerStub {
     }
 
     public enum DeviceRequestType {
+        GET_UI_ACN,
         GET_UI_NTP,
         GET_UI_FLG,
-        POST_STH,
+        GET_UI_UPD,
+        GET_OU_FW,
+        GET_UI_FW,
+        POST_UI_RT,
         UNKNOWN
-    }
-
-    public class DeviceSideUpdate {
-        public final String command;
-        public final String username;
-        public final String passwordHash;
-        public final String deviceIp;
-        public final String unitFirmware;
-        public final String wifiFirmware;
-        public final String cpuId;
-        public final String currentValues;
-        public final String timezoneId;
-        public final String setup;
-        public final String remoteServerId;
-
-        public DeviceSideUpdate(Map<String, String> parameterMap) {
-            this.command = Objects.requireNonNullElse(parameterMap.get("CM"), "");
-            this.username = Objects.requireNonNullElse(parameterMap.get("USN"), "");
-            this.passwordHash = Objects.requireNonNullElse(parameterMap.get("PSW"), "");
-            this.deviceIp = Objects.requireNonNullElse(parameterMap.get("IP"), "");
-            this.unitFirmware = Objects.requireNonNullElse(parameterMap.get("FW_OU"), "");
-            this.wifiFirmware = Objects.requireNonNullElse(parameterMap.get("FW_UI"), "");
-            this.cpuId = Objects.requireNonNullElse(parameterMap.get("CPU_ID"), "");
-            this.currentValues = Objects.requireNonNullElse(parameterMap.get("HMI"), "");
-            this.timezoneId = Objects.requireNonNullElse(parameterMap.get("TZ"), "");
-            this.setup = Objects.requireNonNullElse(parameterMap.get("SETUP"), "");
-            this.remoteServerId = Objects.requireNonNullElse(parameterMap.get("SERVER_ID"), "");
-        }
-
-        @Override
-        public String toString() {
-            return String.format(
-                    "Device-side update:\n\tCommand=%s,\n\tUser:password=%s:%s,\n\tIP=%s,\n\tFW=[Unit=%s | Wifi=%s],\n\tCPU_ID=%s,\n\tParameters=%s,\n\tRemoteServer=%s.",
-                    this.command, this.username, this.passwordHash, this.deviceIp, this.unitFirmware, this.wifiFirmware,
-                    this.cpuId, this.currentValues, this.remoteServerId);
-        }
     }
 
     // public class ArgoDeviceRequest {
@@ -165,7 +135,7 @@ public class RemoteArgoApiServerStub {
 
     public static final String REMOTE_SERVER_PATH = "/UI/UI.php";
 
-    public DeviceRequestType detectRequestType(HttpServletRequest request) {
+    public DeviceRequestType detectRequestType(HttpServletRequest request, String requestBody) {
         logger.info("Incoming request: {} {}://{}:{}{}?{}", request.getMethod(), request.getScheme(),
                 request.getLocalAddr(), request.getLocalPort(), request.getPathInfo(), request.getQueryString());
 
@@ -175,16 +145,42 @@ public class RemoteArgoApiServerStub {
         }
 
         var command = request.getParameter("CM");
-        if ("UI_NTP".equalsIgnoreCase(command) && request.getMethod().equalsIgnoreCase("GET")) {
-            return DeviceRequestType.GET_UI_NTP;
+        if (request.getMethod().equalsIgnoreCase("GET")) {
+            if ("UI_NTP".equalsIgnoreCase(command)) {
+                return DeviceRequestType.GET_UI_NTP; // Get time: GET /UI/UI.php?CM=UI_NTP (
+            }
+            if ("UI_FLG".equalsIgnoreCase(command)) {
+                return DeviceRequestType.GET_UI_FLG; // Param update: GET
+                                                     // /UI/UI.php?CM=UI_FLG?USN=%s&PSW=%s&IP=%s&FW_OU=_svn.%s&FW_UI=_svn.%s&CPU_ID=%s&HMI=%s&TZ=%s&SETUP=%s&SERVER_ID=%s
+            }
+            if ("UI_UPD".equalsIgnoreCase(command)) {
+                return DeviceRequestType.GET_UI_UPD; // Unknown: GET /UI/UI.php?CM=UI_UPD?USN=%s&PSW=%s&CPU_ID=%s
+            }
+            if ("OU_FW".equalsIgnoreCase(command)) {
+                return DeviceRequestType.GET_OU_FW;
+            }
+            if ("UI_FW".equalsIgnoreCase(command)) {
+                return DeviceRequestType.GET_UI_FW; // Unit FW update request GET
+                                                    // /UI/UI.php?CM=UI_FW&PK=%d&USN=%s&PSW=%s&CPU_ID=%s
+            }
+            if ("UI_ACN".equalsIgnoreCase(command)) {
+                return DeviceRequestType.GET_UI_ACN; // Unknown: GET /UI/UI.php?CM=UI_ACN&USN=%s&PSW=%s&CPU_ID=%s
+                                                     // (AT+CIPSERVER=0?)
+            }
         }
-        if ("UI_FLG".equalsIgnoreCase(command) && request.getMethod().equalsIgnoreCase("GET")) {
-            return DeviceRequestType.GET_UI_FLG;
-        }
+
+        var commandFromBody = new UrlEncoded(requestBody).getString("CM");
+
+        // URLDecoder.
+        // var commandPost =
         // TBD
-        if ("???".equalsIgnoreCase(command) && request.getMethod().equalsIgnoreCase("POST")) {
-            return DeviceRequestType.POST_STH;
+        if ("UI_RT".equalsIgnoreCase(commandFromBody) && request.getMethod().equalsIgnoreCase("POST")) {
+            return DeviceRequestType.POST_UI_RT; // Unknown: POST /UI/UI.php body:
+                                                 // CM=UI_RT&USN=%s&PSW=%s&CPU_ID=%s&DEL=%d&DATA=
+            // WiFi_Psw=UserName=Password=ServerID=TimeZone=uisetup.ddns.net | www.termauno.com | 95.254.67.59
         }
+
+        logger.warn("Unknown command: CM(query)=[{}], CM(body)=[{}]", command, commandFromBody);
         return DeviceRequestType.UNKNOWN;
     }
 
@@ -198,16 +194,26 @@ public class RemoteArgoApiServerStub {
             Objects.requireNonNull(request);
             Objects.requireNonNull(response);
 
-            var requestType = detectRequestType(request);
-            if (requestType == DeviceRequestType.GET_UI_FLG) {
-                handleDeviceSideUpdate(request.getParameterMap());
-            }
-
-            logger.info("Received request: {} - {}", target, baseRequest);
             var body = PassthroughHttpClient.getRequestBodyAsString(baseRequest);
-            // logger.info("Request body: {}", body);
-            // logger.info("Request 2: {}", request);
-            //
+            var requestType = detectRequestType(request, body);
+
+            switch (requestType) {
+                case GET_UI_FLG:
+                    var updateDto = DeviceSideUpdateDTO.fromDeviceRequest(request);
+                    logger.debug("Got device-side update: {}", updateDto);
+                    // Use for new update
+                    deviceApi.ifPresent(x -> x.updateDeviceStateFromPushRequest(updateDto.currentValues,
+                            updateDto.deviceIp, updateDto.cpuId));
+                    break;
+                case POST_UI_RT:
+                    var postRtDto = DeviceSidePostRtUpdateDTO.fromDeviceRequestBody(body);
+                    logger.info("Got device-side POST: {}", postRtDto);
+                    break;
+                case GET_UI_NTP:
+                case UNKNOWN:
+                default:
+                    break;
+            }
 
             if (passthroughClient.isPresent()) {
 
@@ -215,9 +221,13 @@ public class RemoteArgoApiServerStub {
                     var upstreamResponse = passthroughClient.get().passthroughRequest(baseRequest, body);
                     // logger.info("Remote server said: {}\n\t{}", upstreamResponse,
                     // upstreamResponse.getContentAsString());
+                    logger.info("XXXXXXX  BEFORE: {}", upstreamResponse.getContentAsString());
+                    var overridenBody = postProcessUpstreamResponse(requestType, upstreamResponse);
+                    logger.info("XXXXXXX   AFTER: {}", overridenBody);
 
                     // TODO restore
-                    PassthroughHttpClient.forwardUpstreamResponse(upstreamResponse, response);
+                    PassthroughHttpClient.forwardUpstreamResponse(upstreamResponse, response,
+                            Optional.of(overridenBody));
                     baseRequest.setHandled(true);
                     return;
                 } catch (InterruptedException | TimeoutException | ExecutionException e) {
@@ -248,6 +258,7 @@ public class RemoteArgoApiServerStub {
             }
             //
             // TrivialHttpRequest response = new TrivialHttpRequest("HTTP/1.1 200 OK");
+
             // response.setHeader("Content-Type", "text/html");
             // response.setHeader("Server", "Microsoft-IIS/8.5");
             // response.setHeader("X-Powered-By", "PHP/5.4.11");
@@ -257,16 +268,43 @@ public class RemoteArgoApiServerStub {
             // response.setBody(contentToSend.toCharArray());
         }
 
-        private void handleDeviceSideUpdate(Map<String, String[]> parameterMap) {
-            Map<String, String> flattenedParams = parameterMap.entrySet().stream().collect(
-                    Collectors.toMap(Map.Entry::getKey, x -> (x.getValue().length < 1) ? "" : x.getValue()[0]));
-            var update = new DeviceSideUpdate(flattenedParams);
+        // private void handleDeviceSideUpdate(Map<String, String[]> parameterMap) {
+        // Map<String, String> flattenedParams = parameterMap.entrySet().stream().collect(
+        // Collectors.toMap(Map.Entry::getKey, x -> (x.getValue().length < 1) ? "" : x.getValue()[0]));
+        // var update = new DeviceSideUpdateDTO(flattenedParams);
+        //
+        // // logger.info("Got device-side update: {}", update);
+        // // Use for new update
+        // deviceApi.ifPresent(
+        // x -> x.updateDeviceStateFromPushRequest(update.currentValues, update.deviceIp, update.cpuId));
+        // }
+    }
 
-            logger.info("Got device-side update: {}", update);
-            // Use for new update
-            deviceApi.ifPresent(
-                    x -> x.updateDeviceStateFromPushRequest(update.currentValues, update.deviceIp, update.cpuId));
+    private String postProcessUpstreamResponse(DeviceRequestType requestType, ContentResponse upstreamResponse) {
+        var bodyToReturn = upstreamResponse.getContentAsString();
+
+        if (upstreamResponse.getStatus() != 200) {
+            logger.warn("Remote server response for {} command was HTTP {}. Not parsing further", requestType,
+                    upstreamResponse.getStatus());
+            return bodyToReturn;
         }
+
+        switch (requestType) {
+            case GET_UI_FLG:
+                var responseDto = RemoteGetUiFlgResponseDTO.fromResponseString(upstreamResponse.getContentAsString());
+                // TODO: parse & process
+                // responseDto.preamble.Flag_0_Request_POST_UI_RT = 1;
+                // responseDto.preamble.Flag_5_Has_New_Update = 1;
+                return responseDto.toResponseString();
+            // break;
+            case POST_UI_RT:
+            case GET_UI_NTP:
+            case UNKNOWN:
+            default:
+                break;
+        }
+
+        return bodyToReturn;
     }
 
     public void shutdown() {
@@ -288,4 +326,5 @@ public class RemoteArgoApiServerStub {
             }
         }
     }
+
 }

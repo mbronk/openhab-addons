@@ -4,7 +4,6 @@ import java.util.EnumSet;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
@@ -49,26 +48,34 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
         // return currentValue.toString();
     }
 
-    @Override
-    protected State getAsState() {
-        if (currentValue.isEmpty()) {
+    private static <E extends Enum<E> & IArgoApiEnum> State valueToState(Optional<E> value) {
+        if (value.isEmpty()) {
             return UnDefType.UNDEF;
         }
-        return new StringType(currentValue.get().toString());
+        return new StringType(value.get().toString());
     }
 
     @Override
-    protected @Nullable String handleCommandInternal(Command command) {
+    protected State getAsState() {
+        return valueToState(currentValue);
+    }
+
+    @Override
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
         if (command instanceof StringType) {
             String newValue = ((StringType) command).toFullString();
             E val = Enum.valueOf(this.cls, newValue);
             if (this.currentValue.isEmpty() || this.currentValue.get().compareTo(val) != 0) {
-                this.currentValue = Optional.of(val);
-                return Integer.toString(this.currentValue.get().getIntValue());
+
+                var newRawValue = Optional.of(val);
+
+                this.currentValue = newRawValue;
+                return new HandleCommandResult(Integer.toString(newRawValue.get().getIntValue()),
+                        valueToState(newRawValue));
             }
         }
 
-        return null; // TODO
+        return new HandleCommandResult(false);
     }
 
     // protected @Nullable String handleCommandInternal(Command command) {
