@@ -19,8 +19,7 @@ import java.util.stream.Stream;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
- * @author bronk
- *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class RemoteGetUiFlgResponseDTO {

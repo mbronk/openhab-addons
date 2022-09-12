@@ -12,10 +12,13 @@
  */
 package org.openhab.binding.argoclima.internal.exception;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+
 /**
- * @author bronk
  *
+ * @author Mateusz Bronk - Initial contribution
  */
+@NonNullByDefault
 public class ArgoLocalApiCommunicationException extends Exception {
 
     private static final long serialVersionUID = 7770599701572999260L;

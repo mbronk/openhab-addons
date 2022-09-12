@@ -39,26 +39,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author bronk
- *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class RemoteArgoApiServerStub {
 
     private final Logger logger = LoggerFactory.getLogger(RemoteArgoApiServerStub.class);
-    private final String ipAddress;
-    private final int port;
+    private final String listenIpAddress;
+    private final int listenPort;
     private final String id;
     Optional<Server> server = Optional.empty();
     Optional<PassthroughHttpClient> passthroughClient = Optional.empty();
     private final Optional<ArgoClimaLocalDevice> deviceApi;
 
-    public RemoteArgoApiServerStub(String ipAddress, int port, String thingUid,
+    public RemoteArgoApiServerStub(String listenIpAddress, int listenPort, String thingUid,
             Optional<PassthroughHttpClient> passthroughClient, Optional<ArgoClimaLocalDevice> deviceApi) {
         // this.listener = listener;
         // this.config = config;
-        this.ipAddress = ipAddress;
-        this.port = port;
+        this.listenIpAddress = listenIpAddress;
+        this.listenPort = listenPort;
         this.id = thingUid;
         this.passthroughClient = passthroughClient;
         this.deviceApi = deviceApi;
@@ -66,11 +65,11 @@ public class RemoteArgoApiServerStub {
     }
 
     public void start() throws IOException {
-        logger.info("Initializing BIN-RPC server at port {}", this.port);
+        logger.info("Initializing BIN-RPC server at port {}", this.listenPort);
         // TODO: make reentrant (if started --> stop)
 
         try {
-            startJettyServer(this.port);
+            startJettyServer(this.listenPort);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -221,9 +220,9 @@ public class RemoteArgoApiServerStub {
                     var upstreamResponse = passthroughClient.get().passthroughRequest(baseRequest, body);
                     // logger.info("Remote server said: {}\n\t{}", upstreamResponse,
                     // upstreamResponse.getContentAsString());
-                    logger.info("XXXXXXX  BEFORE: {}", upstreamResponse.getContentAsString());
+                    // logger.info("XXXXXXX BEFORE: {}", upstreamResponse.getContentAsString());
                     var overridenBody = postProcessUpstreamResponse(requestType, upstreamResponse);
-                    logger.info("XXXXXXX   AFTER: {}", overridenBody);
+                    // logger.info("XXXXXXX AFTER: {}", overridenBody);
 
                     // TODO restore
                     PassthroughHttpClient.forwardUpstreamResponse(upstreamResponse, response,
@@ -248,8 +247,6 @@ public class RemoteArgoApiServerStub {
             response.setHeader("Access-Control-Allow-Origin", "*");
             response.setStatus(HttpServletResponse.SC_OK);
             baseRequest.setHandled(true);
-
-            boolean passthroughToRemote = true;
 
             if (baseRequest.getOriginalURI().contains("UI_NTP")) {
                 response.getWriter().println(getNtpResponse(Instant.now()));

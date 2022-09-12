@@ -1,3 +1,15 @@
+/**
+ * Copyright (c) 2010-2022 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package org.openhab.binding.argoclima.internal.device_api.elements;
 
 import java.util.Optional;
@@ -10,9 +22,16 @@ import org.openhab.core.library.unit.SIUnits;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ *
+ * @author Mateusz Bronk - Initial contribution
+ */
 @NonNullByDefault
 public class TemperatureParam extends ArgoApiElementBase {
+    private static final Logger logger = LoggerFactory.getLogger(TemperatureParam.class);
 
     private double minValue;
     private double maxValue;
@@ -74,6 +93,17 @@ public class TemperatureParam extends ArgoApiElementBase {
         if (command instanceof QuantityType<?>) {
             double newValue = ((QuantityType<?>) command).doubleValue();
             if (this.currentValue.isEmpty() || this.currentValue.get().doubleValue() != newValue) {
+                if (newValue < minValue) {
+                    logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
+                            minValue);
+                    newValue = minValue;
+                }
+                if (newValue > maxValue) {
+                    logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
+                            maxValue);
+                    newValue = maxValue;
+                }
+
                 var targetValue = Optional.<Double>of(newValue);
                 this.currentValue = targetValue;
                 return new HandleCommandResult(Integer.toUnsignedString((int) (targetValue.get() * 10.0)),

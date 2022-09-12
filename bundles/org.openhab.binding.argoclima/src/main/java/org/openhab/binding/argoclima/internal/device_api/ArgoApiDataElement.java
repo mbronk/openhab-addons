@@ -1,14 +1,33 @@
+/**
+ * Copyright (c) 2010-2022 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package org.openhab.binding.argoclima.internal.device_api;
+
+import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
 
+/**
+ *
+ * @author Mateusz Bronk - Initial contribution
+ *
+ * @param <T>
+ */
 @NonNullByDefault
 public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
     public enum DataElementType {
@@ -71,11 +90,11 @@ public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
         return UnDefType.NULL;
     }
 
-    public @Nullable Pair<Integer, String> toDeviceResponse() {
+    public Optional<Pair<Integer, String>> toDeviceResponse() {
         if (this.rawValue.isUpdatePending()) {
-            return Pair.of(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue());
+            return Optional.of(Pair.of(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue()));
         }
-        return null;
+        return Optional.empty();
     }
 
     public boolean isUpdatePending() {

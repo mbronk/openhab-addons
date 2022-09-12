@@ -1,3 +1,15 @@
+/**
+ * Copyright (c) 2010-2022 Contributors to the openHAB project
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ */
 package org.openhab.binding.argoclima.internal.device_api;
 
 import java.util.Arrays;
@@ -25,38 +37,15 @@ import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ *
+ * @author Mateusz Bronk - Initial contribution
+ */
 @NonNullByDefault
 public class ArgoDeviceStatus {
 
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
 
-    // 210, //targetTemp
-    // 213, //setTemp
-    // 0, //operating
-    // 1, //mode
-    // 0, //fan
-    // 7, //remote_temperature
-    // 1, //eco
-    // 0, //turbo
-    // 0, //night
-    // 0, //light
-    // 0, //timer
-    // 1, //current_weekday
-    // 0, //timer_weekdays
-    // 0, //time
-    // 101, //delaytimer duration
-    // 1, //timer_on
-    // 101, //timer_off
-    // 1, //eco_limit
-    // 1, //unit
-    // 0, //fw_version
-    // 0,N,75,1416,0,N,N,N,N,N,N,N,N,N,N,N,N,N,N
-    //
-
-    // private ArgoApiDataElement<@NonNull IArgoElement> x = ArgoApiDataElement
-    // .readWriteElement(new TemperatureParam(19.0, 36.0, 0.5), 0, 0);
-
-    // @SuppressWarnings("null") // Generic i-face param annotation (@NonNull IArgoElement vs. IArgoElement)
     private Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = Map.ofEntries(
             Map.entry(ArgoDeviceSettingType.TARGET_TEMPERATURE,
                     ArgoApiDataElement.readWriteElement(new TemperatureParam(19.0, 36.0, 0.5), 0, 0)),
@@ -125,35 +114,22 @@ public class ArgoDeviceStatus {
 
     // todo
     );
-    // private String[] values;
 
     public ArgoApiDataElement<IArgoElement> getSetting(ArgoDeviceSettingType type) {
         if (dataElements.containsKey(type)) {
             return dataElements.get(type);
-
-            // @Nullable
-            // ArgoApiDataElement<IArgoElement> retVal = dataElements.get(type);
-            // if (retVal != null) {
-            // return retVal;
-            // }
-            // return dataElements.get(type); // can this be NULL or can't it?
-            // return ObjectUtils.firstNonNull(dataElements.get(type), null); // TODO?!!?
         }
         throw new RuntimeException("Wrong setting type");
     }
 
     @Override
     public String toString() {
-        // return String.join(",", values);
-
         return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
                 .map(x -> String.format("%s=%s", x.getKey(), x.getValue())).collect(Collectors.joining(", ", "{", "}"));
 
     }
 
     public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {
-
-        // return null;
         return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
                 .filter(x -> x.getValue().isReadable())
                 .collect(Collectors.toMap(Map.Entry::getKey, y -> y.getValue().getState()));
@@ -167,8 +143,6 @@ public class ArgoDeviceStatus {
         synchronized (this) {
             dataElements.entrySet().stream().forEach(v -> v.getValue().fromDeviceResponse(values));
         }
-
-        // logger.info(String.join(",", values));
         logger.info(this.toString());
     }
 
@@ -178,12 +152,12 @@ public class ArgoDeviceStatus {
 
         dataElements.entrySet().stream().filter(x -> x.getValue().isUpdatePending())
                 .map(x -> x.getValue().toDeviceResponse()).forEach(p -> {
-                    if (p.getLeft() < 0 || p.getLeft() > commands.length) {
+                    if (p.orElseThrow().getLeft() < 0 || p.orElseThrow().getLeft() > commands.length) {
                         throw new RuntimeException(String.format(
                                 "Attempting to set device command %d := %s, while only commands 0..%d are supported",
-                                p.getLeft(), p.getRight(), commands.length));
+                                p.orElseThrow().getLeft(), p.orElseThrow().getRight(), commands.length));
                     }
-                    commands[p.getLeft()] = p.getRight();
+                    commands[p.orElseThrow().getLeft()] = p.orElseThrow().getRight();
                 });
 
         // TODO: add current time setting (can override internally etc, maybe?

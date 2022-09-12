@@ -77,8 +77,6 @@ public class ArgoClimaHandler extends BaseThingHandler {
     private boolean forceRefresh = false;
     private long lastRefreshTime = 0;
     private long apiRetries = 0;
-    private long updateRetries = 0;
-    private long lastUpdateTime = 0;
     private final int MAX_UPDATE_RETRIES = 3;
 
     public ArgoClimaHandler(Thing thing, HttpClientFactory clientFactory) {
