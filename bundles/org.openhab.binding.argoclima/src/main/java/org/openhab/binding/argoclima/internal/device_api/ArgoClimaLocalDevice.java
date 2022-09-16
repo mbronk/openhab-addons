@@ -27,7 +27,7 @@ import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.util.URIUtil;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement;
-import org.openhab.binding.argoclima.internal.device_api.passthrough.DeviceSidePostRtUpdateDTO;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.thing.ThingStatus;
@@ -43,10 +43,10 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class ArgoClimaLocalDevice {
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaLocalDevice.class);
-    private final InetAddress ipAddress;
+    public final InetAddress ipAddress;
     private final Optional<InetAddress> localIpAddress;
     private final Optional<String> cpuId;
-    private int port;
+    public int port;
     private final HttpClient client;
     private ArgoDeviceStatus deviceStatus;
     private Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate;
@@ -63,6 +63,11 @@ public class ArgoClimaLocalDevice {
         this.cpuId = cpuId;
         this.onStateUpdate = onStateUpdate;
         this.onReachableStatusChange = onReachableStatusChange;
+    }
+
+    // TODO: reverse logic of picking the addresses in other places (and update names?)
+    public InetAddress getIpAddressForDirectCommunication() {
+        return localIpAddress.orElse(ipAddress);
     }
 
     private String getDeviceStateQueryUrl() {
@@ -95,11 +100,11 @@ public class ArgoClimaLocalDevice {
             logger.info("Interrupted...");
             return "";
         } catch (ExecutionException ex) {
-            Throwable cause = ex.getCause();
-            if (cause instanceof EOFException) {
+            var cause = Optional.ofNullable(ex.getCause());
+            if (cause.isPresent() && cause.get() instanceof EOFException) {
                 // logger.warn("Cause is: EOF: {}", ((EOFException) cause).getMessage());
-                throw new ArgoLocalApiCommunicationException("Cause is: EOF: {}" + ((EOFException) cause).getMessage(),
-                        cause);
+                throw new ArgoLocalApiCommunicationException(
+                        "Cause is: EOF: " + ((EOFException) cause.get()).getMessage(), cause.get());
             }
             throw new ArgoLocalApiCommunicationException("Device communication error: " + ex.getCause().getMessage(),
                     ex.getCause());

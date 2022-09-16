@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
 public class PassthroughHttpClient {
     private static final Logger logger = LoggerFactory.getLogger(PassthroughHttpClient.class);
     private HttpClient rawHttpClient;
-    private String upstreamTargetHost;
-    private int upstreamTargetPort;
+    public final String upstreamTargetHost;
+    public final int upstreamTargetPort;
     private boolean isStarted = false;
     private static final String RPC_POOL_NAME = BINDING_ID + "_apiProxy";
     private static final List<String> HEADERS_TO_IGNORE = List.of("content-length", "content-type", "content-encoding",

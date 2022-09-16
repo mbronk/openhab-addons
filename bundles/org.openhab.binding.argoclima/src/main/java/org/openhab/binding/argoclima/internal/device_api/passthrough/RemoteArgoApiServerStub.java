@@ -13,12 +13,14 @@
 package org.openhab.binding.argoclima.internal.device_api.passthrough;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
@@ -34,6 +36,8 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.util.UrlEncoded;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSideUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.responses.RemoteGetUiFlgResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,18 +49,18 @@ import org.slf4j.LoggerFactory;
 public class RemoteArgoApiServerStub {
 
     private final Logger logger = LoggerFactory.getLogger(RemoteArgoApiServerStub.class);
-    private final String listenIpAddress;
+    private final Set<InetAddress> listenIpAddresses;
     private final int listenPort;
     private final String id;
     Optional<Server> server = Optional.empty();
     Optional<PassthroughHttpClient> passthroughClient = Optional.empty();
     private final Optional<ArgoClimaLocalDevice> deviceApi;
 
-    public RemoteArgoApiServerStub(String listenIpAddress, int listenPort, String thingUid,
+    public RemoteArgoApiServerStub(Set<InetAddress> listenIpAddresses, int listenPort, String thingUid,
             Optional<PassthroughHttpClient> passthroughClient, Optional<ArgoClimaLocalDevice> deviceApi) {
         // this.listener = listener;
         // this.config = config;
-        this.listenIpAddress = listenIpAddress;
+        this.listenIpAddresses = listenIpAddresses;
         this.listenPort = listenPort;
         this.id = thingUid;
         this.passthroughClient = passthroughClient;
@@ -64,23 +68,26 @@ public class RemoteArgoApiServerStub {
         // new Socket("31.14.128.210", 80); // server address
     }
 
-    public void start() throws IOException {
-        logger.info("Initializing BIN-RPC server at port {}", this.listenPort);
+    public synchronized void start() {
+        logger.info("Initializing Argo API Stub server at port {}", this.listenPort);
         // TODO: make reentrant (if started --> stop)
 
         try {
             startJettyServer(this.listenPort);
         } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new RuntimeException(
+                    String.format("Starting stub server at port %d failed. %s", this.listenPort, e.getMessage()), e);
         }
 
         if (this.passthroughClient.isPresent()) {
             try {
                 this.passthroughClient.get().start();
             } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                throw new RuntimeException(
+                        String.format("Starting passthrough API client for host=%s, port=%d failed. %s",
+                                this.passthroughClient.get().upstreamTargetHost,
+                                this.passthroughClient.get().upstreamTargetPort, e.getMessage()),
+                        e);
             }
         }
     }
@@ -99,6 +106,7 @@ public class RemoteArgoApiServerStub {
     }
 
     private void startJettyServer(int port) throws Exception {
+
         server = Optional.of(new Server(port));
 
         // Disable sending built-in "Server" header
@@ -304,7 +312,7 @@ public class RemoteArgoApiServerStub {
         return bodyToReturn;
     }
 
-    public void shutdown() {
+    public synchronized void shutdown() {
         if (server.isPresent()) {
             try {
                 server.get().stop();

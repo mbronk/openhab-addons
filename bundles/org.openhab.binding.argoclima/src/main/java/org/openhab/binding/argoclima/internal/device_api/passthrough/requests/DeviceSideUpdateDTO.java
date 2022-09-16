@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.passthrough;
+package org.openhab.binding.argoclima.internal.device_api.passthrough.requests;
 
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;

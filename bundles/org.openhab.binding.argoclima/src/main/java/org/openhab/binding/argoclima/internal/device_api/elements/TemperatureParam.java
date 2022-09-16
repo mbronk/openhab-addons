@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.argoclima.internal.device_api.elements;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import javax.measure.quantity.Temperature;
@@ -91,16 +92,19 @@ public class TemperatureParam extends ArgoApiElementBase {
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
         if (command instanceof QuantityType<?>) {
-            double newValue = ((QuantityType<?>) command).doubleValue();
+            var rawCommand = (QuantityType<?>) command;
+            var valueCelscius = rawCommand.toUnit(SIUnits.CELSIUS);
+            double newValue = Objects.requireNonNull(valueCelscius).doubleValue();
+
             if (this.currentValue.isEmpty() || this.currentValue.get().doubleValue() != newValue) {
                 if (newValue < minValue) {
-                    logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
-                            minValue);
+                    logger.warn("Requested value: {} °C would exceed minimum value: {} °C. Setting: {} °C.", newValue,
+                            minValue, minValue);
                     newValue = minValue;
                 }
                 if (newValue > maxValue) {
-                    logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
-                            maxValue);
+                    logger.warn("Requested value: {} °C would exceed maximum value: {} °C. Setting: {} °C.", newValue,
+                            maxValue, maxValue);
                     newValue = maxValue;
                 }
 

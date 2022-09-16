@@ -39,4 +39,13 @@ public class ArgoLocalApiCommunicationException extends Exception {
         super(message, cause);
         // TODO Auto-generated constructor stub
     }
+
+    @Override
+    public String getMessage() {
+        var msg = super.getMessage();
+        if (this.getCause() != null) {
+            msg += ". Caused by: " + this.getCause().getMessage();
+        }
+        return msg;
+    }
 }

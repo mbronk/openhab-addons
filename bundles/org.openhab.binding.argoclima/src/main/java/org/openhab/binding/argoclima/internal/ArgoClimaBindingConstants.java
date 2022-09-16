@@ -32,7 +32,17 @@ public class ArgoClimaBindingConstants {
     // Thing configuration parameters
     public static final String PARAMETER_HOSTNAME = "hostname";
     public static final String PARAMETER_LOCAL_DEVICE_IP = "localDeviceIP";
+    public static final String PARAMETER_LOCAL_DEVICE_PORT = "localDevicePort";
     public static final String PARAMETER_DEVICE_CPU_ID = "deviceCpuId";
+    public static final String PARAMETER_CONNECTION_MODE = "connectionMode"; // LOCAL_CONNECTION | REMOTE_API_STUB |
+                                                                             // REMOTE_API_PROXY
+    public static final String PARAMETER_USE_LOCAL_CONNECTION = "useLocalConnection";
+    public static final String PARAMETER_REFRESH_INTERNAL = "refreshInterval";
+    public static final String PARAMETER_STUB_SERVER_PORT = "stubServerPort";
+    public static final String PARAMETER_STUB_SERVER_LISTEN_ADDRESSES = "stubServerListenAddresses";
+    public static final String PARAMETER_OEM_SERVER_PORT = "oemServerPort";
+    public static final String PARAMETER_OEM_SERVER_ADDRESS = "oemServerAddress";
+
     // // Thing configuration items
     // public static final String PROPERTY_IP = "ipAddress";
     public static final String PROPERTY_CPU_ID = "cpuId";
@@ -50,17 +60,31 @@ public class ArgoClimaBindingConstants {
     public static final String CHANNEL_ECO_MODE = "modes#ecoMode";
     public static final String CHANNEL_TURBO_MODE = "modes#turboMode";
     public static final String CHANNEL_NIGHT_MODE = "modes#nightMode";
-    public static final String CHANNEL_ACTIVE_TIMER = "activeTimer";
-    public static final String CHANNEL_DELAY_TIMER = "delayTimer";
-    public static final String CHANNEL_SCHEDULE_TIMER_1 = "scheduleTimer1";
-    public static final String CHANNEL_SCHEDULE_TIMER_2 = "scheduleTimer2";
-    public static final String CHANNEL_SCHEDULE_TIMER_3 = "scheduleTimer3";
-    public static final String CHANNEL_MODE_EX = "modeEx";
-    public static final String CHANNEL_SWING_MODE = "swingMode";
-    public static final String CHANNEL_FILTER_MODE = "filterMode";
+    public static final String CHANNEL_ACTIVE_TIMER = "timers#activeTimer";
+    public static final String CHANNEL_DELAY_TIMER = "timers#delayTimer";
+    public static final String CHANNEL_SCHEDULE_TIMER_1 = "timers#scheduleTimer1";
+    public static final String CHANNEL_SCHEDULE_TIMER_2 = "timers#scheduleTimer2";
+    public static final String CHANNEL_SCHEDULE_TIMER_3 = "timers#scheduleTimer3";
+    public static final String CHANNEL_MODE_EX = "unsupported#modeEx";
+    public static final String CHANNEL_SWING_MODE = "unsupported#swingMode";
+    public static final String CHANNEL_FILTER_MODE = "unsupported#filterMode";
 
     public static final String CHANNEL_I_FEEL_ENABLED = "settings#iFeelEnabled";
     public static final String CHANNEL_DEVICE_LIGHTS = "settings#deviceLights";
+
+    // TODO
+    public static final String CHANNEL_TEMPERATURE_DISPLAY_UNIT = "settings#temperatureDisplayUnit";
+    public static final String CHANNEL_ECO_POWER_LIMIT = "settings#ecoPowerLimit";
+    public static final String CHANNEL_RESET_TO_FACTORY_DEFAULTS = "settings#reset"; // todo->move to settings (and
+                                                                                     // require confirmation to set)
+                                                                                     // Toggle?
+
+    // <channel id="currentTime" typeId="currentTime-channel"/>
+    // <channel id="currentWeekday" typeId="currentWeekday-channel"/>
+    // <channel id="firmwareVersion" typeId="firmwareVersion-channel"/>
+    // <channel id="reset" typeId="reset-channel"/>
+    // <channel id="health" typeId="health-channel"/>
+    // TODO: not all channels are here :/
 
     public static final int REFRESH_INTERVAL_SEC = 5;
     public static final int MAX_API_RETRIES = 3;

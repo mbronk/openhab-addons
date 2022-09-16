@@ -81,10 +81,10 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     // updateState(channelUID, state);
     // }
 
-    @Override
-    public String toApiSetting() {
-        return NO_VALUE; // to be overridden in derived class
-    }
+    // @Override
+    // public String toApiSetting() {
+    // return NO_VALUE; // to be overridden in derived class
+    // }
 
     protected static int toInt(String value) {
         try {

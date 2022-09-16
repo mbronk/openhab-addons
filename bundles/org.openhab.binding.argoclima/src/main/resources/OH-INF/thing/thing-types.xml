@@ -17,6 +17,7 @@
 			<channel-group id="unsupported" typeId="unsupported-group"/>
 			<channel-group id="settings" typeId="settings-group"/>
 		</channel-groups>
+		
 
 		<properties>
 			<property name="vendor">ArgoClima</property>
@@ -37,16 +38,37 @@
 				<label>Connection</label>
 				<description>Connection settings.</description>
 			</parameter-group>
+	         <parameter-group name="serverStub">
+                <label>Argo server stub</label>
+                <description><![CDATA[Configuration of OpenHab acting as Argo API server (requires proxying device-side traffic to this OH instance). 
+                <i>These settings are effective only for <code>REMOTE_API_STUB | REMOTE_API_PROXY</code> connection modes.</i>
+                ]]></description>
+            </parameter-group>
+            <!--  <parameter-group name="actions">
+	            <label>Actions</label>
+	            <description>Actions</description>
+            </parameter-group>-->
 			<!-- 
 			<parameter-group name="settings">
 				<label>Settings</label>
 				<description>Connection settings.</description>
 			</parameter-group>
 			 -->
-			<parameter-group name="schedule1">
+			<!-- <parameter-group name="schedule1">
 				<label>Schedule 1</label>
 				<description>Schedule timer - profile 1.</description>
 			</parameter-group>
+			
+			<parameter name="action_heal" type="boolean" groupName="actions">
+				<label>Heal the device</label>
+				<advanced>false</advanced> -->
+	<!--			<options>
+				    <option value="0">Disabled</option>
+				</options>
+				<default>false</default>
+				<limitToOptions>false</limitToOptions>
+				<verify>true</verify>
+			</parameter>-->
 
 			<parameter name="hostname" type="text" required="true" readOnly="false" groupName="connection">
 				<context>network-address</context>
@@ -56,28 +78,106 @@
 			
 			<parameter name="localDeviceIP" type="text" required="false" readOnly="false" groupName="connection">
                 <context>network-address</context>
-                <label>Local IP address</label>
-                <description>Local IP address of the device (may be different from hostname, if behind NAT). Optional, value is used for detecting device update in push mode</description>
+                <label>Local IP address (behind NAT)</label>
+                <description>Local IP address of the device in its local subnet (may be different from hostname, if behind NAT). Optional, value is used for detecting device update in push mode</description>
                 <advanced>true</advanced>
             </parameter>
             
+             <parameter name="localDevicePort" type="integer" min="0" max="65536" required="true" groupName="serverStub">
+                <label>Device API listen port</label>
+                <description><![CDATA[Port at which the local device listens on.<br/>
+                <i>This setting is effective only if <code>Use Local Connection</code> is <code>true</code>. The default value 1001 is hard-coded in Argo Firmware. You would only need to override it if the device is behind NAT, and you have configured a custom port forwarding rule using port other than 1001</i>         
+                ]]>
+                </description>
+                <default>1001</default>                
+                <advanced>true</advanced>
+            </parameter>
+                        
              <parameter name="deviceCpuId" type="text" required="false" readOnly="false" groupName="connection">
                 <label>CPU ID</label>
                 <description>CPU ID of the device. Optional, value is used for detecting device update in push mode.</description>
                 <advanced>true</advanced>
             </parameter>
-            
 			<!-- <parameter name="password" type="text" required="true">
 				<context>password</context>
 				<label>Password</label>
 				<description>Password to access the device</description>
 				</parameter> -->
-			<parameter name="refreshInterval" type="integer" unit="s" min="0" groupName="connection">
-				<label>Refresh Interval</label>
-				<description>Interval the device is polled in seconds. 0 - to disable polling (must use push model, w/ Server Stub)</description>
-				<default>30</default>
+				
+            <parameter name="connectionMode" type="text" required="true" groupName="connection">
+                <label>Connection mode</label>
+                <description><![CDATA[Type of connection to use.<br/>
+                <b>- <code>LOCAL_CONNECTION</code></b> - Directly communicates with the AC device over LAN (default mode).<br/>
+                <b>- <code>REMOTE_API_STUB</code></b> - OpenHab simulates vendor's remote server <i>(most functionality implemented, w/o FW update support)</i>. Requires traffic from the AC re-routed to this OH instance (network-level configuration, see README). Allows <u>full-local control</u> (w/o Internet access to the device). Can also control units which are not directly reachable over LAN, e.g. behind NAT (set <code>Local IP address</code>).<br />
+                <b>- <code>REMOTE_API_PROXY</code></b> - OpenHab behaves as a proxy to the remote Manufacturer's server (injects OH-side commands). Allows to still use the Vendor's application. WARNING: This mode (similarly to using vanilla Argo WebApp) may be considered insecure <i>(plain HTTP communications, passwords transmitted in the clear, unsigned FW updates...)</i>.<br />
+                ]]>
+                </description>
+                <default>LOCAL_CONNECTION</default>
+                <options>
+                    <option value="LOCAL_CONNECTION">LOCAL_CONNECTION - Local only (no remote server stub). (**Default**)</option>
+                    <option value="REMOTE_API_STUB">REMOTE_API_STUB - OpenHab as ArgoClima server stub. [Advanced] (**Recommended**)</option>
+                    <option value="REMOTE_API_PROXY">REMOTE_API_PROXY - OpenHab as ArgoClima server w/ pass-through to OEM app. [Advanced]</option>
+                </options>
+                <advanced>true</advanced>
+            </parameter>
+                        				
+			<parameter name="useLocalConnection" type="boolean" required="true" groupName="connection">
+				<label>Use Local Connection</label>
+				<description><![CDATA[If enabled, will directly communicate with the device to send commands and poll for its status.<br/>
+				Must be enabled for <code>LOCAL_CONNECTION</code> mode. If disabled (in any of the <code>REMOTE_*</code> connection modes), no push communication will be initiated from OH-side, and commands will be sent on next device-side poll cycle (possible delay)]]></description>
+				<default>true</default>
 				<advanced>true</advanced>
 			</parameter>
+			
+            <parameter name="refreshInterval" type="integer" unit="s" min="0" groupName="connection">
+                <label>Refresh Interval</label>
+                <description><![CDATA[Interval the device is polled in seconds. This setting is only effective if <code>Use Local Connection</code> is <code>ON</code>.<br/>
+                Set to <code>0</code> to disable polling (requires any of <code>REMOTE_*</code> connection modes)]]></description>
+                <default>30</default>
+                <advanced>true</advanced>
+            </parameter>
+			
+            <parameter name="stubServerPort" type="integer" min="0" max="65536" required="false" groupName="serverStub">
+                <label>Stub server listen port</label>
+                <description><![CDATA[Port at which the Stub server will listen on.<br/>
+                <i>This setting is effective only for <code>REMOTE_*</code> connection modes</i>         
+                ]]>
+                </description>
+                <default>8239</default>                
+                <advanced>true</advanced>
+            </parameter>
+            
+            <parameter name="stubServerListenAddresses" type="text" multiple="true" groupName="serverStub">
+                <context>network-address</context>
+                <label>Stub server listen interfaces</label>
+                <description><![CDATA[List of interfaces the stub server will listen on<br/>
+                <i>This setting is effective only for <code>REMOTE_API_STUB | REMOTE_API_PROXY</code> connection modes</i>
+                ]]>
+                </description>
+                <default>0.0.0.0</default>                
+                <advanced>true</advanced>
+            </parameter>
+			
+            <parameter name="oemServerPort" type="integer" min="0" max="65536" required="false" groupName="serverStub">
+                <label>Argo remote server port</label>
+                <description><![CDATA[The OEM server's port, used to pass through the communications to<br/>
+                <i>This setting is effective only for <code>REMOTE_API_PROXY</code> connection mode</i>         
+                ]]>
+                </description>
+                <default>80</default>                
+                <advanced>true</advanced>
+            </parameter>
+            
+            <parameter name="oemServerAddress" type="text" groupName="serverStub">
+                <context>network-address</context>
+                <label>Argo remote server address</label>
+                <description><![CDATA[The OEM server's port, used to pass through the communications to<br/>
+                <i>This setting is effective only for <code>REMOTE_API_PROXY</code> connection mode</i>         
+                ]]>
+                </description>
+                <default>31.14.128.210</default>
+                <advanced>true</advanced>
+            </parameter>
             <!-- 
 			<parameter name="schedule1DayOfWeek" type="text" required="false" multiple="true" groupName="schedule1">
 				<context>dayofWeek</context>
@@ -171,7 +271,6 @@
 		<!--<description></description>
 			<category></category> -->
 		<channels>
-			<channel id="preset" typeId="preset-channel"/>
 			<channel id="iFeelEnabled" typeId="iFeel-channel"/>
 			<channel id="currentTime" typeId="currentTime-channel"/>
 			<channel id="currentWeekday" typeId="currentWeekday-channel"/>
@@ -180,7 +279,6 @@
 			<channel id="ecoPowerLimit" typeId="ecoPowerLimit-channel"/>
 			<channel id="firmwareVersion" typeId="firmwareVersion-channel"/>
 			<channel id="reset" typeId="reset-channel"/>
-			<channel id="health" typeId="health-channel"/>
 		</channels>
 	</channel-group-type>
 
@@ -227,7 +325,8 @@
 	</channel-type>
 
 	<channel-type id="fanSpeed-channel">
-		<item-type>Number:Dimensionless</item-type>
+		<item-type>String</item-type>
+		<!--  todo: string or number? -->
 		<label>Fan speed</label>
 		<state readOnly="false">
 			<options>
@@ -322,7 +421,9 @@
 	</channel-type>
 
 	<channel-type id="swingMode-channel" advanced="true">
-		<item-type>Number:Dimensionless</item-type>
+		<!-- <item-type>Number:Dimensionless</item-type>  -->
+		<item-type>String</item-type>
+        <!--  todo: string or number? -->
 		<label>Airflow Direction</label>
 		<state readOnly="false">
 			<options>
@@ -336,11 +437,6 @@
 				<option value="LEVEL_7">Static - Highest</option>
 			</options>
 		</state>
-	</channel-type>
-
-	<channel-type id="preset-channel" advanced="true">
-		<item-type>Switch</item-type>
-		<label>Preset</label>
 	</channel-type>
 
 	<channel-type id="iFeel-channel">
@@ -412,12 +508,6 @@
 				<option value="RESET">Reset</option>
 			</options>
 		</command>
-	</channel-type>
-
-	<channel-type id="health-channel" advanced="true">
-		<item-type>Switch</item-type>
-		<label>Health</label>
-		<state readOnly="true"/>
 	</channel-type>
 
 </thing:thing-descriptions>

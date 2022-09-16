@@ -17,31 +17,61 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 
 /**
+ * Interface for Argo API parameter (individual HMI element)
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public interface IArgoElement {
-
+    /**
+     * Gets last live state returned from the device (ignores any pending commands)
+     *
+     * @return Device's state as {@link State}
+     */
     public State getLastStateFromDevice();
 
-    // public State getCurentState();
-
+    /**
+     * Checks if there's any command to be sent to the device (not confirmed by the device yet)
+     *
+     * @return True if command pending, False otherwise
+     */
     public boolean isUpdatePending();
 
+    /**
+     * Returns the raw Argo command to send to the device (if update is pending)
+     *
+     * @return Command to send to device (if update pending), or {@code NO_VALUE} otherwise
+     */
     public String getDeviceApiValue();
 
+    /**
+     * Updates this API element's state from device's response
+     *
+     * @param responseValue Raw API input
+     * @return State after update
+     */
     public State updateFromApiResponse(String responseValue);
 
-    public String toApiSetting();
-
+    /**
+     * Return current state of the element (including side-effects of any pending commands)
+     *
+     * @return Device's state as {@link State}
+     */
     public State toState();
 
-    // returns value state
+    /**
+     * Handles channel command
+     *
+     * @param command The command to handle
+     * @return True - if command has been handled, False - otherwise
+     */
     public boolean handleCommand(Command command);
+
+    /**
+     * Aborts any pending command
+     */
+    public void abortPendingCommand();
 
     @Override
     public String toString();
-
-    public void abortPendingCommand();
 }
