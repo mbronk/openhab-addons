@@ -28,6 +28,7 @@ public class ArgoClimaBindingConstants {
 
     // List of all Thing Type UIDs
     public static final ThingTypeUID THING_TYPE_ARGOCLIMA_LOCAL = new ThingTypeUID(BINDING_ID, "argoclima");
+    public static final ThingTypeUID THING_TYPE_ARGOCLIMA_REMOTE = new ThingTypeUID(BINDING_ID, "argoclima-remote");
 
     // Thing configuration parameters
     public static final String PARAMETER_HOSTNAME = "hostname";
@@ -42,6 +43,9 @@ public class ArgoClimaBindingConstants {
     public static final String PARAMETER_STUB_SERVER_LISTEN_ADDRESSES = "stubServerListenAddresses";
     public static final String PARAMETER_OEM_SERVER_PORT = "oemServerPort";
     public static final String PARAMETER_OEM_SERVER_ADDRESS = "oemServerAddress";
+
+    public static final String PARAMETER_USERNAME = "username";
+    public static final String PARAMETER_PASSWORD = "password";
 
     // // Thing configuration items
     // public static final String PROPERTY_IP = "ipAddress";

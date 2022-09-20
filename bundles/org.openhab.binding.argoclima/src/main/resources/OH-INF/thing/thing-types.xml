@@ -201,7 +201,91 @@
             -->
 		</config-description>
 	</thing-type>
+	
+    <thing-type id="argoclima-remote">
+        <label>ArgoClima A/C - remote</label>
+        <description>ArgoClima Air Conditioner (remote connection via Argo servers)</description>
+        <category>HVAC</category>
+        <!-- 
+        <channels>
+        <channel typeId="modeBasic-channel" id="fikumiku">
+        <label>mimim</label>
+        <description>dsadsada</description>
+        </channel>
+        </channels>
+ -->
+        <channel-groups>
+          
+          <channel-group id="acControls" typeId="acControls-group"/>
+            <channel-group id="modes" typeId="modes-group"/>
+            <channel-group id="timers" typeId="timers-group"/>
+            <channel-group id="unsupported" typeId="unsupported-group"/>
+            <channel-group id="settings" typeId="settings-group"/>  
+        </channel-groups>
+        
+        <properties>
+            <property name="vendor">ArgoClima</property>
+            <property name="modelId">Ulisse Eco 13 DCI??</property> <!--TODO-->
+            <property name="protocol">Remote connection</property> <!--TODO (maybe update dynamically: https://www.openhab.org/docs/developer/bindings/thing-handler.html)-->
+        </properties>
 
+        <representation-property>username</representation-property>
+
+        <config-description>
+            <parameter-group name="connection">
+                <label>Connection</label>
+                <description>Connection settings.</description>
+            </parameter-group>
+            <parameter-group name="serverStub"> <!-- TODO: rename from serverStub -> OEM sth? -->
+                <label>Argo server stub</label>
+                <description><![CDATA[Configuration of OpenHab acting as Argo API server (requires proxying device-side traffic to this OH instance). 
+                <i>These settings are effective only for <code>REMOTE_API_STUB | REMOTE_API_PROXY</code> connection modes.</i>
+                ]]></description>
+            </parameter-group>
+          
+            <parameter name="username" type="text" required="true" readOnly="false" groupName="connection">
+                <!-- <context>network-address</context> -->
+                <label>Username</label>
+                <description>Username</description>
+            </parameter>
+         
+            <parameter name="password" type="text" required="true" groupName="connection">
+                <context>password</context>
+                <label>Password</label>
+                <description>Password to access the device</description>
+                </parameter>
+            
+            <parameter name="refreshInterval" type="integer" unit="s" min="0" groupName="connection">
+                <label>Refresh Interval</label>
+                <description><![CDATA[Interval the device is polled in seconds. This setting is only effective if <code>Use Local Connection</code> is <code>ON</code>.<br/>
+                Set to <code>0</code> to disable polling (requires any of <code>REMOTE_*</code> connection modes)]]></description>
+                <default>30</default>
+                <advanced>true</advanced>
+            </parameter>
+            
+            <parameter name="oemServerPort" type="integer" min="0" max="65536" required="false" groupName="serverStub">
+                <label>Argo remote server port</label>
+                <description><![CDATA[The OEM server's port, used to pass through the communications to<br/>
+                <i>This setting is effective only for <code>REMOTE_API_PROXY</code> connection mode</i>         
+                ]]>
+                </description>
+                <default>80</default>                
+                <advanced>true</advanced>
+            </parameter>
+            
+            <parameter name="oemServerAddress" type="text" groupName="serverStub">
+                <context>network-address</context>
+                <label>Argo remote server address</label>
+                <description><![CDATA[The OEM server's port, used to pass through the communications to<br/>
+                <i>This setting is effective only for <code>REMOTE_API_PROXY</code> connection mode</i>         
+                ]]>
+                </description>
+                <default>31.14.128.210</default>
+                <advanced>true</advanced>
+            </parameter>
+        </config-description>
+    </thing-type>
+    
 	<channel-group-type id="acControls-group">
 		<label>A/C Controls</label>
 		<!--<description></description>

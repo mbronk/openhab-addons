@@ -15,10 +15,10 @@ package org.openhab.binding.argoclima.internal.device_api;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.ArgoClimaHandler;
 import org.openhab.binding.argoclima.internal.device_api.elements.EnumParam;
 import org.openhab.binding.argoclima.internal.device_api.elements.FwVersionParam;
 import org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement;
@@ -33,6 +33,7 @@ import org.openhab.binding.argoclima.internal.device_api.types.FlapLevel;
 import org.openhab.binding.argoclima.internal.device_api.types.OperationMode;
 import org.openhab.binding.argoclima.internal.device_api.types.TemperatureScale;
 import org.openhab.binding.argoclima.internal.device_api.types.TimerType;
+import org.openhab.binding.argoclima.internal.handler.ArgoClimaHandler;
 import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +118,7 @@ public class ArgoDeviceStatus {
 
     public ArgoApiDataElement<IArgoElement> getSetting(ArgoDeviceSettingType type) {
         if (dataElements.containsKey(type)) {
-            return dataElements.get(type);
+            return Objects.requireNonNull(dataElements.get(type));
         }
         throw new RuntimeException("Wrong setting type");
     }

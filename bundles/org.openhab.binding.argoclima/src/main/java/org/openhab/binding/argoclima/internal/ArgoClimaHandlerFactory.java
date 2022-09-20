@@ -12,12 +12,14 @@
  */
 package org.openhab.binding.argoclima.internal;
 
-import static org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants.THING_TYPE_ARGOCLIMA_LOCAL;
+import static org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants.*;
 
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.argoclima.internal.handler.ArgoClimaHandler;
+import org.openhab.binding.argoclima.internal.handler.ArgoClimaHandlerRemote;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingTypeUID;
@@ -39,7 +41,8 @@ import org.osgi.service.component.annotations.Reference;
 public class ArgoClimaHandlerFactory extends BaseThingHandlerFactory {
     private final HttpClientFactory httpClientFactory;
 
-    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_ARGOCLIMA_LOCAL);
+    private static final Set<ThingTypeUID> SUPPORTED_THING_TYPES_UIDS = Set.of(THING_TYPE_ARGOCLIMA_LOCAL,
+            THING_TYPE_ARGOCLIMA_REMOTE);
 
     @Activate
     public ArgoClimaHandlerFactory(final @Reference HttpClientFactory httpClientFactory) {
@@ -57,6 +60,9 @@ public class ArgoClimaHandlerFactory extends BaseThingHandlerFactory {
 
         if (THING_TYPE_ARGOCLIMA_LOCAL.equals(thingTypeUID)) {
             return new ArgoClimaHandler(thing, httpClientFactory);
+        }
+        if (THING_TYPE_ARGOCLIMA_REMOTE.equals(thingTypeUID)) {
+            return new ArgoClimaHandlerRemote(thing, httpClientFactory);
         }
 
         return null;
