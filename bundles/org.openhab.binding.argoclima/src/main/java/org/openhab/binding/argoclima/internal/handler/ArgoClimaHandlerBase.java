@@ -207,6 +207,14 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TURBO_MODE, command, channelUID);
         }
 
+        if (ArgoClimaBindingConstants.CHANNEL_TEMPERATURE_DISPLAY_UNIT.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.DISPLAY_TEMPERATURE_SCALE, command,
+                    channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_ECO_POWER_LIMIT.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ECO_POWER_LIMIT, command, channelUID);
+        }
+
         // case DISPLAY_TEMPERATURE_SCALE:
         // break;
         // case ECO_POWER_LIMIT:

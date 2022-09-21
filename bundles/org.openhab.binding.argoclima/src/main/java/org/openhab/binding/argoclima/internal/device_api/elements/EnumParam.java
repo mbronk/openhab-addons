@@ -49,7 +49,6 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
         }
 
         this.currentValue = this.fromInt(rawValue);
-
     }
 
     // @SuppressWarnings("null") // TODO

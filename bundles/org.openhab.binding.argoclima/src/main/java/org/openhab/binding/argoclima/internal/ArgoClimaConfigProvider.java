@@ -16,11 +16,13 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
 import org.openhab.core.config.core.ConfigDescription;
 import org.openhab.core.config.core.ConfigDescriptionBuilder;
 import org.openhab.core.config.core.ConfigDescriptionParameter;
@@ -39,19 +41,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author bronk
+ * The {@link ArgoClimaConfigProvider} class provides dynamic configuration entries
+ * for the things supported by the binding (on top of static properties defined in
+ * {@code thing-types.xml})
  *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 @Component(service = { ConfigDescriptionProvider.class })
 public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
-    private final static Logger logger = LoggerFactory.getLogger(ArgoClimaConfigProvider.class);
+    private final Logger logger = LoggerFactory.getLogger(ArgoClimaConfigProvider.class);
     private final ThingRegistry thingRegistry;
-
-    // @Reference
-    // protected void setThingRegistry(ThingRegistry thingRegistry) {
-    // ArgoClimaConfigProvider.thingRegistry = Optional.of(thingRegistry);
-    // }
+    private static final int SCHEDULE_TIMERS_COUNT = 3;
+    public static final String DEFAULT_SCHEDULE_START_TIME = "08:00";
+    public static final String DEFAULT_SCHEDULE_END_TIME = "18:00";
+    public static final EnumSet<Weekday> DEFAULT_SCHEDULE_WEEKDAYS = EnumSet.of(Weekday.MON, Weekday.TUE, Weekday.WED,
+            Weekday.THU, Weekday.FRI);
 
     @Activate
     public ArgoClimaConfigProvider(final @Reference ThingRegistry thingRegistry) {
@@ -67,37 +72,20 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
      */
     @Override
     public Collection<ConfigDescription> getConfigDescriptions(@Nullable Locale locale) {
-        logger.info("getConfigDescriptions: {}", locale);
-        return Collections.emptySet();
-
-        // Collection<ConfigDescription> result = new ArrayList<>();
-        // for (URI configDescriptionURI : configDescriptionsByURI.keySet()) {
-        // if (!isConfigDescriptionExcluded(configDescriptionURI)) {
-        // result.add(configDescriptionsByURI.get(configDescriptionURI));
-        // }
-        // }
+        return Collections.emptySet(); // no dynamic values
     }
 
     /**
      * Provides a {@link ConfigDescription} for the given URI.
      *
-     * @param uri uri of the config description
+     * @param uri uri of the config description (may be either thing or thing-type URI)
      * @param locale locale
      * @return config description or null if no config description could be found
      */
     @Override
     @Nullable
     public ConfigDescription getConfigDescription(URI uri, @Nullable Locale locale) {
-        logger.info("getConfigDescription: {} {}", uri, locale);
-
-        // Add dynamic parameters to already configured things (these won't be visible at add-time)
-        // if (!uri.getScheme().equalsIgnoreCase("thing-type")) {
-        // return null;
-        // }
-        // ThingTypeUID thingTypeUID = new ThingTypeUID(uri.getSchemeSpecificPart());
-        // if (!thingTypeUID.getBindingId().equals(ArgoClimaBindingConstants.BINDING_ID)) {
-        // return null;
-        // }
+        // logger.trace("Got config description request: {} {}", uri, locale);
 
         if (!uri.getScheme().equalsIgnoreCase("thing")) {
             return null; // Deliberately not supporting "thing-type" (no dynamic parameters there)
@@ -106,22 +94,22 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
         if (!thingUID.getBindingId().equals(ArgoClimaBindingConstants.BINDING_ID)) {
             return null;
         }
+
         var thing = this.thingRegistry.get(thingUID);
         if (thing == null) {
             logger.debug("getConfigDescription: No thing found for uri: {}", uri);
             return null;
         }
-        // PROPERTY_SERIAL_NUMBER
-        logger.info("Got thing: {}", thing);
+
+        // logger.info("Got thing: {}", thing);
 
         var paramGroups = new ArrayList<ConfigDescriptionParameterGroup>();
-        paramGroups.addAll(List.of(
-                ConfigDescriptionParameterGroupBuilder.create("schedule1").withLabel("Schedule 1")
-                        .withDescription("Schedule timer - profile 1.").build(),
-                ConfigDescriptionParameterGroupBuilder.create("schedule2").withLabel("Schedule 2")
-                        .withDescription("Schedule timer - profile 2.").build(),
-                ConfigDescriptionParameterGroupBuilder.create("schedule3").withLabel("Schedule 3")
-                        .withDescription("Schedule timer - profile 3.").build()));
+        for (int i = 1; i <= SCHEDULE_TIMERS_COUNT; ++i) {
+            paramGroups.add(ConfigDescriptionParameterGroupBuilder
+                    .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
+                    .withLabel(String.format("Schedule %d", i))
+                    .withDescription(String.format("Schedule timer - profile %d.", i)).build());
+        }
         if (thing.isEnabled()) {
             // Note: Do not localize the label & description (ref: https://github.com/openhab/openhab-webui/issues/1491)
             paramGroups.add(ConfigDescriptionParameterGroupBuilder.create("actions").withLabel("Actions")
@@ -130,43 +118,49 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
 
         var parameters = new ArrayList<ConfigDescriptionParameter>();
 
-        for (int i = 1; i <= 3; ++i) {
-            var daysOfWeek = List.<@Nullable ParameterOption>of(new ParameterOption("MON", "Monday"),
-                    new ParameterOption("TUE", "Tuesday"), new ParameterOption("WED", "Wednesday"),
-                    new ParameterOption("THU", "Thursday"), new ParameterOption("FRI", "Friday"),
-                    new ParameterOption("SAT", "Saturday"), new ParameterOption("SUN", "Sunday"));
-            // var daysOfWeek = List.<@Nullable ParameterOption>of(new ParameterOption("MON", "Monday"),
-            // new ParameterOption("TUE", "Tuesday"), new ParameterOption("WED", "WED"),
-            // new ParameterOption("THU", "THU"), new ParameterOption("FRI", "FRI"),
-            // new ParameterOption("SAT", "SAT"), new ParameterOption("SUN", "SUN"));
+        var daysOfWeek = List.<@Nullable ParameterOption>of(new ParameterOption(Weekday.MON.toString(), "Monday"),
+                new ParameterOption(Weekday.TUE.toString(), "Tuesday"),
+                new ParameterOption(Weekday.WED.toString(), "Wednesday"),
+                new ParameterOption(Weekday.THU.toString(), "Thursday"),
+                new ParameterOption(Weekday.FRI.toString(), "Friday"),
+                new ParameterOption(Weekday.SAT.toString(), "Saturday"),
+                new ParameterOption(Weekday.SUN.toString(), "Sunday"));
 
+        for (int i = 1; i <= SCHEDULE_TIMERS_COUNT; ++i) {
             // NOTE: Deliberately *not* using .withContext("dayOfWeek") - doesn't seem to work correctly :(
-            parameters.add(ConfigDescriptionParameterBuilder.create(String.format("schedule%dDayOfWeek", i), Type.TEXT)
-                    .withRequired(true).withGroupName(String.format("schedule%d", i))//
+            parameters.add(ConfigDescriptionParameterBuilder
+                    .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_DAYS, i), Type.TEXT)
+                    .withRequired(true)
+                    .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))//
                     .withLabel("Days").withDescription("Days when the schedule is run").withOptions(daysOfWeek)
-                    .withDefault("MON,TUE,WED,THU,FRI").withMultiple(true).withMultipleLimit(7).build());
-            parameters.add(ConfigDescriptionParameterBuilder.create(String.format("schedule%dOnTime", i), Type.TEXT)
-                    .withRequired(false).withGroupName(String.format("schedule%d", i)).withContext("time")
-                    .withLabel("On time").withDescription("Time when the A/C turns on").withDefault("08:00").build());
-            parameters.add(ConfigDescriptionParameterBuilder.create(String.format("schedule%dOffTime", i), Type.TEXT)
-                    .withRequired(false).withGroupName(String.format("schedule%d", i)).withContext("time")
-                    .withLabel("Off time").withDescription("Time when the A/C turns off").withDefault("18:00").build());
+                    .withDefault(DEFAULT_SCHEDULE_WEEKDAYS.toString()).withMultiple(true).withMultipleLimit(7).build());
+            parameters.add(ConfigDescriptionParameterBuilder
+                    .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_ON_TIME, i), Type.TEXT)
+                    .withRequired(true)
+                    .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
+                    .withPattern("\\d{1-2}:\\d{1-2}")
+                    // .withContext("time") //FIXME: using this works OK, but causes UI to detect each entry to the page
+                    // as a change
+                    .withLabel("On time").withDescription("Time when the A/C turns on")
+                    .withDefault(DEFAULT_SCHEDULE_START_TIME).build());
+            parameters.add(ConfigDescriptionParameterBuilder
+                    .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_OFF_TIME, i), Type.TEXT)
+                    .withRequired(true)
+                    .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
+                    // .withContext("time")
+                    .withLabel("Off time").withDescription("Time when the A/C turns off")
+                    .withDefault(DEFAULT_SCHEDULE_END_TIME).build());
         }
         if (thing.isEnabled()) {
-            parameters.add(ConfigDescriptionParameterBuilder.create("resetToFactoryDefaults", Type.BOOLEAN)
-                    .withRequired(false).withGroupName("actions").withLabel("Reset settings")
-                    .withDescription("Reset device settings to factory defaults").withDefault("false").withVerify(true)
-                    .build());
+            parameters.add(ConfigDescriptionParameterBuilder
+                    .create(ArgoClimaBindingConstants.PARAMETER_RESET_TO_FACTORY_DEFAULTS, Type.BOOLEAN)
+                    .withRequired(false).withGroupName(ArgoClimaBindingConstants.PARAMETER_ACTIONS_GROUP_NAME)
+                    .withLabel("Reset settings").withDescription("Reset device settings to factory defaults")
+                    .withDefault("false").withVerify(true).build());
         }
-        // var parameters = List.of(ConfigDescriptionParameterBuilder.create("testdynamicparam", Type.BOOLEAN)
-        // .withLabel("Test label").withDescription("Desc").build());
 
         var config = ConfigDescriptionBuilder.create(uri).withParameterGroups(paramGroups).withParameters(parameters)
                 .build();
-        // List<ConfigDescriptionParameter> parameters = new ArrayList<ConfigDescriptionParameter>();
-
         return config;
-        // return isConfigDescriptionExcluded(uri) ? null : configDescriptionsByURI.get(uri);
     }
-
 }

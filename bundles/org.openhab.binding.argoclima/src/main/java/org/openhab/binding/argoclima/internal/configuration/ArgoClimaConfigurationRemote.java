@@ -18,6 +18,7 @@ import java.security.NoSuchAlgorithmException;
 import javax.xml.bind.DatatypeConverter;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**
  * The {@link ArgoClimaConfiguration} class contains fields mapping thing configuration parameters.
@@ -55,14 +56,12 @@ public class ArgoClimaConfigurationRemote extends ArgoClimaConfigurationBase {
     }
 
     @Override
-    protected String validateInternal() throws Exception {
-        if (username.isEmpty()) {
-            return "Username is empty. Must be set to Argo login";
+    protected void validateInternal() throws ArgoConfigurationException {
+        if (username.isBlank()) {
+            throw new ArgoConfigurationException("Username is empty. Must be set to Argo login");
         }
-        if (password.isEmpty()) {
-            return "Password is empty. Must be set to Argo password";
+        if (password.isBlank()) {
+            throw new ArgoConfigurationException("Password is empty. Must be set to Argo password");
         }
-        return "";
     }
-
 }

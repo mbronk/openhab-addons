@@ -16,7 +16,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -29,26 +29,26 @@ import org.openhab.core.types.UnDefType;
 @NonNullByDefault
 public class WeekdayParam extends ArgoApiElementBase {
 
-    public enum Weekday implements IArgoApiEnum {
-        SUNDAY(0x00),
-        MONDAY(0x01),
-        TUESDAY(0x02),
-        WEDNESDAY(0x04),
-        THURSDAY(0x08),
-        FRIDAY(0x10),
-        SATURDAY(0x20);
-
-        private int value;
-
-        Weekday(int intValue) {
-            this.value = intValue;
-        }
-
-        @Override
-        public int getIntValue() {
-            return this.value;
-        }
-    }
+    // public enum Weekday implements IArgoApiEnum {
+    // SUNDAY(0x00),
+    // MONDAY(0x01),
+    // TUESDAY(0x02),
+    // WEDNESDAY(0x04),
+    // THURSDAY(0x08),
+    // FRIDAY(0x10),
+    // SATURDAY(0x20);
+    //
+    // private int value;
+    //
+    // Weekday(int intValue) {
+    // this.value = intValue;
+    // }
+    //
+    // @Override
+    // public int getIntValue() {
+    // return this.value;
+    // }
+    // }
 
     private Optional<EnumSet<Weekday>> currentValue = Optional.empty();
 

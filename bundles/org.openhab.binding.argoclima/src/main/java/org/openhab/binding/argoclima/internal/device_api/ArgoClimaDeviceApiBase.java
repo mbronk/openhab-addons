@@ -116,12 +116,12 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         } catch (ArgoLocalApiCommunicationException e) {
             logger.warn("Device not reachable: {}", e.getMessage());
             return Pair.of(false,
-                    MessageFormat
-                            .format("Failed to communicate with Argo HVAC device at [host: {0}, port: {1,number,#}]",
-                                    this.getDeviceStateQueryUrl().getHost(),
-                                    this.getDeviceStateQueryUrl().getPort() != -1
-                                            ? this.getDeviceStateQueryUrl().getPort()
-                                            : this.getDeviceStateQueryUrl().getDefaultPort()));
+                    MessageFormat.format(
+                            "Failed to communicate with Argo HVAC device at [http://{0}:{1,number,#}{2}]. {3}",
+                            this.getDeviceStateQueryUrl().getHost(),
+                            this.getDeviceStateQueryUrl().getPort() != -1 ? this.getDeviceStateQueryUrl().getPort()
+                                    : this.getDeviceStateQueryUrl().getDefaultPort(),
+                            this.getDeviceStateQueryUrl().getPath(), e.getMessage()));
         }
     }
 

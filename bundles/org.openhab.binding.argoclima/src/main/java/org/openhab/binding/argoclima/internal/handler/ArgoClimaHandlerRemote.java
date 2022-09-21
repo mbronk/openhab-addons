@@ -32,14 +32,11 @@ import org.slf4j.LoggerFactory;
 public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfigurationRemote> {
 
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerRemote.class);
-
     private final HttpClient client;
-    private final HttpClientFactory clientFactory;
 
     public ArgoClimaHandlerRemote(Thing thing, HttpClientFactory clientFactory) {
         super(thing);
         this.client = clientFactory.getCommonHttpClient();
-        this.clientFactory = clientFactory;
     }
 
     @Override

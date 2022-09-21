@@ -33,7 +33,6 @@ import org.openhab.binding.argoclima.internal.device_api.types.FlapLevel;
 import org.openhab.binding.argoclima.internal.device_api.types.OperationMode;
 import org.openhab.binding.argoclima.internal.device_api.types.TemperatureScale;
 import org.openhab.binding.argoclima.internal.device_api.types.TimerType;
-import org.openhab.binding.argoclima.internal.handler.ArgoClimaHandler;
 import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +44,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class ArgoDeviceStatus {
 
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
+    private final Logger logger = LoggerFactory.getLogger(ArgoDeviceStatus.class);
 
     private Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = Map.ofEntries(
             Map.entry(ArgoDeviceSettingType.TARGET_TEMPERATURE,
@@ -127,7 +126,6 @@ public class ArgoDeviceStatus {
     public String toString() {
         return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
                 .map(x -> String.format("%s=%s", x.getKey(), x.getValue())).collect(Collectors.joining(", ", "{", "}"));
-
     }
 
     public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {

@@ -108,7 +108,7 @@ public class TemperatureParam extends ArgoApiElementBase {
                     newValue = maxValue;
                 }
 
-                var targetValue = Optional.<Double>of(newValue);
+                var targetValue = Optional.<Double> of(newValue);
                 this.currentValue = targetValue;
                 return new HandleCommandResult(Integer.toUnsignedString((int) (targetValue.get() * 10.0)),
                         valueToState(targetValue));

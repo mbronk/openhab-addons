@@ -31,21 +31,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link ArgoClimaHandler} is responsible for handling commands, which are
+ * The {@link ArgoClimaHandlerLocal} is responsible for handling commands, which are
  * sent to one of the channels.
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public class ArgoClimaHandler extends ArgoClimaHandlerBase<ArgoClimaConfiguration> {
+public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfiguration> {
 
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
+    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerLocal.class);
 
     private final HttpClient client;
     private final HttpClientFactory clientFactory;
     private @Nullable RemoteArgoApiServerStub serverStub;
 
-    public ArgoClimaHandler(Thing thing, HttpClientFactory clientFactory) {
+    public ArgoClimaHandlerLocal(Thing thing, HttpClientFactory clientFactory) {
         super(thing);
         this.client = clientFactory.getCommonHttpClient();
         this.clientFactory = clientFactory;
@@ -60,8 +60,8 @@ public class ArgoClimaHandler extends ArgoClimaHandlerBase<ArgoClimaConfiguratio
     protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfiguration config) throws Exception {
         // TODO Auto-generated method stub
 
-        var targetCpuID = config.deviceCpuId.isBlank() ? Optional.<String>empty() : Optional.of(config.deviceCpuId); // TODO
-        var localIpAddress = config.localDeviceIP.isBlank() ? Optional.<InetAddress>empty()
+        var targetCpuID = config.deviceCpuId.isBlank() ? Optional.<String> empty() : Optional.of(config.deviceCpuId); // TODO
+        var localIpAddress = config.localDeviceIP.isBlank() ? Optional.<InetAddress> empty()
                 : Optional.of(config.getLocalDeviceIP()); // TODO
 
         var deviceApi = new ArgoClimaLocalDevice(config.getHostname(), config.localDevicePort, localIpAddress,
@@ -69,7 +69,7 @@ public class ArgoClimaHandler extends ArgoClimaHandlerBase<ArgoClimaConfiguratio
 
         if (config.connectionMode == ConnectionMode.REMOTE_API_PROXY
                 || config.connectionMode == ConnectionMode.REMOTE_API_STUB) {
-            var passthroughClient = Optional.<PassthroughHttpClient>empty();
+            var passthroughClient = Optional.<PassthroughHttpClient> empty();
             if (config.connectionMode == ConnectionMode.REMOTE_API_PROXY) {
                 passthroughClient = Optional.of(new PassthroughHttpClient(config.getOemServerAddress().getHostAddress(),
                         config.oemServerPort, clientFactory));

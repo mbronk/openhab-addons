@@ -14,66 +14,169 @@ package org.openhab.binding.argoclima.internal.configuration;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Supplier;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.core.i18n.ConfigurationException;
+import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
+import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
+import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**
  * The {@link ArgoClimaConfigurationBase} class contains fields mapping thing configuration parameters.
+ * Contains common configuration parameters (same for all supported device types).
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public abstract class ArgoClimaConfigurationBase {
-    public static enum Weekday {
-        MON,
-        TUE,
-        WED,
-        THU,
-        FRI,
-        SAT,
-        SUN
+    /////////////////////
+    // Types
+    /////////////////////
+    public static enum Weekday implements IArgoApiEnum {
+        SUN(0x00),
+        MON(0x01),
+        TUE(0x02),
+        WED(0x04),
+        THU(0x08),
+        FRI(0x10),
+        SAT(0x20);
+
+        private int value;
+
+        Weekday(int intValue) {
+            this.value = intValue;
+        }
+
+        @Override
+        public int getIntValue() {
+            return this.value;
+        }
     }
 
-    /**
-     * Sample configuration parameters. Replace with your own.
-     */
+    @FunctionalInterface
+    public interface ConfigValueSupplier<T> {
+        public T get() throws ArgoConfigurationException;
+    }
+
+    /////////////////////
+    // Configuration parameters (defined in thing-types.xml or ArgoClimaConfigProvider)
+    /////////////////////
     public String deviceCpuId = "";
     public int refreshInterval = -1;
     public int oemServerPort = -1;
-    public String oemServerAddress = "";
+    private String oemServerAddress = "";
 
-    public List<Weekday> schedule1DayOfWeek = List.of();
-    public String schedule1OnTime = "";
-    public String schedule1OffTime = "";
-    public List<Weekday> schedule2DayOfWeek = List.of();
-    public String schedule2OnTime = "";
-    public String schedule2OffTime = "";
-    public List<Weekday> schedule3DayOfWeek = List.of();
-    public String schedule3OnTime = "";
-    public String schedule3OffTime = "";
+    private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS; // EnumSet.noneOf(Weekday.class);
+    private String schedule1OnTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_START_TIME;
+    private String schedule1OffTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_END_TIME;
+    private Set<Weekday> schedule2DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+    private String schedule2OnTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_START_TIME;
+    private String schedule2OffTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_END_TIME;
+    private Set<Weekday> schedule3DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+    private String schedule3OnTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_START_TIME;
+    private String schedule3OffTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_END_TIME;
 
     public boolean resetToFactoryDefaults = false;
-    // public String password = ""; <-- for remote device only
 
-    // public static final int LOCAL_PORT = 1001;
-    // hvacChangeDebounce
+    public InetAddress getOemServerAddress() throws ArgoConfigurationException {
+        try {
+            return InetAddress.getByName(oemServerAddress);
+        } catch (UnknownHostException e) {
+            throw new ArgoConfigurationException("Invalid oemServerAddress configuration", oemServerAddress, e);
+        }
+    }
 
-    //
-    // /**
-    // * The currentTemperatureOffset is configureable in case the user wants to offset this temperature for calibration
-    // * of the temperature sensor.
-    // */
-    // public BigDecimal currentTemperatureOffset = new BigDecimal(0.0);
-    //
-    protected static <T> String getOrDefault(Supplier<T> fn, String defaultValue) {
+    public EnumSet<Weekday> getSchedule1DayOfWeek() {
+        if (schedule1DayOfWeek.isEmpty()) {
+            return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+        }
+        return EnumSet.copyOf(schedule1DayOfWeek);
+    }
+
+    public LocalTime getSchedule1OnTime() throws ArgoConfigurationException {
+        try {
+            return LocalTime.parse(schedule1OnTime);
+        } catch (DateTimeParseException e) {
+            throw new ArgoConfigurationException("Invalid schedule1OnTime format", schedule1OnTime, e);
+        }
+    }
+
+    public LocalTime getSchedule1OffTime() throws ArgoConfigurationException {
+        try {
+            return LocalTime.parse(schedule1OffTime);
+        } catch (DateTimeParseException e) {
+            throw new ArgoConfigurationException("Invalid schedule1OffTime format", schedule1OffTime, e);
+        }
+    }
+
+    public EnumSet<Weekday> getSchedule2DayOfWeek() {
+        if (schedule2DayOfWeek.isEmpty()) {
+            return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+        }
+        return EnumSet.copyOf(schedule2DayOfWeek);
+    }
+
+    public LocalTime getSchedule2OnTime() throws ArgoConfigurationException {
+        try {
+            return LocalTime.parse(schedule2OnTime);
+        } catch (DateTimeParseException e) {
+            throw new ArgoConfigurationException("Invalid schedule2OnTime format", schedule2OnTime, e);
+        }
+    }
+
+    public LocalTime getSchedule2OffTime() throws ArgoConfigurationException {
+        try {
+            return LocalTime.parse(schedule2OffTime);
+        } catch (DateTimeParseException e) {
+            throw new ArgoConfigurationException("Invalid schedule2OffTime format", schedule2OffTime, e);
+        }
+    }
+
+    public EnumSet<Weekday> getSchedule3DayOfWeek() {
+        if (schedule3DayOfWeek.isEmpty()) {
+            return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+        }
+        return EnumSet.copyOf(schedule3DayOfWeek);
+    }
+
+    public LocalTime getSchedule3OnTime() throws ArgoConfigurationException {
+        try {
+            return LocalTime.parse(schedule3OnTime);
+        } catch (DateTimeParseException e) {
+            throw new ArgoConfigurationException("Invalid schedule3OnTime format", schedule3OnTime, e);
+        }
+    }
+
+    public LocalTime getSchedule3OffTime() throws ArgoConfigurationException {
+        try {
+            return LocalTime.parse(schedule3OffTime);
+        } catch (DateTimeParseException e) {
+            throw new ArgoConfigurationException("Invalid schedule3OffTime format", schedule3OffTime, e);
+        }
+    }
+
+    /////////////////////
+    // Helper functions
+    /////////////////////
+
+    /**
+     * Utility function for logging only. Gets a parsed value from the supplier function or, exceptionally the raw
+     * value. Swallows exceptions.
+     *
+     * @param <T> Actual type of variable returned by the supplier (parsed)
+     * @param fn Parser function
+     * @return String param value (if parsed correctly), or the default value post-fixed with {@code [raw]} - on parse
+     *         failure.
+     */
+    protected static <T> String getOrDefault(ConfigValueSupplier<T> fn) {
         try {
             return fn.get().toString();
-        } catch (Exception e) {
-            return defaultValue + "[raw]";
+        } catch (ArgoConfigurationException e) {
+            return e.rawValue + "[raw]";
         }
     }
 
@@ -82,22 +185,28 @@ public abstract class ArgoClimaConfigurationBase {
         return String.format("Config: { %s, deviceCpuId=%s, refreshInterval=%d, oemServerPort=%d, oemServerAddress=%s,"
                 + "schedule1DayOfWeek=%s, schedule1OnTime=%s, schedule1OffTime=%s, schedule2DayOfWeek=%s, schedule2OnTime=%s, schedule2OffTime=%s, schedule3DayOfWeek=%s, schedule3OnTime=%s, schedule3OffTime=%s, resetToFactoryDefaults=%s}",
                 getExtraFieldDescription(), deviceCpuId, refreshInterval, oemServerPort,
-                getOrDefault(this::getOemServerAddress, oemServerAddress), schedule1DayOfWeek, schedule1OnTime,
-                schedule1OffTime, schedule2DayOfWeek, schedule2OnTime, schedule2OffTime, schedule3DayOfWeek,
-                schedule3OnTime, schedule3OffTime, resetToFactoryDefaults);
+                getOrDefault(this::getOemServerAddress), getOrDefault(this::getSchedule1DayOfWeek),
+                getOrDefault(this::getSchedule1OnTime), getOrDefault(this::getSchedule1OffTime),
+                getOrDefault(this::getSchedule2DayOfWeek), getOrDefault(this::getSchedule2OnTime),
+                getOrDefault(this::getSchedule2OffTime), getOrDefault(this::getSchedule3DayOfWeek),
+                getOrDefault(this::getSchedule3OnTime), getOrDefault(this::getSchedule3OffTime),
+                resetToFactoryDefaults);
     }
 
+    /**
+     * Return derived class'es extra configuration parameters (for a common {@link toString} implementation)
+     *
+     * @return Comma-separated list of configuration parameter=value pairs or empty String if derived class does not
+     *         introduce any.
+     */
     protected abstract String getExtraFieldDescription();
 
-    public InetAddress getOemServerAddress() {
-        try {
-            return InetAddress.getByName(oemServerAddress);
-        } catch (UnknownHostException e) {
-            throw new ConfigurationException("Invalid oemServerAddress configuration", e);
-        }
-    }
-
-    protected abstract String validateInternal() throws Exception;
+    /**
+     * Validate derived configuration
+     *
+     * @throws ArgoConfigurationException - on validation failure
+     */
+    protected abstract void validateInternal() throws ArgoConfigurationException;
 
     /**
      * Validate current config
@@ -113,17 +222,29 @@ public abstract class ArgoClimaConfigurationBase {
             return "OEM server port must be in range [0..65536]";
         }
 
-        try { // want the side-effect of these calls
+        try {
+            // want the side-effect of these calls
             getOemServerAddress();
-            return validateInternal();
+
+            getSchedule1DayOfWeek();
+            getSchedule1OnTime();
+            getSchedule1OffTime();
+
+            getSchedule2DayOfWeek();
+            getSchedule2OnTime();
+            getSchedule2OffTime();
+
+            getSchedule3DayOfWeek();
+            getSchedule3OnTime();
+            getSchedule3OffTime();
+
+            validateInternal();
+            return "";
         } catch (Exception e) {
-            var msg = e.getMessage();
-            if (e.getCause() != null) {
-                msg += ". " + Objects.requireNonNull(e.getCause()).getMessage();
-            }
-            return Objects.requireNonNullElse(msg, "Exception cause is null");
+            var msg = Optional.ofNullable(e.getMessage());
+            var cause = Optional.ofNullable(e.getCause());
+            return msg.orElse("Null exception message")
+                    .concat(cause.map(c -> "\n\tCause: " + c.getMessage()).orElse(""));
         }
     }
-
-    // isValid
 }
