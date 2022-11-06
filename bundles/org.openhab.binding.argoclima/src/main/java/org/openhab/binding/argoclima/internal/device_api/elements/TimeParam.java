@@ -100,5 +100,4 @@ public class TimeParam extends ArgoApiElementBase {
         // }
         return new HandleCommandResult(false);
     }
-
 }

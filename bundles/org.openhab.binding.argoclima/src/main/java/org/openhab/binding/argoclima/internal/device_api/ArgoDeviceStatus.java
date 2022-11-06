@@ -19,7 +19,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.ArgoClimaHandler;
 import org.openhab.binding.argoclima.internal.device_api.elements.EnumParam;
 import org.openhab.binding.argoclima.internal.device_api.elements.FwVersionParam;
 import org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement;
@@ -45,7 +44,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class ArgoDeviceStatus {
 
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
+    private final Logger logger = LoggerFactory.getLogger(ArgoDeviceStatus.class);
 
     private Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = Map.ofEntries(
             Map.entry(ArgoDeviceSettingType.TARGET_TEMPERATURE,
@@ -127,7 +126,6 @@ public class ArgoDeviceStatus {
     public String toString() {
         return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
                 .map(x -> String.format("%s=%s", x.getKey(), x.getValue())).collect(Collectors.joining(", ", "{", "}"));
-
     }
 
     public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {

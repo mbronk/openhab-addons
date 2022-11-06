@@ -98,7 +98,6 @@ public class PassthroughHttpClient {
         // downstreamHttpRequest.getReader().transferTo(cachedWriter);
         return downstreamHttpRequest.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
         // return cachedBytes.toString(StandardCharsets.US_ASCII);
-
     }
 
     public ContentResponse passthroughRequest(Request downstreamHttpRequest, String downstreamHttpRequestBody)

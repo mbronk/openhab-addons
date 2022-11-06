@@ -173,7 +173,6 @@ public class RemoteGetUiFlgResponseDTO {
                 UiFlgResponseCommmands.fromResponseString(matcher.group("commands")),
                 UiFlgResponseUpd.fromResponseString(matcher.group("updsuffix")),
                 UiFlgResponseACN.fromResponseString(matcher.group("acn")));
-
     }
 
     public String toResponseString() {

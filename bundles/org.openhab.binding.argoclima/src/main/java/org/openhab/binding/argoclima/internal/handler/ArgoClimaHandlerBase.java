@@ -10,10 +10,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal;
+package org.openhab.binding.argoclima.internal.handler;
 
-import java.net.InetAddress;
-import java.text.MessageFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -29,14 +27,11 @@ import java.util.function.Supplier;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.jetty.client.HttpClient;
-import org.openhab.binding.argoclima.internal.ArgoClimaConfiguration.ConnectionMode;
-import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
-import org.openhab.binding.argoclima.internal.device_api.passthrough.PassthroughHttpClient;
-import org.openhab.binding.argoclima.internal.device_api.passthrough.RemoteArgoApiServerStub;
+import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase;
+import org.openhab.binding.argoclima.internal.device_api.IArgoClimaDeviceAPI;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
-import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
@@ -55,121 +50,108 @@ import org.slf4j.LoggerFactory;
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public class ArgoClimaHandler extends BaseThingHandler {
+public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfigurationBase> extends BaseThingHandler {
 
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandler.class);
+    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerBase.class);
+    private Optional<IArgoClimaDeviceAPI> deviceApi = Optional.empty(); // todo
+    private Optional<ConfigT> config = Optional.empty();
 
-    private Optional<ArgoClimaConfiguration> config;
-
-    private final HttpClient client;
-    private final HttpClientFactory clientFactory;
-    private Optional<ArgoClimaLocalDevice> deviceApi;
     private @Nullable ScheduledFuture<?> refreshTask;
-    // private Optional<Future> oneOffRefreshJob;
     private @Nullable Future<?> initializeFuture;
     private Optional<Future<?>> settingsUpdateFuture = Optional.empty();
-    // private Optional<CompletableFuture<Boolean>> sendCommandToDeviceFuture = Optional.empty();
     private final int MAX_API_RETRIES = 3;
-
-    private @Nullable RemoteArgoApiServerStub serverStub;
-
     private boolean forceRefresh = false;
     private long lastRefreshTime = 0;
     private long apiRetries = 0;
     private final int MAX_UPDATE_RETRIES = 3;
 
-    public ArgoClimaHandler(Thing thing, HttpClientFactory clientFactory) {
+    public ArgoClimaHandlerBase(Thing thing) {
         super(thing);
-        this.client = clientFactory.getCommonHttpClient();
-        this.deviceApi = Optional.empty();
-        this.clientFactory = clientFactory;
-        this.config = Optional.empty();
     }
 
-    private synchronized void cancelPendingSettingsUpdateJob() {
-        settingsUpdateFuture.ifPresent(x -> {
-            if (!x.isDone()) {
-                logger.info("Cancelling previous update job");
-                x.cancel(true);
-            }
-        });
-        settingsUpdateFuture = Optional.empty();
-    }
+    protected abstract ConfigT getConfigInternal();
 
-    private void sendCommandsToDeviceAwaitConfirmation(boolean forceRefresh) {
+    protected abstract IArgoClimaDeviceAPI initializeDeviceApi(ConfigT config) throws Exception;
 
-        logger.warn("STARTING UPDATES!!!");
-        // TODO
-        cancelPendingSettingsUpdateJob();
+    @Override
+    public final void initialize() {
+        this.config = Optional.of(getConfigInternal());
+        Objects.requireNonNull(config);
+        logger.info("Running with config: {}", config.get().toString());
 
-        Supplier<Boolean> fn = () -> {
-            try {
-                // do a better debounce?
-                Thread.sleep(100); // naive debounce (not to overflow the device if multiple commands are sent at once)
-            } catch (InterruptedException e) {
-            }
-            var valuesToUpdate = this.deviceApi.get().getItemsWithPendingUpdates();
-            logger.info("Will UPDATE the following items: {}", valuesToUpdate);
-
-            int attempt = 0;
-            while (true) {
-                attempt++;
-                try {
-                    if (!this.deviceApi.get().hasPendingCommands()) {
-                        if (forceRefresh) {
-                            this.deviceApi.get().queryDeviceForUpdatedState(); // no updates but refresh was forced
-                        } else {
-                            logger.info("Nothing to update... skipping"); // update might have occured async
-                        }
-                        return false; // no update made
-                    }
-
-                    this.deviceApi.get().sendCommandsToDevice();
-                    if (!this.deviceApi.get().hasPendingCommands()) {
-                        logger.info("ALL UPDATED ON 1st try!!");
-                        return true;
-                    }
-
-                    try {
-                        Thread.sleep(3000); // Note: the device takes long to process commands. Giving it a few sec.
-                                            // before reconfirming
-                    } catch (InterruptedException e) {
-                        return true;
-                    }
-                    this.deviceApi.get().queryDeviceForUpdatedState();
-                    if (this.deviceApi.get().hasPendingCommands()) {
-                        throw new ArgoLocalApiCommunicationException("Update not confirmed. Value was not set");
-                    }
-                    return true;
-
-                } catch (Exception ex) {
-                    if (attempt < MAX_UPDATE_RETRIES - 1) {
-                        try {
-                            Thread.sleep(Duration.ofMillis(1500).toMillis());
-                        } catch (InterruptedException e) {
-                            // TODO Auto-generated catch block
-                            return false;
-                        }
-                        continue; // try again
-                    } else {
-                        valuesToUpdate.stream().forEach(x -> x.abortPendingCommand());
-                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                                "Could not control device at IP address x.x.x.x | " + ex.getMessage());
-                        // throw new ArgoLocalApiCommunicationException("Failed to send commands to device: " +
-                        // e.getMessage(), e);
-                        throw new RuntimeException("Device command failed", ex); // TODO: this has no effect
-                    }
-                }
-            }
-        };
-
-        synchronized (this) {
-            settingsUpdateFuture = Optional.of(scheduler.submit(() -> CompletableFuture.supplyAsync(fn)));
+        if (config.get().resetToFactoryDefaults) {
+            config.get().resetToFactoryDefaults = false;
+            var configUpdated = editConfiguration();
+            configUpdated.put("resetToFactoryDefaults", false);
+            updateConfiguration(configUpdated); // TODO: if using file-based config, this will fail?
+            // getThing().set
         }
+
+        // TODO: Initialize the handler.
+        // The framework requires you to return from this method quickly, i.e. any network access must be done in
+        // the background initialization below.
+        // Also, before leaving this method a thing status from one of ONLINE, OFFLINE or UNKNOWN must be set. This
+        // might already be the real thing status in case you can decide it directly.
+        // In case you can not decide the thing status directly (e.g. for long running connection handshake using WAN
+        // access or similar) you should set status UNKNOWN here and then decide the real status asynchronously in the
+        // background.
+        var configValidationError = config.get().validate();
+        if (!configValidationError.isEmpty()) {
+            var message = "Invalid thing configuration. " + configValidationError;
+            logger.warn("{}: {}", getThing().getUID().getId(), message);
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, message);
+            return;
+        }
+
+        try {
+            this.deviceApi = Optional.of(initializeDeviceApi(config.get()));
+        } catch (Exception e1) {
+            // TODO Auto-generated catch block
+            logger.warn("Failed to initialize Device API", e1); // TODO: crash
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.HANDLER_INITIALIZING_ERROR, e1.getMessage());
+            return;
+        }
+
+        // TODO: configure all this
+
+        // set the thing status to UNKNOWN temporarily and let the background task decide for the real status.
+        // the framework is then able to reuse the resources from the thing handler initialization.
+        // we set this upfront to reliably check status updates in unit tests.
+
+        updateStatus(ThingStatus.UNKNOWN);
+
+        if (this.config.get().refreshInterval > 0) {
+            startAutomaticRefresh();
+        }
+        initializeFuture = scheduler.submit(this::initializeThing);
+        // Example for background initialization:
+        // scheduler.execute(() -> {
+        // boolean thingReachable = true; // <background task with long running initialization here>
+        // // when done do:
+        // if (thingReachable) {
+        // updateStatus(ThingStatus.ONLINE);
+        // } else {
+        // updateStatus(ThingStatus.OFFLINE);
+        // }
+        // });
+
+        // These logging types should be primarily used by bindings
+        // logger.trace("Example trace message");
+        // logger.debug("Example debug message");
+        // logger.warn("Example warn message");
+        //
+        // Logging to INFO should be avoided normally.
+        // See https://www.openhab.org/docs/developer/guidelines.html#f-logging
+
+        // Note: When initialization can NOT be done set the status with more details for further
+        // analysis. See also class ThingStatusDetail for all available status details.
+        // Add a description to give user information to understand why thing does not work as expected. E.g.
+        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+        // "Can not access device as username and/or password are invalid");
     }
 
     @Override
-    public void handleCommand(ChannelUID channelUID, Command command) {
+    public final void handleCommand(ChannelUID channelUID, Command command) {
 
         if (command instanceof RefreshType) {
             sendCommandsToDeviceAwaitConfirmation(true); // Irrespective of channel (the API gets all data points in
@@ -225,6 +207,14 @@ public class ArgoClimaHandler extends BaseThingHandler {
             hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.TURBO_MODE, command, channelUID);
         }
 
+        if (ArgoClimaBindingConstants.CHANNEL_TEMPERATURE_DISPLAY_UNIT.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.DISPLAY_TEMPERATURE_SCALE, command,
+                    channelUID);
+        }
+        if (ArgoClimaBindingConstants.CHANNEL_ECO_POWER_LIMIT.equals(channelUID.getId())) {
+            hasUpdates |= handleIndividualSettingCommand(ArgoDeviceSettingType.ECO_POWER_LIMIT, command, channelUID);
+        }
+
         // case DISPLAY_TEMPERATURE_SCALE:
         // break;
         // case ECO_POWER_LIMIT:
@@ -251,6 +241,38 @@ public class ArgoClimaHandler extends BaseThingHandler {
             sendCommandsToDeviceAwaitConfirmation(false);
             // executeStateUpdateWithRetries();
         }
+    }
+
+    @Override
+    public void dispose() {
+        logger.debug("{}: Thing {} is disposing", getThing().getUID().getId(), thing.getUID());
+        if (this.deviceApi.isPresent()) {
+            // deviceApi.get().close(); //TODO:cancel http requests!
+            deviceApi = Optional.empty();
+        }
+
+        try {
+            stopRefreshTask();
+        } catch (Exception e) {
+            logger.warn("Exception during handler disposal", e);
+        }
+
+        try {
+            if (initializeFuture != null) {
+                initializeFuture.cancel(true);
+            }
+        } catch (Exception e) {
+            logger.warn("Exception during handler disposal", e);
+        }
+
+        try {
+            cancelPendingSettingsUpdateJob();
+        } catch (Exception e) {
+            logger.warn("Exception during handler disposal", e);
+        }
+        logger.debug("{}: Disposed", getThing().getUID().getId());
+        // sendCommandToDeviceFuture.ifPresent(x -> x.cancel(true));
+        // sendCommandToDeviceFuture = Optional.empty();
     }
 
     // private boolean updateValue(int attemptNumber) {
@@ -281,125 +303,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
     // return forceRefresh;
     // }
 
-    private boolean handleIndividualSettingCommand(ArgoDeviceSettingType settingType, Command command,
-            ChannelUID channelUID) {
-
-        if (command instanceof RefreshType) {
-            // TODO: handle data refresh
-            // set value to undef for a while?? drop pending state!!
-            return true;
-        }
-        boolean updateInitiated = this.deviceApi.get().handleSettingCommand(settingType, command);
-        if (updateInitiated) {
-            State currentState = this.deviceApi.get().getCurrentStateNoPoll(settingType);
-            logger.info("State of {} after update: {}", channelUID, currentState);
-            updateState(channelUID, currentState); // TODO: assume new state
-        }
-        return updateInitiated;
-
-        // this.deviceApi.get().
-    }
-
-    @Override
-    public void initialize() {
-        this.config = Optional.of(getConfigAs(ArgoClimaConfiguration.class));
-        Objects.requireNonNull(config);
-        logger.info("Running with config: {}", config.get().toString());
-
-        if (config.get().resetToFactoryDefaults) {
-            config.get().resetToFactoryDefaults = false;
-            var configUpdated = editConfiguration();
-            configUpdated.put("resetToFactoryDefaults", false);
-            updateConfiguration(configUpdated); // TODO: if using file-based config, this will fail?
-            // getThing().set
-        }
-
-        // TODO: Initialize the handler.
-        // The framework requires you to return from this method quickly, i.e. any network access must be done in
-        // the background initialization below.
-        // Also, before leaving this method a thing status from one of ONLINE, OFFLINE or UNKNOWN must be set. This
-        // might already be the real thing status in case you can decide it directly.
-        // In case you can not decide the thing status directly (e.g. for long running connection handshake using WAN
-        // access or similar) you should set status UNKNOWN here and then decide the real status asynchronously in the
-        // background.
-        var configValidationError = config.get().validate();
-        if (!configValidationError.isEmpty()) {
-            var message = "Invalid thing configuration. " + configValidationError;
-            logger.warn("{}: {}", getThing().getUID().getId(), message);
-            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, message);
-            return;
-        }
-
-        var targetCpuID = config.get().deviceCpuId.isBlank() ? Optional.<String>empty()
-                : Optional.of(config.get().deviceCpuId); // TODO
-        var localIpAddress = config.get().localDeviceIP.isBlank() ? Optional.<InetAddress>empty()
-                : Optional.of(config.get().getLocalDeviceIP()); // TODO
-
-        this.deviceApi = Optional.of(new ArgoClimaLocalDevice(config.get().getHostname(), config.get().localDevicePort,
-                localIpAddress, targetCpuID, this.client, this::updateChannelsFromDevice, this::updateStatus));
-
-        if (config.get().connectionMode == ConnectionMode.REMOTE_API_PROXY
-                || config.get().connectionMode == ConnectionMode.REMOTE_API_STUB) {
-            var passthroughClient = Optional.<PassthroughHttpClient>empty();
-            if (config.get().connectionMode == ConnectionMode.REMOTE_API_PROXY) {
-                passthroughClient = Optional
-                        .of(new PassthroughHttpClient(config.get().getOemServerAddress().getHostAddress(),
-                                config.get().oemServerPort, clientFactory));
-            }
-
-            serverStub = new RemoteArgoApiServerStub(config.get().getStubServerListenAddresses(),
-                    config.get().stubServerPort, this.getThing().getUID().toString(), passthroughClient,
-                    this.deviceApi);
-            try {
-                serverStub.start();
-            } catch (Exception e1) {
-                // TODO Auto-generated catch block
-                logger.error("Failed to start RPC server", e1); // TODO: crash
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.HANDLER_INITIALIZING_ERROR,
-                        String.format("[%s mode] Failed to start RPC server at port: %d. Error: %s",
-                                config.get().connectionMode, config.get().stubServerPort, e1.getMessage()));
-                return;
-            }
-        }
-        // TODO: configure all this
-
-        // set the thing status to UNKNOWN temporarily and let the background task decide for the real status.
-        // the framework is then able to reuse the resources from the thing handler initialization.
-        // we set this upfront to reliably check status updates in unit tests.
-
-        updateStatus(ThingStatus.UNKNOWN);
-
-        if (this.config.get().refreshInterval > 0) {
-            startAutomaticRefresh();
-        }
-        initializeFuture = scheduler.submit(this::initializeThing);
-        // Example for background initialization:
-        // scheduler.execute(() -> {
-        // boolean thingReachable = true; // <background task with long running initialization here>
-        // // when done do:
-        // if (thingReachable) {
-        // updateStatus(ThingStatus.ONLINE);
-        // } else {
-        // updateStatus(ThingStatus.OFFLINE);
-        // }
-        // });
-
-        // These logging types should be primarily used by bindings
-        // logger.trace("Example trace message");
-        // logger.debug("Example debug message");
-        // logger.warn("Example warn message");
-        //
-        // Logging to INFO should be avoided normally.
-        // See https://www.openhab.org/docs/developer/guidelines.html#f-logging
-
-        // Note: When initialization can NOT be done set the status with more details for further
-        // analysis. See also class ThingStatusDetail for all available status details.
-        // Add a description to give user information to understand why thing does not work as expected. E.g.
-        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
-        // "Can not access device as username and/or password are invalid");
-    }
-
-    private void startAutomaticRefresh() {
+    private final void startAutomaticRefresh() {
         Runnable refresher = () -> {
             try {
                 // safeguard for multiple REFRESH commands
@@ -421,14 +325,15 @@ public class ArgoClimaHandler extends BaseThingHandler {
             }
 
             catch (RuntimeException | ArgoLocalApiCommunicationException e) {
-                logger.warn("Thing {}. Polling for device-side update for device {} failed [{} of {}]. Error=[{}]",
-                        getThing().getUID().getId(), this.deviceApi.get().getIpAddressForDirectCommunication(),
-                        apiRetries + 1, MAX_API_RETRIES + 1, e.getMessage()); // TODO: lower to debug
+                logger.warn("Thing {}. Polling for device-side update for HVAC device failed [{} of {}]. Error=[{}]",
+                        getThing().getUID().getId(), // this.deviceApi.get().getIpAddressForDirectCommunication(),
+                        apiRetries + 1, MAX_API_RETRIES, e.getMessage()); // TODO: lower to debug
                 apiRetries++;
                 if (apiRetries >= MAX_API_RETRIES) {
                     updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                            "Polling for device-side update failed. Unable to communicate with device "
-                                    + this.deviceApi.get().getIpAddressForDirectCommunication().toString()
+                            "Polling for device-side update failed. Unable to communicate with HVAC device"
+                                    // + this.deviceApi.get().getIpAddressForDirectCommunication().toString() //TODO:
+                                    // restore sth
                                     + ". Retries exceeded");
                     apiRetries = 0;
                 }
@@ -448,7 +353,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
     //
     // }
 
-    private void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
+    protected final void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
         for (Entry<ArgoDeviceSettingType, State> entry : deviceState.entrySet()) {
             var channelNames = Set.<String>of();
             switch (entry.getKey()) {
@@ -529,7 +434,7 @@ public class ArgoClimaHandler extends BaseThingHandler {
         }
     }
 
-    private boolean isMinimumRefreshTimeExceeded() {
+    private final boolean isMinimumRefreshTimeExceeded() {
         long currentTime = Instant.now().toEpochMilli();
         long timeSinceLastRefresh = currentTime - lastRefreshTime;
         if (!forceRefresh && (timeSinceLastRefresh < config.get().refreshInterval * 1000)) {
@@ -539,19 +444,17 @@ public class ArgoClimaHandler extends BaseThingHandler {
         return true;
     }
 
-    private void initializeThing() {
+    private final void initializeThing() {
         String message = "";
         try {
             // TODO: do a few retries here?
-            boolean isAlive = this.deviceApi.get().isReachable();
+            var isAlive = this.deviceApi.get().isReachable();
 
-            if (isAlive) {
+            if (isAlive.getLeft()) {
                 updateStatus(ThingStatus.ONLINE);
                 return;
             }
-            message = MessageFormat.format(
-                    "Failed to communicate with local Argo HVAC device at [host: {0}, port: {1,number,#}]",
-                    this.deviceApi.get().ipAddress.getHostAddress(), this.deviceApi.get().port);
+            message = isAlive.getRight();
         }
 
         // if (!clientSocket.isPresent()) {
@@ -599,13 +502,13 @@ public class ArgoClimaHandler extends BaseThingHandler {
         this.updateThingProperties(Map.of(ArgoClimaBindingConstants.PROPERTY_CPU_ID, "something"));
     }
 
-    private void updateThingProperties(Map<String, String> entries) {
+    private final void updateThingProperties(Map<String, String> entries) {
         var currentProps = this.editProperties();
         entries.entrySet().stream().forEach(x -> currentProps.put(x.getKey(), x.getValue()));
         this.updateProperties(currentProps);
     }
 
-    private synchronized void stopRefreshTask() {
+    private final synchronized void stopRefreshTask() {
         forceRefresh = false;
         if (refreshTask == null) {
             return;
@@ -617,47 +520,104 @@ public class ArgoClimaHandler extends BaseThingHandler {
         refreshTask = null;
     }
 
-    @Override
-    public void dispose() {
-        logger.debug("{}: Thing {} is disposing", getThing().getUID().getId(), thing.getUID());
-        if (this.deviceApi.isPresent()) {
-            // deviceApi.get().close();
-            deviceApi = Optional.empty();
-        }
-
-        try {
-            synchronized (this) {
-                if (this.serverStub != null) {
-                    this.serverStub.shutdown();
-                    this.serverStub = null;
-                }
+    private final synchronized void cancelPendingSettingsUpdateJob() {
+        settingsUpdateFuture.ifPresent(x -> {
+            if (!x.isDone()) {
+                logger.info("Cancelling previous update job");
+                x.cancel(true);
             }
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-
-        try {
-            stopRefreshTask();
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-
-        try {
-            if (initializeFuture != null) {
-                initializeFuture.cancel(true);
-            }
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-
-        try {
-            cancelPendingSettingsUpdateJob();
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-        logger.debug("{}: Disposed", getThing().getUID().getId());
-        // sendCommandToDeviceFuture.ifPresent(x -> x.cancel(true));
-        // sendCommandToDeviceFuture = Optional.empty();
+        });
+        settingsUpdateFuture = Optional.empty();
     }
 
+    private final void sendCommandsToDeviceAwaitConfirmation(boolean forceRefresh) {
+
+        logger.warn("STARTING UPDATES!!!");
+        // TODO
+        cancelPendingSettingsUpdateJob();
+
+        Supplier<Boolean> fn = () -> {
+            try {
+                // do a better debounce?
+                Thread.sleep(100); // naive debounce (not to overflow the device if multiple commands are sent at once)
+            } catch (InterruptedException e) {
+            }
+            var valuesToUpdate = this.deviceApi.get().getItemsWithPendingUpdates();
+            logger.info("Will UPDATE the following items: {}", valuesToUpdate);
+
+            int attempt = 0;
+            while (true) {
+                attempt++;
+                try {
+                    if (!this.deviceApi.get().hasPendingCommands()) {
+                        if (forceRefresh) {
+                            this.deviceApi.get().queryDeviceForUpdatedState(); // no updates but refresh was forced
+                        } else {
+                            logger.info("Nothing to update... skipping"); // update might have occured async
+                        }
+                        return false; // no update made
+                    }
+
+                    this.deviceApi.get().sendCommandsToDevice();
+                    if (!this.deviceApi.get().hasPendingCommands()) {
+                        logger.info("ALL UPDATED ON 1st try!!");
+                        return true;
+                    }
+
+                    try {
+                        Thread.sleep(3000); // Note: the device takes long to process commands. Giving it a few sec.
+                                            // before reconfirming
+                    } catch (InterruptedException e) {
+                        return true;
+                    }
+                    this.deviceApi.get().queryDeviceForUpdatedState();
+                    if (this.deviceApi.get().hasPendingCommands()) {
+                        throw new ArgoLocalApiCommunicationException("Update not confirmed. Value was not set");
+                    }
+                    return true;
+
+                } catch (Exception ex) {
+                    if (attempt < MAX_UPDATE_RETRIES - 1) {
+                        try {
+                            Thread.sleep(Duration.ofMillis(1500).toMillis());
+                        } catch (InterruptedException e) {
+                            // TODO Auto-generated catch block
+                            return false;
+                        }
+                        continue; // try again
+                    } else {
+                        valuesToUpdate.stream().forEach(x -> x.abortPendingCommand());
+                        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                                "Could not control device at IP address x.x.x.x | " + ex.getMessage());
+                        // throw new ArgoLocalApiCommunicationException("Failed to send commands to device: " +
+                        // e.getMessage(), e);
+                        throw new RuntimeException("Device command failed", ex); // TODO: this has no effect
+                    }
+                }
+            }
+        };
+
+        synchronized (this) {
+            settingsUpdateFuture = Optional.of(scheduler.submit(() -> CompletableFuture.supplyAsync(fn)));
+        }
+    }
+
+    private final boolean handleIndividualSettingCommand(ArgoDeviceSettingType settingType, Command command,
+            ChannelUID channelUID) {
+
+        if (command instanceof RefreshType) {
+            // TODO: handle data refresh
+            // set value to undef for a while?? drop pending state!!
+            return true;
+        }
+        boolean updateInitiated = this.deviceApi.get().handleSettingCommand(settingType, command);
+        if (updateInitiated) {
+            State currentState = this.deviceApi.get().getCurrentStateNoPoll(settingType);
+            logger.info("State of {} after update: {}", channelUID, currentState);
+            updateState(channelUID, currentState); // TODO: assume new state
+        }
+        return updateInitiated;
+
+        // this.deviceApi.get().
+    }
 }
