@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -116,8 +117,8 @@ public class ArgoDeviceStatus {
     );
 
     public ArgoApiDataElement<IArgoElement> getSetting(ArgoDeviceSettingType type) {
-        if (dataElements.containsKey(type)) {
-            return dataElements.get(type);
+        if (dataElements.containsKey(type)) { // TODO: threading issues?
+            return Objects.requireNonNull(dataElements.get(type));
         }
         throw new RuntimeException("Wrong setting type");
     }

@@ -13,6 +13,7 @@
 package org.openhab.binding.argoclima.internal.exception;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  *
@@ -35,13 +36,13 @@ public class ArgoLocalApiCommunicationException extends Exception {
      * @param message
      * @param cause
      */
-    public ArgoLocalApiCommunicationException(String message, Throwable cause) {
+    public ArgoLocalApiCommunicationException(String message, @Nullable Throwable cause) {
         super(message, cause);
         // TODO Auto-generated constructor stub
     }
 
     @Override
-    public String getMessage() {
+    public @Nullable String getMessage() {
         var msg = super.getMessage();
         if (this.getCause() != null) {
             msg += ". Caused by: " + this.getCause().getMessage();

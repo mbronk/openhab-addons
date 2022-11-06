@@ -186,10 +186,11 @@ public class ArgoClimaConfiguration {
             getOemServerAddress();
         } catch (Exception e) {
             var msg = e.getMessage();
-            if (e.getCause() != null) {
-                msg += ". " + e.getCause().getMessage();
+            var cause = e.getCause();
+            if (cause != null) {
+                msg += ". " + cause.getMessage(); // Todo: null or default?
             }
-            return msg;
+            return Objects.requireNonNull(msg, "Unrecognized exception");
         }
         return "";
     }

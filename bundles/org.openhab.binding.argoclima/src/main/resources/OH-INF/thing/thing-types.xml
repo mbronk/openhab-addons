@@ -43,6 +43,7 @@
                 <description><![CDATA[Configuration of OpenHab acting as Argo API server (requires proxying device-side traffic to this OH instance). 
                 <i>These settings are effective only for <code>REMOTE_API_STUB | REMOTE_API_PROXY</code> connection modes.</i>
                 ]]></description>
+                <context>TestingContext123</context>
             </parameter-group>
             <!--  <parameter-group name="actions">
 	            <label>Actions</label>

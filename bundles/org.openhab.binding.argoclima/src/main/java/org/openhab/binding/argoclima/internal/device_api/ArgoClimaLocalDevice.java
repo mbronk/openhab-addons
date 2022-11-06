@@ -106,7 +106,11 @@ public class ArgoClimaLocalDevice {
                 throw new ArgoLocalApiCommunicationException(
                         "Cause is: EOF: " + ((EOFException) cause.get()).getMessage(), cause.get());
             }
-            throw new ArgoLocalApiCommunicationException("Device communication error: " + ex.getCause().getMessage(),
+            throw new ArgoLocalApiCommunicationException("Device communication error: " + ex.getCause().getMessage(), // TODO
+                                                                                                                      // (ex.getCause()
+                                                                                                                      // may
+                                                                                                                      // return
+                                                                                                                      // null)
                     ex.getCause());
         } catch (TimeoutException e) {
             throw new ArgoLocalApiCommunicationException("Timeout: " + e.getMessage(), e);

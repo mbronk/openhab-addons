@@ -124,8 +124,9 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
                         .withDescription("Schedule timer - profile 3.").build()));
         if (thing.isEnabled()) {
             // Note: Do not localize the label & description (ref: https://github.com/openhab/openhab-webui/issues/1491)
-            paramGroups.add(ConfigDescriptionParameterGroupBuilder.create("actions").withLabel("Actions")
-                    .withDescription("Actions").build());
+            paramGroups
+                    .add(ConfigDescriptionParameterGroupBuilder.create("device_commands").withLabel("Device commands")
+                            .withDescription("Device-specific commands").withContext("actions").build());
         }
 
         var parameters = new ArrayList<ConfigDescriptionParameter>();
@@ -154,7 +155,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
         }
         if (thing.isEnabled()) {
             parameters.add(ConfigDescriptionParameterBuilder.create("resetToFactoryDefaults", Type.BOOLEAN)
-                    .withRequired(false).withGroupName("actions").withLabel("Reset settings")
+                    .withRequired(false).withGroupName("device_commands").withLabel("Reset settings")
                     .withDescription("Reset device settings to factory defaults").withDefault("false").withVerify(true)
                     .build());
         }
