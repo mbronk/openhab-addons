@@ -18,8 +18,9 @@ import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
+import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoApiDataElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.types.Command;

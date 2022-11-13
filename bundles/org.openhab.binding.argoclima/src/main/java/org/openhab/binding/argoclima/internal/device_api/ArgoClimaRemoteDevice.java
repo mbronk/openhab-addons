@@ -24,6 +24,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.URIUtil;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaDeviceApiBase.DeviceStatus.DeviceProperties;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
@@ -50,11 +51,12 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
             "^[\\\\{][|](?<commands>[^|]+)[|](?<localIP>[^|]+)[|](?<lastSeen>[^|]+)[|][\\\\}]\\s*$",
             Pattern.CASE_INSENSITIVE);
 
-    public ArgoClimaRemoteDevice(HttpClient client, TimeZoneProvider timeZoneProvider, InetAddress oemServerHostname,
-            int oemServerPort, String username, String passwordMD5,
-            Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate, Consumer<ThingStatus> onReachableStatusChange,
-            Consumer<Map<String, String>> onDevicePropertiesUpdate) {
-        super(client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate, "REMOTE_API");
+    public ArgoClimaRemoteDevice(ArgoClimaConfigurationRemote config, HttpClient client,
+            TimeZoneProvider timeZoneProvider, InetAddress oemServerHostname, int oemServerPort, String username,
+            String passwordMD5, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
+            Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate) {
+        super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate,
+                "REMOTE_API");
         this.oemServerHostname = oemServerHostname;
         this.oemServerPort = oemServerPort;
         this.username = username;
@@ -78,12 +80,12 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
 
         try {
             var status = extractDeviceStatusFromResponse(pollForCurrentStatusFromDeviceSync(getDeviceStateQueryUrl()));
-            var delta = status.getProperties().getLastSeenDelta();
-            logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
-
-            if (delta.toMinutes() > 30) {
-                return Pair.of(false, MessageFormat.format("Device was last seen {0} minutes ago", delta.toMinutes()));
-            }
+            // var delta = status.getProperties().getLastSeenDelta();
+            // logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
+            //
+            // if (delta.toMinutes() > 30) {
+            // return Pair.of(false, MessageFormat.format("Device was last seen {0} minutes ago", delta.toMinutes()));
+            // }
             //
             // if (!checkLastCommunicationState(status)) {
             // return Pair.of(false, "Device was Last Seen xx h ago"); // TODO
@@ -164,6 +166,16 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         // sth with
         // it
         // <-- TODO matcher.groups
+
+        var delta = properties.getLastSeenDelta();
+        // logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
+
+        if (delta.toSeconds() > ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toSeconds()) {
+            throw new ArgoLocalApiCommunicationException(MessageFormat.format(
+                    "Device was last seen {0} mins ago (threshold is set at {1} min)", delta.toMinutes(),
+                    ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toMinutes()));
+        }
+
         return new DeviceStatus(matcher.group("commands"), properties);
     }
 }

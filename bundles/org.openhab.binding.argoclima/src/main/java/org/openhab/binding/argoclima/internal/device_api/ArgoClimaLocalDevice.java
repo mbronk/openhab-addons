@@ -24,7 +24,9 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.URIUtil;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfiguration;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
+import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
@@ -46,14 +48,14 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     public int port;
     private ArgoDeviceStatus deviceStatus;
 
-    public ArgoClimaLocalDevice(InetAddress targetDeviceIpAddress, int port, Optional<InetAddress> localDeviceIpAddress,
-            Optional<String> cpuId, HttpClient client, TimeZoneProvider timeZoneProvider,
-            Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate, Consumer<ThingStatus> onReachableStatusChange,
-            Consumer<Map<String, String>> onDevicePropertiesUpdate) {
-        super(client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate, "");
+    public ArgoClimaLocalDevice(ArgoClimaConfiguration config, InetAddress targetDeviceIpAddress, int port,
+            Optional<InetAddress> localDeviceIpAddress, Optional<String> cpuId, HttpClient client,
+            TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
+            Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate) {
+        super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate, "");
         this.ipAddress = targetDeviceIpAddress;
         this.port = port;
-        this.deviceStatus = new ArgoDeviceStatus();
+        this.deviceStatus = new ArgoDeviceStatus(config);
         this.localIpAddress = localDeviceIpAddress; // .orElse(targetDeviceIpAddress);
         this.cpuId = cpuId;
     }

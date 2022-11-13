@@ -13,6 +13,7 @@
 package org.openhab.binding.argoclima.internal.handler;
 
 import java.net.InetAddress;
+import java.time.Duration;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -48,7 +49,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     private @Nullable RemoteArgoApiServerStub serverStub;
 
     public ArgoClimaHandlerLocal(Thing thing, HttpClientFactory clientFactory, TimeZoneProvider timeZoneProvider) {
-        super(thing);
+        super(thing, true, Duration.ofSeconds(3), Duration.ofSeconds(10), Duration.ofSeconds(20));
         this.client = clientFactory.getCommonHttpClient();
         this.clientFactory = clientFactory;
         this.timeZoneProvider = timeZoneProvider;
@@ -67,7 +68,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
         var localIpAddress = config.localDeviceIP.isBlank() ? Optional.<InetAddress>empty()
                 : Optional.of(config.getLocalDeviceIP()); // TODO
 
-        var deviceApi = new ArgoClimaLocalDevice(config.getHostname(), config.localDevicePort, localIpAddress,
+        var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.localDevicePort, localIpAddress,
                 targetCpuID, this.client, this.timeZoneProvider, this::updateChannelsFromDevice, this::updateStatus,
                 this::updateThingProperties);
 

@@ -10,13 +10,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.Optional;
 
 import javax.measure.quantity.Dimensionless;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.Units;
 import org.openhab.core.types.Command;
@@ -37,7 +38,8 @@ public class RangeParam extends ArgoApiElementBase {
     private double minValue;
     private double maxValue;
 
-    public RangeParam(double min, double max) {
+    public RangeParam(IArgoSettingProvider settingsProvider, double min, double max) {
+        super(settingsProvider);
         this.minValue = min;
         this.maxValue = max;
     }
@@ -88,7 +90,7 @@ public class RangeParam extends ArgoApiElementBase {
                             (int) maxValue);
                     newValue = (int) maxValue;
                 }
-                var targetValue = Optional.<Number> of(newValue);
+                var targetValue = Optional.<Number>of(newValue);
                 this.currentValue = targetValue;
                 return new HandleCommandResult(Integer.toString(targetValue.get().intValue()),
                         valueToState(targetValue));

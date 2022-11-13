@@ -10,17 +10,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.EnumSet;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
+import org.openhab.core.types.Type;
 import org.openhab.core.types.UnDefType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -30,10 +34,12 @@ import org.openhab.core.types.UnDefType;
  */
 @NonNullByDefault
 public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementBase {
+    private static final Logger logger = LoggerFactory.getLogger(EnumParam.class);
     private Optional<E> currentValue = Optional.empty();
     private Class<E> cls;
 
-    public EnumParam(Class<E> cls) {
+    public EnumParam(IArgoSettingProvider settingsProvider, Class<E> cls) {
+        super(settingsProvider);
         this.cls = cls;
         this.currentValue = Optional.empty();
     }
@@ -77,11 +83,31 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
         return valueToState(currentValue);
     }
 
+    /**
+     * Gets the raw enum value from {@link Command} or {@link State}
+     *
+     * @param <E>
+     * @param value
+     * @param cls
+     * @return
+     */
+    public static <E extends Enum<E> & IArgoApiEnum> Optional<E> fromType(Type value, Class<E> cls) {
+        if (value instanceof StringType) {
+            String newValue = ((StringType) value).toFullString();
+            try {
+                return Optional.of(Enum.valueOf(cls, newValue));
+            } catch (IllegalArgumentException ex) {
+                logger.warn("Failed to convert value: {} to enum. {}", value, ex.getMessage());
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
+    }
+
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
         if (command instanceof StringType) {
-            String newValue = ((StringType) command).toFullString();
-            E val = Enum.valueOf(this.cls, newValue);
+            E val = fromType(command, cls).get();
             if (this.currentValue.isEmpty() || this.currentValue.get().compareTo(val) != 0) {
 
                 var newRawValue = Optional.of(val);

@@ -10,11 +10,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -27,6 +28,10 @@ import org.openhab.core.types.UnDefType;
 @NonNullByDefault
 public class FwVersionParam extends ArgoApiElementBase {
     private Optional<String> currentValue = Optional.empty();
+
+    public FwVersionParam(IArgoSettingProvider settingsProvider) {
+        super(settingsProvider);
+    }
 
     private static State valueToState(Optional<String> value) {
         if (value.isEmpty()) {

@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.types.Command;
@@ -38,6 +38,14 @@ public interface IArgoElement {
     public boolean isUpdatePending();
 
     /**
+     * Returns true if the value is always sent to the device on next cycle (oportunistically), even if there was no
+     * command
+     *
+     * @return True if the value is always sent
+     */
+    public boolean isAlwaysSent();
+
+    /**
      * Returns the raw Argo command to send to the device (if update is pending)
      *
      * @return Command to send to device (if update pending), or {@code NO_VALUE} otherwise
@@ -53,6 +61,13 @@ public interface IArgoElement {
     public State updateFromApiResponse(String responseValue);
 
     /**
+     * Notifes that the pending command has been sent
+     *
+     * @note Used for write-only params, to indicate they have been (hopefully) correctly sent to the deice
+     */
+    public void notifyCommandSent();
+
+    /**
      * Return current state of the element (including side-effects of any pending commands)
      *
      * @return Device's state as {@link State}
@@ -63,9 +78,10 @@ public interface IArgoElement {
      * Handles channel command
      *
      * @param command The command to handle
+     * @param isConfirmable Whether the command result is confirmable by the device
      * @return True - if command has been handled, False - otherwise
      */
-    public boolean handleCommand(Command command);
+    public boolean handleCommand(Command command, boolean isConfirmable);
 
     /**
      * Aborts any pending command
