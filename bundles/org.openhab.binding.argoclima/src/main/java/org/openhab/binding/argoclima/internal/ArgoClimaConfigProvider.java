@@ -57,6 +57,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
     public static final String DEFAULT_SCHEDULE_END_TIME = "18:00";
     public static final EnumSet<Weekday> DEFAULT_SCHEDULE_WEEKDAYS = EnumSet.of(Weekday.MON, Weekday.TUE, Weekday.WED,
             Weekday.THU, Weekday.FRI);
+    public static final EnumSet<Weekday> DEFAULT_SCHEDULE_WEEKEND = EnumSet.of(Weekday.SAT, Weekday.SUN);
 
     @Activate
     public ArgoClimaConfigProvider(final @Reference ThingRegistry thingRegistry) {

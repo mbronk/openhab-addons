@@ -10,17 +10,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.EnumSet;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
+import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -28,7 +32,11 @@ import org.openhab.core.types.UnDefType;
  */
 @NonNullByDefault
 public class WeekdayParam extends ArgoApiElementBase {
+    private static final Logger logger = LoggerFactory.getLogger(WeekdayParam.class);
 
+    public WeekdayParam(IArgoSettingProvider settingsProvider) {
+        super(settingsProvider);
+    }
     // public enum Weekday implements IArgoApiEnum {
     // SUNDAY(0x00),
     // MONDAY(0x01),
@@ -59,7 +67,7 @@ public class WeekdayParam extends ArgoApiElementBase {
         return new StringType(value.get().toString()); // TODO:
     }
 
-    private static int toRawValue(EnumSet<Weekday> values) {
+    public static int toRawValue(EnumSet<Weekday> values) {
         int ret = 0;
         for (Weekday val : values) {
             ret |= val.getIntValue(); // (1 << val.getIntValue());
@@ -67,7 +75,7 @@ public class WeekdayParam extends ArgoApiElementBase {
         return ret;
     }
 
-    private static EnumSet<Weekday> fromRawValue(int value) {
+    public static EnumSet<Weekday> fromRawValue(int value) {
         EnumSet<Weekday> ret = EnumSet.noneOf(Weekday.class);
         for (Weekday val : EnumSet.allOf(Weekday.class)) {
             if ((val.getIntValue() & value) != 0) {
@@ -101,9 +109,49 @@ public class WeekdayParam extends ArgoApiElementBase {
     }
 
     @Override
+    public boolean isAlwaysSent() {
+        // logger.warn("isScheduleTimerEnabled={}", isScheduleTimerEnabled());
+        return isScheduleTimerEnabled();
+    }
+
+    @Override
+    public String getDeviceApiValue() {
+        var defaultresult = super.getDeviceApiValue();
+        if (defaultresult == NO_VALUE && isScheduleTimerEnabled()) {
+            // TODO: only send when scheduleTimer is RAW/NON-CONFIRMED
+            if (currentValue.isPresent()) {
+                return Integer.toString(toRawValue(currentValue.get())); // TODO: only send it as long as TimerType is
+                                                                         // sent?
+            } else {
+                // TODO: IF no value set, get which schedule is enabled and get from settings direct
+                // TODO: need to know who I am (on or off) :/
+                // settingsProvider.getScheduleProvider().getSchedule1OnTime()
+            }
+
+        }
+        return defaultresult;
+    }
+
+    @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
         // TODO handle
         // return toRawValue()
-        return new HandleCommandResult(false);
+        logger.warn("TODO");
+
+        if (command instanceof DecimalType) {
+            var rawCommand = (DecimalType) command;
+            var newValue = fromRawValue(rawCommand.intValue());
+
+            this.currentValue = Optional.of(newValue);
+
+            var result = new HandleCommandResult(Integer.toString(rawCommand.intValue()),
+                    valueToState(Optional.of(newValue)));
+            result.setDeferred(!isScheduleTimerEnabled());
+            return result;
+        }
+
+        return new HandleCommandResult(false); // This value is NOT send to the device, unless a DelayTimer0 is
+                                               // activaterd
+
     }
 }

@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -18,6 +18,7 @@ import java.util.Optional;
 import javax.measure.quantity.Temperature;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.SIUnits;
 import org.openhab.core.types.Command;
@@ -39,13 +40,15 @@ public class TemperatureParam extends ArgoApiElementBase {
     private Optional<Double> currentValue = Optional.empty();
     private double step;
 
-    public TemperatureParam(double min, double max, double step) {
+    public TemperatureParam(IArgoSettingProvider settingsProvider, double min, double max, double step) {
+        super(settingsProvider);
         this.minValue = min;
         this.maxValue = max;
         this.step = step;
     }
 
-    public TemperatureParam() {
+    public TemperatureParam(IArgoSettingProvider settingsProvider) {
+        super(settingsProvider);
         this.minValue = Double.NEGATIVE_INFINITY;
         this.maxValue = Double.POSITIVE_INFINITY;
         this.step = 0.01;
@@ -108,7 +111,7 @@ public class TemperatureParam extends ArgoApiElementBase {
                     newValue = maxValue;
                 }
 
-                var targetValue = Optional.<Double> of(newValue);
+                var targetValue = Optional.<Double>of(newValue);
                 this.currentValue = targetValue;
                 return new HandleCommandResult(Integer.toUnsignedString((int) (targetValue.get() * 10.0)),
                         valueToState(targetValue));

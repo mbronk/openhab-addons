@@ -10,13 +10,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.time.Instant;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
+import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.device_api.types.TimerType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
@@ -37,11 +40,34 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     // private @Nullable String targetRawValue;
     private Optional<HandleCommandResult> lastCommandResult = Optional.empty();
 
+    protected final IArgoSettingProvider settingsProvider;
+
+    public ArgoApiElementBase(IArgoSettingProvider settingsProvider) {
+        this.settingsProvider = settingsProvider;
+    }
+
+    protected final boolean isScheduleTimerEnabled() {
+        var currentTimer = EnumParam
+                .fromType(settingsProvider.getSetting(ArgoDeviceSettingType.ACTIVE_TIMER).getState(), TimerType.class);
+
+        if (currentTimer.isEmpty()) {
+            return false;
+        }
+
+        return currentTimer.get() == TimerType.SCHEDULE_TIMER_1 || currentTimer.get() == TimerType.SCHEDULE_TIMER_2
+                || currentTimer.get() == TimerType.SCHEDULE_TIMER_3;
+    }
+
     @Override
     public State updateFromApiResponse(String responseValue) {
         if (this.isUpdatePending()) {
-            if (responseValue.equals(this.lastCommandResult.get().deviceCommandToSend.get())) { // todo: compare by
-                                                                                                // stete
+
+            // var plannedState = this.lastCommandResult.get().plannedState;
+            // TODO: use planned state?
+
+            var expectedStateValue = this.lastCommandResult.get().deviceCommandToSend.get();
+            if (responseValue.equals(expectedStateValue)) { // todo: compare by
+                                                            // stete
                 logger.info("Update confirmed!");
                 this.lastCommandResult = Optional.empty();
                 // this.targetRawValue = null;
@@ -49,16 +75,31 @@ public abstract class ArgoApiElementBase implements IArgoElement {
                 logger.warn("Long-pending update found. Cancelling...");
                 this.lastCommandResult = Optional.empty();
             } else {
-                logger.warn("Update made, but values mismatch... {} != {}", responseValue,
-                        this.lastCommandResult.get().deviceCommandToSend.get());
+                logger.warn("Update made, but values mismatch... {} != {}", responseValue, expectedStateValue);
+                // return this.getAsState();
             }
         }
         // TODO Auto-generated method stub
 
+        if (!this.isUpdatePending()) { // TODO TODO TODO: what the hck?
+            this.updateFromApiResponseInternal(responseValue);
+        }
+
         this.lastRawValueFromDevice = responseValue;
-        this.updateFromApiResponseInternal(responseValue);
         this.lastStateConfirmedByDevice = Optional.of(this.getAsState());
         return this.getAsState();
+    }
+
+    @Override
+    public void notifyCommandSent() {
+        if (this.isUpdatePending()) {
+            if (!this.lastCommandResult.get().isConfirmable()) {
+                logger.info("Update confirmed (in good faith)!");
+                synchronized (this) {
+                    this.lastCommandResult = Optional.empty();
+                }
+            }
+        }
     }
 
     @Override
@@ -120,6 +161,11 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     }
 
     @Override
+    public boolean isAlwaysSent() {
+        return false;
+    }
+
+    @Override
     public String getDeviceApiValue() {
         if (!isUpdatePending()) {
             return NO_VALUE;
@@ -129,10 +175,15 @@ public abstract class ArgoApiElementBase implements IArgoElement {
 
     public class HandleCommandResult {
         public final boolean handled;
+        // private final boolean awaitConfirmation;
         public final Optional<String> deviceCommandToSend;
         public final Optional<State> plannedState;
         private final long updateRequestedTime;
-        private final long UPDATE_EXPIRE_TIME_MS = 120000;
+        private final long UPDATE_EXPIRE_TIME_MS = 120000; // TODO: THIS SHOULD MATCH MAX TRY TIME
+                                                           // ArgoClimaHandlerRemote:: 60s (or not)
+
+        private boolean deferred = false;
+        private boolean requiresDeviceConfirmation = true;
 
         public boolean isMinimumRefreshTimeExceeded() {
             return (Instant.now().toEpochMilli() - updateRequestedTime) > UPDATE_EXPIRE_TIME_MS;
@@ -146,6 +197,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
             this.handled = false;
             this.deviceCommandToSend = Optional.empty();
             this.plannedState = Optional.empty();
+            // this.awaitConfirmation = true;
         }
 
         public HandleCommandResult(String deviceCommandToSend, State plannedState) {
@@ -153,6 +205,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
             this.handled = true;
             this.deviceCommandToSend = Optional.of(deviceCommandToSend);
             this.plannedState = Optional.of(plannedState);
+            // this.awaitConfirmation = true;
         }
 
         @Override
@@ -160,13 +213,40 @@ public abstract class ArgoApiElementBase implements IArgoElement {
             return String.format("HandleCommandResult(wasHandled=%s,deviceCommand=%s,plannedState=%s,isObsolete=%s)",
                     handled, deviceCommandToSend, plannedState, isMinimumRefreshTimeExceeded());
         }
+
+        public boolean isConfirmable() {
+            return requiresDeviceConfirmation;
+        }
+
+        public void setConfirmable(boolean requiresDeviceConfirmation) {
+            this.requiresDeviceConfirmation = requiresDeviceConfirmation;
+        }
+
+        public boolean isDeferred() {
+            return deferred;
+        }
+
+        public void setDeferred(boolean deferred) {
+            this.deferred = deferred;
+        }
     }
 
     @Override
-    public boolean handleCommand(Command command) {
+    public boolean handleCommand(Command command, boolean isConfirmable) {
         var result = this.handleCommandInternalEx(command);
+
+        // this.raw
+
         if (result.handled) {
-            this.lastCommandResult = Optional.of(result);
+            if (!isConfirmable) {
+                result.setConfirmable(false);
+                // TODO set current value as target
+
+                // TODO: clear planned state (always null
+            }
+            if (!result.isDeferred()) {
+                this.lastCommandResult = Optional.of(result);
+            }
             // this.targetRawValue = result.deviceCommandToSend.get();
             return true;
         }

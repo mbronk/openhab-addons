@@ -399,7 +399,7 @@
 	</channel-type>
 
 	<channel-type id="delayTimer-channel" advanced="true">
-		<item-type>Number:Time</item-type>
+		<item-type>Number</item-type> <!-- Number:Time -->
 		<label>Delay timer value</label>
         <category>Time</category>
         

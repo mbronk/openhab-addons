@@ -10,11 +10,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.argoclima.internal.device_api.elements;
+package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -28,6 +29,10 @@ import org.openhab.core.types.UnDefType;
 public class OnOffParam extends ArgoApiElementBase {
 
     private Optional<Boolean> currentValue = Optional.empty();
+
+    public OnOffParam(IArgoSettingProvider settingsProvider) {
+        super(settingsProvider);
+    }
 
     private static final String VALUE_ON = "1";
     private static final String VALUE_OFF = "0";
@@ -48,7 +53,7 @@ public class OnOffParam extends ArgoApiElementBase {
     }
 
     private static State valueToState(Optional<Boolean> value) {
-        return value.<State> map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
+        return value.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
     }
 
     @Override

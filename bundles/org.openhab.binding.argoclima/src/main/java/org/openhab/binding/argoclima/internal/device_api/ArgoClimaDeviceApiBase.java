@@ -34,7 +34,10 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
-import org.openhab.binding.argoclima.internal.device_api.elements.IArgoElement;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase;
+import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoApiDataElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
@@ -64,12 +67,13 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     private HashMap<String, String> deviceProperties;
     private final String remoteEndName;
 
-    public ArgoClimaDeviceApiBase(HttpClient client, TimeZoneProvider timeZoneProvider,
-            Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate, Consumer<ThingStatus> onReachableStatusChange,
-            Consumer<Map<String, String>> onDevicePropertiesUpdate, String remoteEndName) {
+    public ArgoClimaDeviceApiBase(ArgoClimaConfigurationBase config, HttpClient client,
+            TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
+            Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate,
+            String remoteEndName) {
         this.client = client;
         this.timeZoneProvider = timeZoneProvider;
-        this.deviceStatus = new ArgoDeviceStatus();
+        this.deviceStatus = new ArgoDeviceStatus(config);
         this.onStateUpdate = onStateUpdate;
         this.onReachableStatusChange = onReachableStatusChange;
         this.onDevicePropertiesUpdate = onDevicePropertiesUpdate;
@@ -259,6 +263,9 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     @Override
     public void sendCommandsToDevice() throws ArgoLocalApiCommunicationException {
         var deviceResponse = pollForCurrentStatusFromDeviceSync(getDeviceStateUpdateUrl());
+
+        // TODO: notfy
+        this.deviceStatus.getItemsWithPendingUpdates().forEach(x -> x.notifyCommandSent());
         logger.info("State update command finished. Device response: {}", deviceResponse);
     }
 
@@ -276,7 +283,8 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     public boolean hasPendingCommands() {
         var itemsWithPendingUpdates = this.deviceStatus.getItemsWithPendingUpdates();
         logger.info("Items to update: {}", itemsWithPendingUpdates);
-        return !this.deviceStatus.getItemsWithPendingUpdates().isEmpty();
+        // return !this.deviceStatus.getItemsWithPendingUpdates().isEmpty();
+        return !itemsWithPendingUpdates.isEmpty();
         // return this.deviceStatus.hasUpdatesPending();
     }
 

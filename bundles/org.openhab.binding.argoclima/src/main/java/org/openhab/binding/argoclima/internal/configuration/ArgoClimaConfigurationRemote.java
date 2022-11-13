@@ -14,6 +14,7 @@ package org.openhab.binding.argoclima.internal.configuration;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -28,6 +29,7 @@ import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationExcepti
 @NonNullByDefault
 public class ArgoClimaConfigurationRemote extends ArgoClimaConfigurationBase {
 
+    public static final Duration LAST_SEEN_UNAVAILABILITY_THRESHOLD = Duration.ofMinutes(18);
     /**
      * Sample configuration parameters. Replace with your own.
      */
