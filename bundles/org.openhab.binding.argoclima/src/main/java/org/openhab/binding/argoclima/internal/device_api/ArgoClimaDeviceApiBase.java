@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -126,7 +127,8 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                 throw new ArgoLocalApiCommunicationException(
                         "Cause is: EOF: " + ((EOFException) cause.get()).getMessage(), cause.get());
             }
-            throw new ArgoLocalApiCommunicationException("Device communication error: " + ex.getCause().getMessage(),
+            throw new ArgoLocalApiCommunicationException(
+                    "Device communication error: " + Objects.requireNonNullElse(ex.getCause(), ex).getMessage(),
                     ex.getCause());
         } catch (TimeoutException e) {
             throw new ArgoLocalApiCommunicationException("Timeout: " + e.getMessage(), e);
@@ -246,7 +248,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
 
         var metaProperties = metadata.asPropertiesRaw(this.timeZoneProvider);
         var responseProperties = Map.of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,
-                this.deviceStatus.getSetting(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION).toString());
+                this.deviceStatus.getSetting(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION).toString(false));
 
         synchronized (this) {
             // this.deviceProperties.clear();

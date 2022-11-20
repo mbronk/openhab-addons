@@ -12,6 +12,10 @@
  */
 package org.openhab.binding.argoclima.internal.exception;
 
+import java.util.Objects;
+
+import org.eclipse.jdt.annotation.Nullable;
+
 /**
  * @author bronk
  *
@@ -22,7 +26,10 @@ public class ArgoConfigurationException extends Exception {
     public final String rawValue;
 
     private static String getMessageEx(String message, String paramValue) {
-        return String.format("%s. Value: [%s].", message, paramValue);
+        if (paramValue.isEmpty()) {
+            return message;
+        }
+        return String.format("%s. Value: [%s]", message, paramValue);
     }
 
     /**
@@ -41,5 +48,14 @@ public class ArgoConfigurationException extends Exception {
     public ArgoConfigurationException(String message, String paramValue, Throwable e) {
         super(getMessageEx(message, paramValue), e);
         this.rawValue = paramValue;
+    }
+
+    @Override
+    public @Nullable String getMessage() {
+        var msg = super.getMessage();
+        if (this.getCause() != null) {
+            msg += ". Caused by: " + Objects.requireNonNull(this.getCause()).getMessage();
+        }
+        return msg;
     }
 }

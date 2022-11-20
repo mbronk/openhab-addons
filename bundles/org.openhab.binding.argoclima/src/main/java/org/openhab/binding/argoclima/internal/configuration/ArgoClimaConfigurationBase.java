@@ -17,10 +17,12 @@ import java.net.UnknownHostException;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
 import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
@@ -112,12 +114,49 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
         }
     }
 
+    /**
+     * Converts "raw" {@code Set<Weekday>} into an {@code EnumSet<Weekday>}
+     *
+     * @implNote Because this configuration parameter is *dynamic* (and deliberately not defined in
+     *           {@code thing-types.xml}) when OH is loading a textual thing file, it does not have a full definition
+     *           yet, hence CANNOT infer its data type.
+     *           The Thing.xtext definition for {@code ModelProperty} allows for arrays, but these are always implicit/
+     *           For example {@code schedule1DayOfWeek="MON","TUE"} deserializes as a Collection (and is properly cast
+     *           to enum later), however a {@code schedule1DayOfWeek="MON"} deserializes to a String, and causes a
+     *           {@link ClassCastException} on access. This impl. accounts for that forced "as-String" interpretation on
+     *           load, and coerces such values back to a collection.
+     * @param rawInput The value to process
+     * @param paramName Name of the textual parameter (for error messaging)
+     * @return Converted value
+     * @throws ArgoConfigurationException In case the conversion fails
+     */
+    private EnumSet<Weekday> canonizeWeekdaysAfterDeserialization(Set<Weekday> rawInput, String paramName)
+            throws ArgoConfigurationException {
+        try {
+            var items = rawInput.toArray();
+            if (items.length == 1 && !(items[0] instanceof Weekday)) {
+                // Text based configuration -> falling back to string parse
+                var strValue = StringUtils.strip(items[0].toString(), "[]- \t\"'").trim();
+                var daysStr = Arrays.stream(StringUtils.splitByWholeSeparator(strValue, ","));
+
+                var result = EnumSet.noneOf(Weekday.class);
+                daysStr.map(ds -> Weekday.valueOf(ds)).forEach(wd -> result.add(wd));
+                return result;
+            } else {
+                // UI/API configuration (nicely strong-typed already)
+                return EnumSet.copyOf(rawInput);
+            }
+        } catch (ClassCastException | IllegalArgumentException e) {
+            throw new ArgoConfigurationException(String.format("Invalid %s format", paramName), rawInput.toString(), e);
+        }
+    }
+
     @Override
-    public EnumSet<Weekday> getSchedule1DayOfWeek() {
+    public EnumSet<Weekday> getSchedule1DayOfWeek() throws ArgoConfigurationException {
         if (schedule1DayOfWeek.isEmpty()) {
             return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
         }
-        return EnumSet.copyOf(schedule1DayOfWeek);
+        return canonizeWeekdaysAfterDeserialization(schedule1DayOfWeek, "schedule1DayOfWeek");
     }
 
     @Override
@@ -139,11 +178,11 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     }
 
     @Override
-    public EnumSet<Weekday> getSchedule2DayOfWeek() {
+    public EnumSet<Weekday> getSchedule2DayOfWeek() throws ArgoConfigurationException {
         if (schedule2DayOfWeek.isEmpty()) {
             return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
         }
-        return EnumSet.copyOf(schedule2DayOfWeek);
+        return canonizeWeekdaysAfterDeserialization(schedule2DayOfWeek, "schedule2DayOfWeek");
     }
 
     @Override
@@ -165,11 +204,11 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     }
 
     @Override
-    public EnumSet<Weekday> getSchedule3DayOfWeek() {
+    public EnumSet<Weekday> getSchedule3DayOfWeek() throws ArgoConfigurationException {
         if (schedule3DayOfWeek.isEmpty()) {
             return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
         }
-        return EnumSet.copyOf(schedule3DayOfWeek);
+        return canonizeWeekdaysAfterDeserialization(schedule3DayOfWeek, "schedule3DayOfWeek");
     }
 
     @Override

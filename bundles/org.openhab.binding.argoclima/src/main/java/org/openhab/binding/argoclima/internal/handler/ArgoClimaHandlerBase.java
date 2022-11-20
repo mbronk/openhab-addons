@@ -29,7 +29,9 @@ import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase;
 import org.openhab.binding.argoclima.internal.device_api.IArgoClimaDeviceAPI;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
+import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.thing.ChannelUID;
 import org.openhab.core.thing.Thing;
 import org.openhab.core.thing.ThingStatus;
@@ -76,23 +78,29 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         this.SEND_COMMAND_MAX_WAIT_TIME = sendMaxRetryTime;
     }
 
-    protected abstract ConfigT getConfigInternal();
+    protected abstract ConfigT getConfigInternal() throws ArgoConfigurationException;
 
     protected abstract IArgoClimaDeviceAPI initializeDeviceApi(ConfigT config) throws Exception;
 
     @Override
     public final void initialize() {
-        this.config = Optional.of(getConfigInternal());
-        Objects.requireNonNull(config);
+        try {
+            this.config = Optional.of(getConfigInternal());
+            Objects.requireNonNull(config);
+        } catch (ArgoConfigurationException | NullPointerException ex) {
+            logger.warn("{}: {}", getThing().getUID().getId(), ex.getMessage());
+            updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, ex.getMessage());
+            return;
+        }
         logger.info("Running with config: {}", config.get().toString());
 
-        if (config.get().resetToFactoryDefaults) {
-            config.get().resetToFactoryDefaults = false;
-            var configUpdated = editConfiguration();
-            configUpdated.put("resetToFactoryDefaults", false);
-            updateConfiguration(configUpdated); // TODO: if using file-based config, this will fail?
-            // getThing().set
-        }
+        // if (config.get().resetToFactoryDefaults) {
+        // config.get().resetToFactoryDefaults = false;
+        // var configUpdated = editConfiguration();
+        // configUpdated.put("resetToFactoryDefaults", false);
+        // updateConfiguration(configUpdated); // TODO: if using file-based config, this will fail?
+        // // getThing().set
+        // }
 
         // TODO: Initialize the handler.
         // The framework requires you to return from this method quickly, i.e. any network access must be done in
@@ -480,6 +488,32 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                 // updateChannelsFromDevice(newState);
                 // updateThingProperties(this.deviceApi.get().getCurrentDeviceProperties());
 
+                if (config.get().resetToFactoryDefaults) {
+                    var resetSent = this.deviceApi.get()
+                            .handleSettingCommand(ArgoDeviceSettingType.RESET_TO_FACTORY_SETTINGS, OnOffType.ON);
+                    if (resetSent) {
+                        State currentState = this.deviceApi.get()
+                                .getCurrentStateNoPoll(ArgoDeviceSettingType.RESET_TO_FACTORY_SETTINGS);
+                        logger.info("State of {} after update: {}", "RESET", currentState);
+                        // updateState(channelUID, currentState); // TODO: assume new state
+                        sendCommandsToDeviceAwaitConfirmation(false);
+
+                        config.get().resetToFactoryDefaults = false;
+                        var configUpdated = editConfiguration();
+                        configUpdated.put("resetToFactoryDefaults", false);
+                        updateConfiguration(configUpdated); // TODO: if using file-based config, this will fail?
+                    }
+
+                    // getThing().set
+                }
+
+                // boolean updateInitiated = this.deviceApi.get().handleSettingCommand(settingType, command);
+                // if (updateInitiated) {
+                // State currentState = this.deviceApi.get().getCurrentStateNoPoll(settingType);
+                // logger.info("State of {} after update: {}", channelUID, currentState);
+                // updateState(channelUID, currentState); // TODO: assume new state
+                // }
+
                 return;
             }
             message = isAlive.getRight();
@@ -582,7 +616,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             var valuesToUpdate = this.deviceApi.get().getItemsWithPendingUpdates();
             // logger.info("Will UPDATE the following items: {}", valuesToUpdate);
 
-            int attempt = 0;
+            // int attempt = 0;
 
             // Instant lastCommandSendTime = Instant.MIN;
             // // Instant lastStatusRefreshTime = Instant.MIN;
@@ -594,7 +628,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
             Optional<Exception> lastException = Optional.empty();
             while (true) { // Handles both polling as well as retries
-                attempt++;
+                // attempt++;
                 try {
                     if (Instant.now().isAfter(nextCommandSendTime)) {
                         nextCommandSendTime = Instant.now().plus(SEND_COMMAND_RESUBMIT_FREQUENCY);

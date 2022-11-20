@@ -26,19 +26,19 @@ import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationExcepti
 @NonNullByDefault
 public interface IScheduleConfigurationProvider {
 
-    public EnumSet<Weekday> getSchedule1DayOfWeek();
+    public EnumSet<Weekday> getSchedule1DayOfWeek() throws ArgoConfigurationException;
 
     public LocalTime getSchedule1OnTime() throws ArgoConfigurationException;
 
     public LocalTime getSchedule1OffTime() throws ArgoConfigurationException;
 
-    public EnumSet<Weekday> getSchedule2DayOfWeek();;
+    public EnumSet<Weekday> getSchedule2DayOfWeek() throws ArgoConfigurationException;
 
     public LocalTime getSchedule2OnTime() throws ArgoConfigurationException;
 
     public LocalTime getSchedule2OffTime() throws ArgoConfigurationException;
 
-    public EnumSet<Weekday> getSchedule3DayOfWeek();
+    public EnumSet<Weekday> getSchedule3DayOfWeek() throws ArgoConfigurationException;
 
     public LocalTime getSchedule3OnTime() throws ArgoConfigurationException;
 

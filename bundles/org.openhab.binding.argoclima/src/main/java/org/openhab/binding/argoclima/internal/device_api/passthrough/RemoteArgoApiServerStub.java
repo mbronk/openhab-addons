@@ -146,13 +146,14 @@ public class RemoteArgoApiServerStub {
         logger.info("Incoming request: {} {}://{}:{}{}?{}", request.getMethod(), request.getScheme(),
                 request.getLocalAddr(), request.getLocalPort(), request.getPathInfo(), request.getQueryString());
 
-        if (!request.getPathInfo().equalsIgnoreCase(REMOTE_SERVER_PATH)) {
+        // if (!request.getPathInfo().equalsIgnoreCase(REMOTE_SERVER_PATH)) {
+        if (!REMOTE_SERVER_PATH.equalsIgnoreCase(request.getPathInfo())) {
             logger.warn("Unknown Argo device-side request path {}. Ignoring...", request.getPathInfo());
             return DeviceRequestType.UNKNOWN;
         }
 
         var command = request.getParameter("CM");
-        if (request.getMethod().equalsIgnoreCase("GET")) {
+        if ("GET".equalsIgnoreCase(request.getMethod())) {
             if ("UI_NTP".equalsIgnoreCase(command)) {
                 return DeviceRequestType.GET_UI_NTP; // Get time: GET /UI/UI.php?CM=UI_NTP (
             }
@@ -181,7 +182,7 @@ public class RemoteArgoApiServerStub {
         // URLDecoder.
         // var commandPost =
         // TBD
-        if ("UI_RT".equalsIgnoreCase(commandFromBody) && request.getMethod().equalsIgnoreCase("POST")) {
+        if ("UI_RT".equalsIgnoreCase(commandFromBody) && "POST".equalsIgnoreCase(request.getMethod())) {
             return DeviceRequestType.POST_UI_RT; // Unknown: POST /UI/UI.php body:
                                                  // CM=UI_RT&USN=%s&PSW=%s&CPU_ID=%s&DEL=%d&DATA=
             // WiFi_Psw=UserName=Password=ServerID=TimeZone=uisetup.ddns.net | www.termauno.com | 95.254.67.59

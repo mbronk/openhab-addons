@@ -12,6 +12,8 @@
  */
 package org.openhab.binding.argoclima.internal.exception;
 
+import java.util.Objects;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -45,7 +47,7 @@ public class ArgoLocalApiCommunicationException extends Exception {
     public @Nullable String getMessage() {
         var msg = super.getMessage();
         if (this.getCause() != null) {
-            msg += ". Caused by: " + this.getCause().getMessage();
+            msg += ". Caused by: " + Objects.requireNonNull(this.getCause()).getMessage();
         }
         return msg;
     }

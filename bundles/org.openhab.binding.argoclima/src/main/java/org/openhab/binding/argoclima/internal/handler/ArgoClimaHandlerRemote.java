@@ -19,6 +19,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaRemoteDevice;
 import org.openhab.binding.argoclima.internal.device_api.IArgoClimaDeviceAPI;
+import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.openhab.core.thing.Thing;
@@ -45,8 +46,12 @@ public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfig
     }
 
     @Override
-    protected ArgoClimaConfigurationRemote getConfigInternal() {
-        return getConfigAs(ArgoClimaConfigurationRemote.class);
+    protected ArgoClimaConfigurationRemote getConfigInternal() throws ArgoConfigurationException {
+        try {
+            return getConfigAs(ArgoClimaConfigurationRemote.class);
+        } catch (IllegalArgumentException ex) {
+            throw new ArgoConfigurationException("Error loading thing configuration", "", ex);
+        }
     }
 
     @Override
