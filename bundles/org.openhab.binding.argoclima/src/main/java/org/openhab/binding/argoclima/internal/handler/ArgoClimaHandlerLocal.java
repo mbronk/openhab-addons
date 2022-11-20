@@ -25,6 +25,7 @@ import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
 import org.openhab.binding.argoclima.internal.device_api.IArgoClimaDeviceAPI;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.PassthroughHttpClient;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.RemoteArgoApiServerStub;
+import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoRemoteServerStubStartupException;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.io.net.http.HttpClientFactory;
@@ -56,8 +57,12 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     }
 
     @Override
-    protected ArgoClimaConfiguration getConfigInternal() {
-        return getConfigAs(ArgoClimaConfiguration.class);
+    protected ArgoClimaConfiguration getConfigInternal() throws ArgoConfigurationException {
+        try {
+            return getConfigAs(ArgoClimaConfiguration.class);
+        } catch (IllegalArgumentException ex) {
+            throw new ArgoConfigurationException("Error loading thing configuration", "", ex);
+        }
     }
 
     @Override
