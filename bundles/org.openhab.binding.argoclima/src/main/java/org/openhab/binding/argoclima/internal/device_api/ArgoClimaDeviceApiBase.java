@@ -220,7 +220,6 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         public DeviceStatus(String commandString) {
             this(commandString, new DeviceProperties());
         }
-
     }
 
     protected abstract DeviceStatus extractDeviceStatusFromResponse(String apiResponse)

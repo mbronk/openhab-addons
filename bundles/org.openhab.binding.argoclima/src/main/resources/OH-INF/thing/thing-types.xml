@@ -47,7 +47,7 @@
                 <i>These settings are effective only for <code>REMOTE_API_STUB | REMOTE_API_PROXY</code> connection modes.</i>
                 ]]></description>
 			</parameter-group>
-            <!-- Note: dynamic parameters are also in use (see ArgoClimaConfigProvider) -->
+			<!-- Note: dynamic parameters are also in use (see ArgoClimaConfigProvider) -->
 
 			<parameter name="hostname" type="text" required="true" readOnly="false" groupName="connection">
 				<context>network-address</context>
@@ -55,16 +55,16 @@
 				<description><![CDATA[Hostname or IP address of the HVAC device.<br/><i>If <b>useLocalConnection</b> setting is <b>enabled</b>, this address will be used for (command push + status polling) communication with the device.</i>]]></description>
 			</parameter>
 
-            <parameter name="localDevicePort" type="integer" min="0" max="65536" required="true" groupName="serverStub">
-                <label>Device API listen port</label>
-                <description><![CDATA[Port at which the local device listens on.<br/>
+			<parameter name="localDevicePort" type="integer" min="0" max="65536" required="true" groupName="serverStub">
+				<label>Device API listen port</label>
+				<description><![CDATA[Port at which the local device listens on.<br/>
                 <i>This setting is effective only if <code>Use Local Connection</code> is <code>true</code>. The default value 1001 is hard-coded in Argo Firmware. You would only need to override it if the device is behind NAT, and you have configured a custom port forwarding rule using port other than 1001</i>
                 ]]>
-                </description>
-                <default>1001</default>
-                <advanced>true</advanced>
-            </parameter>
-            
+				</description>
+				<default>1001</default>
+				<advanced>true</advanced>
+			</parameter>
+
 			<parameter name="localDeviceIP" type="text" required="false" readOnly="false" groupName="connection">
 				<context>network-address</context>
 				<label>Local IP address (behind NAT)</label>
@@ -104,7 +104,7 @@
 				<advanced>true</advanced>
 			</parameter>
 
-			<parameter name="refreshInterval" type="integer" unit="s" min="0" groupName="connection" required="true" >
+			<parameter name="refreshInterval" type="integer" unit="s" min="0" groupName="connection" required="true">
 				<label>Refresh Interval</label>
 				<description><![CDATA[Interval the device is polled in seconds. This setting is only effective if <code>Use Local Connection</code> is <code>ON</code>.<br/>
                 Set to <code>0</code> to disable polling (requires any of <code>REMOTE_*</code> connection modes)]]></description>
@@ -133,17 +133,17 @@
 				<advanced>true</advanced>
 			</parameter>
 
-            <parameter name="oemServerAddress" type="text" groupName="serverStub">
-                <context>network-address</context>
-                <label>Argo remote server address</label>
-                <description><![CDATA[The OEM server's port, used to pass through the communications to. <br/>
+			<parameter name="oemServerAddress" type="text" groupName="serverStub">
+				<context>network-address</context>
+				<label>Argo remote server address</label>
+				<description><![CDATA[The OEM server's port, used to pass through the communications to. <br/>
                 <i>This setting is effective only for <code>REMOTE_API_PROXY</code> connection mode</i>
                 ]]>
-                </description>
-                <default>31.14.128.210</default>
-                <advanced>true</advanced>
-            </parameter>
-            
+				</description>
+				<default>31.14.128.210</default>
+				<advanced>true</advanced>
+			</parameter>
+
 			<parameter name="oemServerPort" type="integer" min="0" max="65536" required="false" groupName="serverStub">
 				<label>Argo remote server port</label>
 				<description><![CDATA[The OEM server's port, used to pass through the communications to<br/>
@@ -207,20 +207,21 @@
 				<advanced>true</advanced>
 			</parameter>
 
-            <parameter name="oemServerAddress" type="text" required="true" groupName="oemServerConnection" >
-                <context>network-address</context>
-                <label>Argo remote server address</label>
-                <description><![CDATA[The OEM server's hostname, used for communications.<br/>
+			<parameter name="oemServerAddress" type="text" required="true" groupName="oemServerConnection">
+				<context>network-address</context>
+				<label>Argo remote server address</label>
+				<description><![CDATA[The OEM server's hostname, used for communications.<br/>
                 <i>This is the same host as for the Web Application (address provided in device's user manual).</i>
                 ]]>
-                <!-- <br/>
-                Note: <i>The address seems to be: uisetup.ddns.net</i> -->
-                </description>
-                <default>31.14.128.210</default>
-                <advanced>true</advanced>
-            </parameter>
-            
-			<parameter name="oemServerPort" type="integer" min="0" max="65536" required="true" groupName="oemServerConnection">
+					<!-- <br/>
+						Note: <i>The address seems to be: uisetup.ddns.net</i> -->
+				</description>
+				<default>31.14.128.210</default>
+				<advanced>true</advanced>
+			</parameter>
+
+			<parameter name="oemServerPort" type="integer" min="0" max="65536" required="true"
+				groupName="oemServerConnection">
 				<label>Argo remote server port</label>
 				<description><![CDATA[The OEM server's port. <i>Default 80.</i>]]>
 				</description>
@@ -299,8 +300,8 @@
 		<label>Mode</label> <!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
 		<category>Climate</category>
 		<tags>
-		      <tag>Control</tag>
-		      <tag>Climate</tag>
+			<tag>Control</tag>
+			<tag>Climate</tag>
 		</tags>
 		<state readOnly="false">
 			<options>
@@ -386,7 +387,7 @@
 	<channel-type id="activeTimer-channel" advanced="true">
 		<item-type>String</item-type>
 		<label>Active timer</label>
-        <category>Calendar</category>
+		<category>Calendar</category>
 		<state readOnly="false">
 			<options>
 				<option value="NO_TIMER">No Timer</option>
@@ -401,8 +402,8 @@
 	<channel-type id="delayTimer-channel" advanced="true">
 		<item-type>Number</item-type> <!-- Number:Time -->
 		<label>Delay timer value</label>
-        <category>Time</category>
-        
+		<category>Time</category>
+
 		<!-- remote: min: 0:10 <> max 19:50h -->
 		<!-- TODO: nice HH:MM display format -->
 		<state readOnly="false" min="10" max="1190" step="10.0"/>
@@ -413,7 +414,7 @@
 	<channel-type id="modeExtended-channel" advanced="true">
 		<item-type>String</item-type>
 		<label>Extended Mode</label> <!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
-        <category>Heating</category>
+		<category>Heating</category>
 		<state readOnly="false">
 			<options>
 				<option value="COOL">Cool</option>
@@ -474,7 +475,7 @@
 	<channel-type id="ecoPowerLimit-channel" advanced="true">
 		<item-type>Number:Dimensionless</item-type>
 		<label>Power limit in eco mode</label>
-        <category>Price</category>
+		<category>Price</category>
 		<state readOnly="false" min="30" max="99" step="1" pattern="%.0f %%"/>
 	</channel-type>
 

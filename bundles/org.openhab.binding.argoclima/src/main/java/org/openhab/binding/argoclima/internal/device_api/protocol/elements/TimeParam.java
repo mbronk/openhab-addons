@@ -120,7 +120,6 @@ public class TimeParam extends ArgoApiElementBase {
             }
         }
         return defaultresult;
-
     }
 
     @Override

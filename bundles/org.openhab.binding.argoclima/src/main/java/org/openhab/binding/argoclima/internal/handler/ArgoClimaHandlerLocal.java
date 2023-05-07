@@ -69,8 +69,8 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfiguration config) throws Exception {
         // TODO Auto-generated method stub
 
-        var targetCpuID = config.deviceCpuId.isBlank() ? Optional.<String>empty() : Optional.of(config.deviceCpuId); // TODO
-        var localIpAddress = config.localDeviceIP.isBlank() ? Optional.<InetAddress>empty()
+        var targetCpuID = config.deviceCpuId.isBlank() ? Optional.<String> empty() : Optional.of(config.deviceCpuId); // TODO
+        var localIpAddress = config.localDeviceIP.isBlank() ? Optional.<InetAddress> empty()
                 : Optional.of(config.getLocalDeviceIP()); // TODO
 
         var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.localDevicePort, localIpAddress,
@@ -79,7 +79,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
 
         if (config.connectionMode == ConnectionMode.REMOTE_API_PROXY
                 || config.connectionMode == ConnectionMode.REMOTE_API_STUB) {
-            var passthroughClient = Optional.<PassthroughHttpClient>empty();
+            var passthroughClient = Optional.<PassthroughHttpClient> empty();
             if (config.connectionMode == ConnectionMode.REMOTE_API_PROXY) {
                 passthroughClient = Optional.of(new PassthroughHttpClient(config.getOemServerAddress().getHostAddress(),
                         config.oemServerPort, clientFactory));

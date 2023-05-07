@@ -360,7 +360,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
     protected final void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
         for (Entry<ArgoDeviceSettingType, State> entry : deviceState.entrySet()) {
-            var channelNames = Set.<String>of();
+            var channelNames = Set.<String> of();
             switch (entry.getKey()) {
                 case ACTIVE_TIMER:
                     channelNames = Set.of(ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER);

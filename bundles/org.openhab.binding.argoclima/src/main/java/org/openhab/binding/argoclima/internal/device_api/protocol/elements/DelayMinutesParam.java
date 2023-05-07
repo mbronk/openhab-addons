@@ -108,7 +108,6 @@ public class DelayMinutesParam extends ArgoApiElementBase {
 
         // TODO: round to nearest step
         return newValue;
-
     }
 
     @Override
@@ -118,7 +117,7 @@ public class DelayMinutesParam extends ArgoApiElementBase {
             int newValue = ((QuantityType<?>) command).intValue();
             if (this.currentValue.isEmpty() || this.currentValue.get().intValue() != newValue) { // TODO: if the same,
                                                                                                  // does not send?!
-                var targetValue = Optional.<Integer>of(adjustRange(newValue));
+                var targetValue = Optional.<Integer> of(adjustRange(newValue));
                 this.currentValue = targetValue;
 
                 // DO *not* send this value back to device, will only happen on schedule param
@@ -143,5 +142,4 @@ public class DelayMinutesParam extends ArgoApiElementBase {
         }
         return new HandleCommandResult(false);
     }
-
 }

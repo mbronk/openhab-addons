@@ -90,7 +90,7 @@ public class RangeParam extends ArgoApiElementBase {
                             (int) maxValue);
                     newValue = (int) maxValue;
                 }
-                var targetValue = Optional.<Number>of(newValue);
+                var targetValue = Optional.<Number> of(newValue);
                 this.currentValue = targetValue;
                 return new HandleCommandResult(Integer.toString(targetValue.get().intValue()),
                         valueToState(targetValue));

@@ -72,5 +72,4 @@ public class CurrentTimeParam extends ArgoApiElementBase {
         var t = utcNow();
         return Integer.toString(TimeParam.fromHhMm(t.getHour(), t.getMinute()));
     }
-
 }

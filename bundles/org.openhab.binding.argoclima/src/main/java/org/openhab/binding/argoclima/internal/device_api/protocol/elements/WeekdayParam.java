@@ -152,6 +152,5 @@ public class WeekdayParam extends ArgoApiElementBase {
 
         return new HandleCommandResult(false); // This value is NOT send to the device, unless a DelayTimer0 is
                                                // activaterd
-
     }
 }

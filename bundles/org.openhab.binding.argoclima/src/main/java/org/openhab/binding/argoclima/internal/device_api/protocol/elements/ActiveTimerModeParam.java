@@ -99,5 +99,4 @@ public class ActiveTimerModeParam extends EnumParam<TimerType> {
         // TODO Auto-generated method stub
         return super.handleCommandInternalEx(command);
     }
-
 }
