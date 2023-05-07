@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2022 Contributors to the openHAB project
+ * Copyright (c) 2010-2023 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author bronk
+ * @author Mateusz Bronk - Initial contribution
  *
  */
 @NonNullByDefault
@@ -76,7 +76,7 @@ public class ActiveTimerModeParam extends EnumParam<TimerType> {
                 }
             } catch (ArgoConfigurationException e) {
                 // TODO Auto-generated catch block
-                e.printStackTrace();
+                logger.warn("{}", e.getMessage());
             }
 
             if (isScheduleTimer) {

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2022 Contributors to the openHAB project
+ * Copyright (c) 2010-2023 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -87,7 +87,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         try {
             this.config = Optional.of(getConfigInternal());
             Objects.requireNonNull(config);
-        } catch (ArgoConfigurationException | NullPointerException ex) {
+        } catch (ArgoConfigurationException | NullPointerException ex) { // TODO: Avoid catching NullPointerException
             logger.warn("{}: {}", getThing().getUID().getId(), ex.getMessage());
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, ex.getMessage());
             return;

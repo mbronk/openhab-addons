@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2022 Contributors to the openHAB project
+ * Copyright (c) 2010-2023 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -20,7 +20,6 @@ import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.URIUtil;
@@ -36,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author mbronk - Initial contribution
+ * @author Mateusz Bronk - Initial contribution
  *
  */
 @NonNullByDefault
@@ -121,8 +120,7 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
     }
 
     @Override
-    public void updateDeviceStateFromPushRequest(@NonNull String hmiStringFromDevice, @NonNull String deviceIP,
-            @NonNull String deviceCpuId) {
+    public void updateDeviceStateFromPushRequest(String hmiStringFromDevice, String deviceIP, String deviceCpuId) {
         throw new RuntimeException(); // TODO
     }
 

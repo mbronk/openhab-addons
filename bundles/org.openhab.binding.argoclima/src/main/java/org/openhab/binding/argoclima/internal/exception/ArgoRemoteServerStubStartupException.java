@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2022 Contributors to the openHAB project
+ * Copyright (c) 2010-2023 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -12,10 +12,13 @@
  */
 package org.openhab.binding.argoclima.internal.exception;
 
+import org.eclipse.jdt.annotation.NonNullByDefault;
+
 /**
- * @author mbronk - Initial contribution
+ * @author Mateusz Bronk - Initial contribution
  *
  */
+@NonNullByDefault
 public class ArgoRemoteServerStubStartupException extends Exception {
 
     private static final long serialVersionUID = 3798832375487523670L;

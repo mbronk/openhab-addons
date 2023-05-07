@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2022 Contributors to the openHAB project
+ * Copyright (c) 2010-2023 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -15,7 +15,6 @@ package org.openhab.binding.argoclima.internal.device_api.protocol;
 import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
@@ -30,7 +29,7 @@ import org.openhab.core.types.UnDefType;
  * @param <T>
  */
 @NonNullByDefault
-public class ArgoApiDataElement<T extends @NonNull IArgoElement> {
+public class ArgoApiDataElement<T extends IArgoElement> {
     public enum DataElementType {
         READ_WRITE,
         READ_ONLY,

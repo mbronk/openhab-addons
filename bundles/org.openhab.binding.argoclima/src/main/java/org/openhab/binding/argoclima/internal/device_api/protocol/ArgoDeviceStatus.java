@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2010-2022 Contributors to the openHAB project
+ * Copyright (c) 2010-2023 Contributors to the openHAB project
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information.
@@ -281,7 +281,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
         synchronized (this) {
             dataElements.entrySet().stream().forEach(v -> v.getValue().fromDeviceResponse(values));
         }
-        logger.info(this.toString());
+        logger.info("{}", this.toString());
     }
 
     public String getDeviceCommandStatus() {
