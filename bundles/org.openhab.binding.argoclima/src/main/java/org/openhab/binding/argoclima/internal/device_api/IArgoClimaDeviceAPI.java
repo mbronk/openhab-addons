@@ -12,13 +12,11 @@
  */
 package org.openhab.binding.argoclima.internal.device_api;
 
-import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoApiDataElement;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
@@ -27,23 +25,39 @@ import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 
 /**
+ * Interface for communication with Argo device(regardless of method)
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public interface IArgoClimaDeviceAPI {
 
-    // TODO: reverse logic of picking the addresses in other places (and update names?)
-    InetAddress getIpAddressForDirectCommunication();
-
+    /**
+     * Check if Argo device is reachable (this check MAY trigger device communications!)
+     * <p>
+     * For local connection the checking is live (and synchronous!).
+     * For remote connection, the status is updated based off of last device's communication
+     *
+     * @return A Pair of {@code <REACHABLE, ERROR (if unreachable)>}
+     */
     Pair<Boolean, String> isReachable();
 
+    /**
+     * Query the Argo device for updated state.
+     * <p>
+     * This ALWAYS triggers new device communication
+     *
+     * @return A map of {@code Setting->Value} read from device
+     * @throws ArgoLocalApiCommunicationException thrown when unable to communicate with the Argo device
+     */
     Map<ArgoDeviceSettingType, State> queryDeviceForUpdatedState() throws ArgoLocalApiCommunicationException;
 
     /**
-     * Returns last-retrieved device state (does *not* re-query the device)
+     * Returns last-retrieved device state
+     * <p>
+     * This does *NOT* re-query the device
      *
-     * @return
+     * @return A map of {@code Setting->Value} read from cache
      */
     Map<ArgoDeviceSettingType, State> getLastStateReadFromDevice();
 
@@ -52,21 +66,46 @@ public interface IArgoClimaDeviceAPI {
      *
      * @apiNote Does *not* query the device on its own
      *
-     * @return
+     * @return A key-value map of device properties (both static/from configuration as well as the dynamic - read from
+     *         device)
      */
     Map<String, String> getCurrentDeviceProperties();
 
+    /**
+     * Send any pending commands to the device (upon synchronizing with freshest device-side state)
+     *
+     * @throws ArgoLocalApiCommunicationException thrown when unable to communicate with the Argo device
+     */
     void sendCommandsToDevice() throws ArgoLocalApiCommunicationException;
 
+    /**
+     * Handle any setting command from UI
+     *
+     * @param settingType The name of setting receiving the value
+     * @param command The command/new value
+     * @return True - if command has been handled, False - otherwise
+     */
     boolean handleSettingCommand(ArgoDeviceSettingType settingType, Command command);
 
+    /**
+     * Get the current value of a setting
+     *
+     * @param settingType The name of setting queried
+     * @return Current value of the setting
+     */
     State getCurrentStateNoPoll(ArgoDeviceSettingType settingType);
 
+    /**
+     * Check if there are any commands pending send to the device
+     *
+     * @return True if there are commands pending, False otherwise
+     */
     boolean hasPendingCommands();
 
+    /**
+     * Get items which have pending updates
+     *
+     * @return List of settings that have updates pending
+     */
     List<ArgoApiDataElement<IArgoElement>> getItemsWithPendingUpdates();
-
-    void updateDeviceStateFromPostRtRequest(DeviceSidePostRtUpdateDTO fromDevice);
-
-    void updateDeviceStateFromPushRequest(String hmiStringFromDevice, String deviceIP, String deviceCpuId);
 }

@@ -12,6 +12,8 @@
  */
 package org.openhab.binding.argoclima.internal.device_api.passthrough;
 
+import static org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants.BINDING_ID;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Instant;
@@ -35,6 +37,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.util.UrlEncoded;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSideUpdateDTO;
@@ -55,6 +58,7 @@ public class RemoteArgoApiServerStub {
     Optional<Server> server = Optional.empty();
     Optional<PassthroughHttpClient> passthroughClient = Optional.empty();
     private final Optional<ArgoClimaLocalDevice> deviceApi;
+    private static final String RPC_POOL_NAME = "OH-jetty-" + BINDING_ID + "_serverStub";
 
     public RemoteArgoApiServerStub(Set<InetAddress> listenIpAddresses, int listenPort, String thingUid,
             Optional<PassthroughHttpClient> passthroughClient, Optional<ArgoClimaLocalDevice> deviceApi) {
@@ -70,7 +74,6 @@ public class RemoteArgoApiServerStub {
 
     public synchronized void start() {
         logger.info("Initializing Argo API Stub server at port {}", this.listenPort);
-        // TODO: make reentrant (if started --> stop)
 
         try {
             startJettyServer(this.listenPort);
@@ -81,7 +84,7 @@ public class RemoteArgoApiServerStub {
 
         if (this.passthroughClient.isPresent()) {
             try {
-                this.passthroughClient.get().start();
+                this.passthroughClient.get().start(); // THIS IS BAD!!!
             } catch (Exception e) {
                 throw new RuntimeException(
                         String.format("Starting passthrough API client for host=%s, port=%d failed. %s",
@@ -106,19 +109,44 @@ public class RemoteArgoApiServerStub {
     }
 
     private void startJettyServer(int port) throws Exception {
+        if (this.server.isPresent()) {
+            stopJettyServer();
+        }
+        var server = new Server(port);
+        this.server = Optional.of(server);
 
-        server = Optional.of(new Server(port));
+        var tp = server.getThreadPool();
+        if (tp instanceof QueuedThreadPool) {
+            ((QueuedThreadPool) tp).setName(RPC_POOL_NAME);
+            ((QueuedThreadPool) tp).setDaemon(true); // Lower our priority (just in case)
+        }
 
         // Disable sending built-in "Server" header
         // Stream.of(server.getConnectors()).flatMap(connector -> connector.getConnectionFactories().stream())
         // .filter(connFactory -> connFactory instanceof HttpConnectionFactory)
         // .forEach(httpConnFactory -> ((HttpConnectionFactory) httpConnFactory).getHttpConfiguration()
         // .setSendServerVersion(false));
-        server.get().setHandler(new ArgoDeviceRequestHandler());
-        server.get().start(); // todo-threading
+        server.setHandler(new ArgoDeviceRequestHandler());
+        server.start();
+    }
 
-        // server.join();
-        //
+    private synchronized void stopJettyServer() {
+        if (!this.server.isPresent()) {
+            return; // nothing to do
+        }
+
+        var s = this.server.get();
+        if (!s.isStopped()) {
+            try {
+                s.stop();
+            } catch (Exception e) {
+                throw new RuntimeException(String.format("Stopping Jetty server (listening on port %d) failed. %s",
+                        this.listenPort, e.getMessage()), e);
+            }
+        }
+        s.destroy();
+
+        this.server = Optional.empty();
     }
 
     public enum DeviceRequestType {
@@ -216,6 +244,8 @@ public class RemoteArgoApiServerStub {
                 case POST_UI_RT:
                     var postRtDto = DeviceSidePostRtUpdateDTO.fromDeviceRequestBody(body);
                     logger.info("Got device-side POST: {}", postRtDto);
+                    // Use for new update
+                    deviceApi.ifPresent(x -> x.updateDeviceStateFromPostRtRequest(postRtDto));
                     break;
                 case GET_UI_NTP:
                 case UNKNOWN:
@@ -226,28 +256,22 @@ public class RemoteArgoApiServerStub {
             if (passthroughClient.isPresent()) {
 
                 try {
+                    // CONSIDER: only pass-through known requests (vs. everything?)
                     var upstreamResponse = passthroughClient.get().passthroughRequest(baseRequest, body);
-                    // logger.info("Remote server said: {}\n\t{}", upstreamResponse,
-                    // upstreamResponse.getContentAsString());
-                    // logger.info("XXXXXXX BEFORE: {}", upstreamResponse.getContentAsString());
                     var overridenBody = postProcessUpstreamResponse(requestType, upstreamResponse);
-                    // logger.info("XXXXXXX AFTER: {}", overridenBody);
 
-                    // TODO restore
                     PassthroughHttpClient.forwardUpstreamResponse(upstreamResponse, response,
                             Optional.of(overridenBody));
                     baseRequest.setHandled(true);
                     return;
                 } catch (InterruptedException | TimeoutException | ExecutionException e) {
-                    // TODO Auto-generated catch block
+                    // Deliberately not handling the upstream request exception here and allowing to fall-through to a
+                    // "response faking" logic
                     logger.warn("Passthrough client fail: {}", e.getMessage());
-                    // e.printStackTrace();
-                    // FAILED upstream request, fallback to faking response
                 }
 
             }
 
-            // TODO Auto-generated method stub
             response.setContentType("text/html");
             response.setCharacterEncoding("ASCII");
             response.setHeader("Server", "Microsoft-IIS/8.5"); // overrides Jetty's default (can be disabled by
@@ -263,16 +287,6 @@ public class RemoteArgoApiServerStub {
             } else {
                 response.getWriter().println(getFakeResponse());
             }
-            //
-            // TrivialHttpRequest response = new TrivialHttpRequest("HTTP/1.1 200 OK");
-
-            // response.setHeader("Content-Type", "text/html");
-            // response.setHeader("Server", "Microsoft-IIS/8.5");
-            // response.setHeader("X-Powered-By", "PHP/5.4.11");
-            // response.setHeader("Access-Control-Allow-Origin", "*");
-            // response.setHeader("Date", fmt.format(Instant.now())); // TODO
-            // response.setHeader("Content-length", "" + contentToSend.length());
-            // response.setBody(contentToSend.toCharArray());
         }
 
         // private void handleDeviceSideUpdate(Map<String, String[]> parameterMap) {

@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -25,7 +26,6 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.URIUtil;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaDeviceApiBase.DeviceStatus.DeviceProperties;
-import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
@@ -91,7 +91,7 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
             // }
             this.deviceStatus.fromDeviceString(status.getCommandString());
             this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
-
+            status.throwIfStatusIsStale();
             return Pair.of(true, "");
         } catch (ArgoLocalApiCommunicationException e) {
             logger.warn("Device not reachable: {}", e.getMessage());
@@ -119,21 +119,9 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
                         this.deviceStatus.getDeviceCommandStatus())));
     }
 
-    @Override
-    public void updateDeviceStateFromPushRequest(String hmiStringFromDevice, String deviceIP, String deviceCpuId) {
-        throw new RuntimeException(); // TODO
-    }
-
-    @Override
-    public InetAddress getIpAddressForDirectCommunication() {
-        // TODO Auto-generated method stub
-        throw new RuntimeException(); // TODO
-    }
-
-    @Override
-    public void updateDeviceStateFromPostRtRequest(DeviceSidePostRtUpdateDTO fromDevice) {
-        // TODO Auto-generated method stub
-        throw new RuntimeException(); // TODO
+    private URL getWebUiUrl() {
+        return uriToURL(URIUtil.newURI("http", this.oemServerHostname.getHostName(), this.oemServerPort,
+                "/UI/WEBAPP/webapp.php", ""));
     }
 
     @Override
@@ -153,7 +141,8 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         // var properties = Map.of(DevicePropertyType.LocalIP, matcher.group("localIP"), DevicePropertyType.LastSeen,
         // matcher.group("lastSeen"));
 
-        var properties = new DeviceProperties(matcher.group("localIP"), matcher.group("lastSeen"));
+        var properties = new DeviceProperties(matcher.group("localIP"), matcher.group("lastSeen"),
+                Optional.of(this.getWebUiUrl()));
 
         // var localIp = matcher.group("localIP");
         // var lastSeen = matcher.group("lastSeen");
@@ -165,14 +154,17 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         // it
         // <-- TODO matcher.groups
 
-        var delta = properties.getLastSeenDelta();
-        // logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
-
-        if (delta.toSeconds() > ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toSeconds()) {
-            throw new ArgoLocalApiCommunicationException(MessageFormat.format(
-                    "Device was last seen {0} mins ago (threshold is set at {1} min)", delta.toMinutes(),
-                    ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toMinutes()));
-        }
+        // var delta = properties.getLastSeenDelta();
+        // // logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
+        //
+        // if (delta.toSeconds() > ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toSeconds()) {
+        // throw new ArgoLocalApiCommunicationException(MessageFormat.format(
+        // "Device was last seen {0} mins ago (threshold is set at {1} min). Please ensure the HVAC is connected to WiFi
+        // and communicating with Argo servers",
+        // delta.toMinutes(), ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toMinutes()));
+        //
+        // // http://31.14.128.210/UI/WEBAPP/webapp.php
+        // }
 
         return new DeviceStatus(matcher.group("commands"), properties);
     }

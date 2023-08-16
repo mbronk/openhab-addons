@@ -31,7 +31,6 @@ import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.util.StringContentProvider;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.HttpCookieStore;
-import org.openhab.core.common.ThreadPoolManager;
 import org.openhab.core.io.net.http.HttpClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,21 +51,21 @@ public class PassthroughHttpClient {
     private boolean isStarted = false;
     private static final String RPC_POOL_NAME = BINDING_ID + "_apiProxy";
     private static final List<String> HEADERS_TO_IGNORE = List.of("content-length", "content-type", "content-encoding",
-            "host");
-
-    private static final int MAX_CONNECTIONS_PER_DESTINATION = 2;
+            "host", "accept-encoding");
 
     public PassthroughHttpClient(String upstreamIpAddress, int upstreamPort, HttpClientFactory clientFactory) {
+        // Impl. note: Using Openhab's (globally-configurable) settings for custom threadpool. We technically may need
+        // less threads (and longer TTL) here... but not fiddling with thread pool settings post-creation, to avoid
+        // corner cases
         this.rawHttpClient = clientFactory.createHttpClient(RPC_POOL_NAME);
+
         this.rawHttpClient.setFollowRedirects(false);
-        this.rawHttpClient.setUserAgentField(null);
+        this.rawHttpClient.setUserAgentField(null); // The device doesn't set it, and we want to be a transparent proxy
         this.rawHttpClient.setCookieStore(new HttpCookieStore.Empty());
 
-        this.rawHttpClient.setMaxConnectionsPerDestination(MAX_CONNECTIONS_PER_DESTINATION);
         this.rawHttpClient.setRequestBufferSize(1024);
         this.rawHttpClient.setResponseBufferSize(1024);
-        this.rawHttpClient.setExecutor(ThreadPoolManager.getPool(RPC_POOL_NAME)); // TODO: this pool might have less
-                                                                                  // clients and longer TTL
+
         this.upstreamTargetHost = upstreamIpAddress;
         this.upstreamTargetPort = upstreamPort;
     }
@@ -75,7 +74,9 @@ public class PassthroughHttpClient {
         if (this.isStarted) {
             stop();
         }
+        logger.info("Starting passthrough http client...");
         this.rawHttpClient.start();
+        logger.info("Starting passthrough http client...STARTED");
         this.rawHttpClient.getContentDecoderFactories().clear(); // Prevent decoding gzip (device doesn't support it).
                                                                  // Stops sending Accept header
         this.isStarted = true;
@@ -83,6 +84,7 @@ public class PassthroughHttpClient {
 
     public synchronized void stop() throws Exception {
         this.rawHttpClient.stop();
+        this.rawHttpClient.destroy();
         this.isStarted = false;
     }
 
@@ -93,11 +95,7 @@ public class PassthroughHttpClient {
      * @throws IOException
      */
     public static String getRequestBodyAsString(Request downstreamHttpRequest) throws IOException {
-        // var cachedBytes = new ByteArrayOutputStream();
-        // var cachedWriter = new OutputStreamWriter(cachedBytes, StandardCharsets.US_ASCII);
-        // downstreamHttpRequest.getReader().transferTo(cachedWriter);
         return downstreamHttpRequest.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
-        // return cachedBytes.toString(StandardCharsets.US_ASCII);
     }
 
     public ContentResponse passthroughRequest(Request downstreamHttpRequest, String downstreamHttpRequestBody)

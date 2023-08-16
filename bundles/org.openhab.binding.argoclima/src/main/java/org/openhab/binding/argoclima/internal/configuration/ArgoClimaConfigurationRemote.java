@@ -22,25 +22,55 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**
- * The {@link ArgoClimaConfiguration} class contains fields mapping thing configuration parameters.
+ * The {@link ArgoClimaConfigurationRemote} class contains fields mapping thing configuration parameters
+ * for a remote Argo device (comms via Argo servers)
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class ArgoClimaConfigurationRemote extends ArgoClimaConfigurationBase {
 
-    public static final Duration LAST_SEEN_UNAVAILABILITY_THRESHOLD = Duration.ofMinutes(18);
     /**
-     * Sample configuration parameters. Replace with your own.
+     * The duration after which the device would be considered non-responsive (and taken OFFLINE)
      */
-    public String username = "";
-    public String password = ""; // TODO: parameterize
+    public static final Duration LAST_SEEN_UNAVAILABILITY_THRESHOLD = Duration.ofMinutes(20);
 
+    /**
+     * Argo configuration parameters specific to remote connection
+     * These names are defined in thing-types.xml and get injected on instantiation
+     * through {@link org.openhab.core.thing.binding.BaseThingHandler#getConfigAs getConfigAs}
+     */
+    private String username = "";
+    private String password = "";
+
+    /**
+     * Get the username (login) to use in authenticating to Argo server
+     *
+     * @return username (as configured by the user)
+     */
+    public String getUsername() {
+        return this.username;
+    }
+
+    /**
+     * Get the masked password used in authenticating to Argo server (for logging)
+     *
+     * @implNote Password length is preserved (which may be considered a security weakness, but is useful for
+     *           troubleshooting
+     *           and given state of Argo API's security... likely is an overkill already :)
+     * @return {@code ***}-masked string instead of the same length as configured password
+     */
     public String getPasswordMasked() {
         return this.password.replaceAll(".", "*");
     }
 
-    public String getPasswordMD5Hash() {
+    /**
+     * Get MD5 hash of the configured password (for Basic auth)
+     *
+     * @return MD5 hash of password
+     * @throws ArgoConfigurationException In case MD5 is not available in the security provider
+     */
+    public String getPasswordMD5Hash() throws ArgoConfigurationException {
         MessageDigest md;
         try {
             md = MessageDigest.getInstance("MD5");
@@ -48,7 +78,7 @@ public class ArgoClimaConfigurationRemote extends ArgoClimaConfigurationBase {
             byte[] digest = md.digest();
             return DatatypeConverter.printHexBinary(digest).toLowerCase();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e); // TODO: avoid throwing raw exception types ;(
+            throw new ArgoConfigurationException("Unable to calculate MD5 hash of password", getPasswordMasked(), e);
         }
     }
 

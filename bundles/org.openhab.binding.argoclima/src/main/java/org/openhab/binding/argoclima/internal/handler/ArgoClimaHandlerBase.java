@@ -135,7 +135,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
         updateStatus(ThingStatus.UNKNOWN);
 
-        if (this.config.get().refreshInterval > 0) {
+        if (this.config.get().getRefreshInterval() > 0) {
             lastRefreshTime = Instant.now().toEpochMilli(); // Skips 1st refresh cycle (no need, initializer will do it
                                                             // instead)
             startAutomaticRefresh();
@@ -346,10 +346,10 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         };
 
         if (refreshTask == null) {
-            refreshTask = scheduler.scheduleWithFixedDelay(refresher, 0, config.get().refreshInterval,
+            refreshTask = scheduler.scheduleWithFixedDelay(refresher, 0, config.get().getRefreshInterval(),
                     TimeUnit.SECONDS);
             logger.debug("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
-                    config.get().refreshInterval);
+                    config.get().getRefreshInterval());
             // forceRefresh = true;
         }
     }
@@ -360,7 +360,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
     protected final void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
         for (Entry<ArgoDeviceSettingType, State> entry : deviceState.entrySet()) {
-            var channelNames = Set.<String> of();
+            var channelNames = Set.<String>of();
             switch (entry.getKey()) {
                 case ACTIVE_TIMER:
                     channelNames = Set.of(ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER);
@@ -466,7 +466,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         long currentTime = Instant.now().toEpochMilli();
         long timeSinceLastRefresh = currentTime - lastRefreshTime;
         if (// !forceRefresh &&
-        (timeSinceLastRefresh < config.get().refreshInterval * 1000)) {
+        (timeSinceLastRefresh < config.get().getRefreshInterval() * 1000)) {
             return false;
         }
         lastRefreshTime = currentTime;

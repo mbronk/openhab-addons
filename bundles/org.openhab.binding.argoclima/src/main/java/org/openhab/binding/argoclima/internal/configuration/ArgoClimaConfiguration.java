@@ -16,14 +16,15 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
-import org.openhab.core.i18n.ConfigurationException;
 
 /**
- * The {@link ArgoClimaConfiguration} class contains fields mapping thing configuration parameters.
+ * The {@link ArgoClimaConfiguration} class extends base configuration parameters with ones specific
+ * to local connection (including a remote API stub / proxy)
  *
  * @author Mateusz Bronk - Initial contribution
  */
@@ -36,29 +37,24 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
     }
 
     /**
-     * Sample configuration parameters. Replace with your own.
+     * Argo configuration parameters specific to local connection & API stub
+     * These names are defined in thing-types.xml and get injected on instantiation
+     * through {@link org.openhab.core.thing.binding.BaseThingHandler#getConfigAs getConfigAs}
      */
-    public String hostname = "";
-    public String localDeviceIP = ""; // TODO: parameterize
-    public int localDevicePort = 1001;
-    public ConnectionMode connectionMode = ConnectionMode.LOCAL_CONNECTION;
-    public boolean useLocalConnection = true;
-    public int stubServerPort = -1;
-    public List<String> stubServerListenAddresses = List.of();
+    private String hostname = "";
+    private String localDeviceIP = "";
+    private int localDevicePort = 1001;
+    private ConnectionMode connectionMode = ConnectionMode.LOCAL_CONNECTION;
+    private boolean useLocalConnection = true;
+    private int stubServerPort = -1;
+    private List<String> stubServerListenAddresses = List.of();
 
-    // public String password = ""; <-- for remote device only
-
-    // public static final int LOCAL_PORT = 1001;
-    // hvacChangeDebounce
-
-    //
-    // /**
-    // * The currentTemperatureOffset is configureable in case the user wants to offset this temperature for calibration
-    // * of the temperature sensor.
-    // */
-    // public BigDecimal currentTemperatureOffset = new BigDecimal(0.0);
-    //
-
+    /**
+     * Retrieves the *target* IP address of the LOCAL Argo device (from hostname and/or IP)
+     *
+     * @return The IP address of the Argo device (for use in local communication)
+     * @throws ArgoConfigurationException if no IP address for the {@code hostname} could be found
+     */
     public InetAddress getHostname() throws ArgoConfigurationException {
         try {
             return InetAddress.getByName(hostname);
@@ -67,13 +63,63 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
         }
     }
 
+    /**
+     * Retrieves the local IPv4 address of the Argo device (in its current subnet) - if available/known
+     * <p>
+     * If the device is behind NAT, this address will be different from the one determined from
+     * {@link #getHostname() getHostname}
+     *
+     * @return Local IP address of the HVAC device (for use in matching remote responses to the device)
+     * @throws ArgoConfigurationException if the {@code localDeviceIP} is invalid
+     */
+    public Optional<InetAddress> getLocalDeviceIP() throws ArgoConfigurationException {
+        try {
+            if (this.localDeviceIP.isBlank()) {
+                return Optional.<InetAddress>empty();
+            }
+            return Optional.of(InetAddress.getByName(localDeviceIP));
+        } catch (UnknownHostException e) {
+            throw new ArgoConfigurationException("Invalid localDeviceIP configuration", this.localDeviceIP, e);
+        }
+    }
+
+    /**
+     * Returns the local Argo device port (1001 by default, unless re-mapped on firewall)
+     *
+     * @return device's local port
+     */
+    public int getLocalDevicePort() {
+        return this.localDevicePort;
+    }
+
+    /**
+     * Return the configured connection mode: local vs. remote API (with/without pass-through to Argo servers)
+     *
+     * @return The connection mode
+     */
+    public ConnectionMode getConnectionMode() {
+        return this.connectionMode;
+    }
+
+    /**
+     * Get the stub server listen port
+     *
+     * @return Stub server listen port or {@code -1} if N/A
+     */
+    public int getStubServerPort() {
+        return this.stubServerPort;
+    }
+
+    /**
+     * Get the stub server listen IP addresses (from hostnames)
+     *
+     * @return A set of listen addresses
+     * @throws ArgoConfigurationException if at least one of the {@code stubServerListenAddresses} is a hostname and
+     *             cannot be resolved to an IP address
+     */
     public Set<InetAddress> getStubServerListenAddresses() throws ArgoConfigurationException {
         var addresses = new LinkedHashSet<InetAddress>();
         for (var t : stubServerListenAddresses) {
-            // if (t.isBlank()) {
-            // throw new ArgoConfigurationException("Invalid stubServerListenAddresses configuration. Inet address is
-            // empty", stubServerListenAddresses.toString());
-            // }
             try {
                 addresses.add(InetAddress.getByName(t));
             } catch (UnknownHostException e) {
@@ -82,14 +128,6 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
             }
         }
         return addresses;
-    }
-
-    public InetAddress getLocalDeviceIP() throws ArgoConfigurationException {
-        try {
-            return InetAddress.getByName(localDeviceIP);
-        } catch (UnknownHostException e) {
-            throw new ConfigurationException("Invalid localDeviceIP configuration", e);
-        }
     }
 
     @Override
@@ -105,16 +143,14 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
         if (hostname.isEmpty()) {
             throw new ArgoConfigurationException(
                     "Hostname is empty. Must be set to Argo Air Conditioner's local address");
-            // return "Hostname is empty. Must be set to Argo Air Conditioner's local address";
         }
 
         if (!useLocalConnection && connectionMode == ConnectionMode.LOCAL_CONNECTION) {
             throw new ArgoConfigurationException(
                     "Cannot set Use Local Connection to OFF, when connection mode is LOCAL_CONNECTION");
-            // return "Cannot set Use Local Connection to OFF, when connection mode is LOCAL_CONNECTION";
         }
 
-        if (refreshInterval == 0 && connectionMode == ConnectionMode.LOCAL_CONNECTION) {
+        if (getRefreshInterval() == 0 && connectionMode == ConnectionMode.LOCAL_CONNECTION) {
             throw new ArgoConfigurationException(
                     "Cannot set refresh interval to 0, when connection mode is LOCAL_CONNECTION");
         }
@@ -127,11 +163,9 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
             throw new ArgoConfigurationException("Stub server port must be in range [0..65536]");
         }
 
-        // want the side-effect of these calls
+        // want the side-effect of these calls!
         getHostname();
         getStubServerListenAddresses();
         getLocalDeviceIP();
     }
-
-    // isValid
 }

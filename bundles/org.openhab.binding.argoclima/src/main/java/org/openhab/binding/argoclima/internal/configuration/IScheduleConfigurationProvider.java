@@ -20,8 +20,9 @@ import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurati
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**
- * @author Mateusz Bronk - Initial contribution
+ * Interface for schedule provider
  *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public interface IScheduleConfigurationProvider {

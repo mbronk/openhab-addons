@@ -57,8 +57,8 @@ public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfig
     @Override
     protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationRemote config) throws Exception {
         return new ArgoClimaRemoteDevice(config, this.client, this.timeZoneProvider, config.getOemServerAddress(),
-                config.oemServerPort, config.username, config.getPasswordMD5Hash(), this::updateChannelsFromDevice,
-                this::updateStatus, this::updateThingProperties);
+                config.getOemServerPort(), config.getUsername(), config.getPasswordMD5Hash(),
+                this::updateChannelsFromDevice, this::updateStatus, this::updateThingProperties);
     }
 
     @Override

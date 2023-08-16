@@ -79,15 +79,13 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
     /**
      * Provides a {@link ConfigDescription} for the given URI.
      *
-     * @param uri uri of the config description (may be either thing or thing-type URI)
+     * @param uri URI of the config description (may be either thing or thing-type URI)
      * @param locale locale
      * @return config description or null if no config description could be found
      */
     @Override
     @Nullable
     public ConfigDescription getConfigDescription(URI uri, @Nullable Locale locale) {
-        // logger.trace("Got config description request: {} {}", uri, locale);
-
         if (!uri.getScheme().equalsIgnoreCase("thing")) {
             return null; // Deliberately not supporting "thing-type" (no dynamic parameters there)
         }
@@ -101,8 +99,6 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
             logger.debug("getConfigDescription: No thing found for uri: {}", uri);
             return null;
         }
-
-        // logger.info("Got thing: {}", thing);
 
         var paramGroups = new ArrayList<ConfigDescriptionParameterGroup>();
         for (int i = 1; i <= SCHEDULE_TIMERS_COUNT; ++i) {
@@ -119,7 +115,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
 
         var parameters = new ArrayList<ConfigDescriptionParameter>();
 
-        var daysOfWeek = List.<@Nullable ParameterOption> of(new ParameterOption(Weekday.MON.toString(), "Monday"),
+        var daysOfWeek = List.<@Nullable ParameterOption>of(new ParameterOption(Weekday.MON.toString(), "Monday"),
                 new ParameterOption(Weekday.TUE.toString(), "Tuesday"),
                 new ParameterOption(Weekday.WED.toString(), "Wednesday"),
                 new ParameterOption(Weekday.THU.toString(), "Thursday"),
@@ -135,20 +131,19 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))//
                     .withLabel("Days").withDescription("Days when the schedule is run").withOptions(daysOfWeek)
                     .withDefault(DEFAULT_SCHEDULE_WEEKDAYS.toString()).withMultiple(true).withMultipleLimit(7).build());
+
+            // NOTE: Deliberately *not* using .withContext("time") - does work, but causes UI to detect each entry to
+            // the page as a change
             parameters.add(ConfigDescriptionParameterBuilder
                     .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_ON_TIME, i), Type.TEXT)
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
-                    .withPattern("\\d{1-2}:\\d{1-2}")
-                    // .withContext("time") //FIXME: using this works OK, but causes UI to detect each entry to the page
-                    // as a change
-                    .withLabel("On time").withDescription("Time when the A/C turns on")
+                    .withPattern("\\d{1-2}:\\d{1-2}").withLabel("On time").withDescription("Time when the A/C turns on")
                     .withDefault(DEFAULT_SCHEDULE_START_TIME).build());
             parameters.add(ConfigDescriptionParameterBuilder
                     .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_OFF_TIME, i), Type.TEXT)
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
-                    // .withContext("time")
                     .withLabel("Off time").withDescription("Time when the A/C turns off")
                     .withDefault(DEFAULT_SCHEDULE_END_TIME).build());
         }

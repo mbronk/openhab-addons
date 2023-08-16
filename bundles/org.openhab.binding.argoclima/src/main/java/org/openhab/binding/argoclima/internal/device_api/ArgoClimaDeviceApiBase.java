@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api;
 import java.io.EOFException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.MessageFormat;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
@@ -36,6 +37,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.ContentResponse;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoApiDataElement;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
@@ -49,8 +51,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * @author Mateusz Bronk - Initial contribution
+ * Common implementation of Argo API
  *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
@@ -68,6 +71,17 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     private HashMap<String, String> deviceProperties;
     private final String remoteEndName;
 
+    /**
+     * C-tor
+     *
+     * @param config The configuration class (common part)
+     * @param client The common HTTP client used for making connections from OH to the device
+     * @param timeZoneProvider The common TZ provider
+     * @param onStateUpdate Callback to invoke on device-side state update (one or more of channels)
+     * @param onReachableStatusChange Callback to invoke on device-side status update (ex. going OFFLINE)
+     * @param onDevicePropertiesUpdate Callback to invoke on device-side dynamic property update (ex. lastSeen)
+     * @param remoteEndName The name of the "remote end" party, for use in logging
+     */
     public ArgoClimaDeviceApiBase(ArgoClimaConfigurationBase config, HttpClient client,
             TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
             Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate,
@@ -135,15 +149,28 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         }
     }
 
+    /**
+     * Represents the current device status, as-communicated by the device (either push or pull model)
+     * <p>
+     * Includes both the "raw" {@link #getCommandString() commandString} as well as {@link #getProperties() properties}
+     *
+     * @author Mateusz Bronk - Initial contribution
+     */
     static class DeviceStatus {
-        // private final Logger logger = LoggerFactory.getLogger(DeviceStatus.class);
+        /**
+         * Helper class for dealing with device properties
+         *
+         * @author Mateusz Bronk - Initial contribution
+         */
         static class DeviceProperties {
             private final Logger logger = LoggerFactory.getLogger(DeviceProperties.class);
             private Optional<String> localIP;
             private Optional<OffsetDateTime> lastSeen;
+            private Optional<URL> vendorUiUrl;
 
-            public DeviceProperties(String localIP, String lastSeenStr) {
+            public DeviceProperties(String localIP, String lastSeenStr, Optional<URL> vendorUiAddress) {
                 this.localIP = lastSeenStr.isEmpty() ? Optional.empty() : Optional.of(localIP);
+                this.vendorUiUrl = vendorUiAddress;
                 if (lastSeenStr.isEmpty()) {
                     this.lastSeen = Optional.empty();
                 } else {
@@ -161,8 +188,10 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                 }
             }
 
-            public DeviceProperties() {
-                this("", "");
+            public DeviceProperties(OffsetDateTime lastSeen) {
+                this.localIP = Optional.empty();
+                this.lastSeen = Optional.of(lastSeen);
+                this.vendorUiUrl = Optional.empty();
             }
 
             public String getLocalIP() {
@@ -196,6 +225,10 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                 if (this.localIP.isPresent()) {
                     result.put(ArgoClimaBindingConstants.PROPERTY_LOCAL_IP_ADDRESS, this.getLocalIP());
                 }
+                if (this.vendorUiUrl.isPresent()) {
+                    result.put(ArgoClimaBindingConstants.PROPERTY_WEB_UI,
+                            this.vendorUiUrl.map(x -> x.toString()).orElse("N/A"));
+                }
 
                 return Collections.unmodifiableMap(result);
             }
@@ -218,11 +251,34 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
             this.properties = properties;
         }
 
-        public DeviceStatus(String commandString) {
-            this(commandString, new DeviceProperties());
+        /**
+         * Constructs DeviceStatus from just-received status response (live poll response)
+         *
+         * @param commandString The command string received
+         */
+        public DeviceStatus(String commandString, OffsetDateTime lastSeenDateTime) {
+            this(commandString, new DeviceProperties(lastSeenDateTime));
         }
+
+        public void throwIfStatusIsStale() throws ArgoLocalApiCommunicationException {
+            var delta = this.getProperties().getLastSeenDelta();
+            if (delta.toSeconds() > ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toSeconds()) {
+                throw new ArgoLocalApiCommunicationException(MessageFormat.format(
+                        "Device was last seen {0} mins ago (threshold is set at {1} min). Please ensure the HVAC is connected to WiFi and communicating with Argo servers",
+                        delta.toMinutes(),
+                        ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toMinutes()));
+            }
+        }
+
     }
 
+    /**
+     * Extract device status from just-polled API result (local or remote)
+     *
+     * @param apiResponse
+     * @return
+     * @throws ArgoLocalApiCommunicationException
+     */
     protected abstract DeviceStatus extractDeviceStatusFromResponse(String apiResponse)
             throws ArgoLocalApiCommunicationException;
 
@@ -235,6 +291,8 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                 pollForCurrentStatusFromDeviceSync(getDeviceStateQueryUrl()));
         this.deviceStatus.fromDeviceString(deviceResponse.commandString);
         this.updateDevicePropertiesFromDeviceResponse(deviceResponse.getProperties(), this.deviceStatus);
+        deviceResponse.throwIfStatusIsStale();
+        // http://31.14.128.210/UI/WEBAPP/webapp.php
 
         // this.deviceProperties.putAll(deviceResponse.getProperties().asPropertiesRaw(this.timeZoneProvider));
         // this.deviceProperties.putAll(Map.of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,

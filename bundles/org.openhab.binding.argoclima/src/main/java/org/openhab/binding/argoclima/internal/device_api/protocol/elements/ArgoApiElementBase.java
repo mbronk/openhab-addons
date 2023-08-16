@@ -79,7 +79,6 @@ public abstract class ArgoApiElementBase implements IArgoElement {
                 // return this.getAsState();
             }
         }
-        // TODO Auto-generated method stub
 
         if (!this.isUpdatePending()) { // TODO TODO TODO: what the hck?
             this.updateFromApiResponseInternal(responseValue);

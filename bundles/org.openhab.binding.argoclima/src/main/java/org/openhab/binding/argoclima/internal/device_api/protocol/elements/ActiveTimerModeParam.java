@@ -38,7 +38,6 @@ public class ActiveTimerModeParam extends EnumParam<TimerType> {
 
     public ActiveTimerModeParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider, TimerType.class);
-        // TODO Auto-generated constructor stub
     }
 
     @Override
@@ -96,7 +95,6 @@ public class ActiveTimerModeParam extends EnumParam<TimerType> {
             }
 
         }
-        // TODO Auto-generated method stub
         return super.handleCommandInternalEx(command);
     }
 }

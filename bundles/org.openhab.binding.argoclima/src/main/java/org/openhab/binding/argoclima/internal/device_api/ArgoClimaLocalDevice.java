@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.MessageFormat;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -83,12 +84,6 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         }
     }
 
-    // TODO: reverse logic of picking the addresses in other places (and update names?)
-    @Override
-    public InetAddress getIpAddressForDirectCommunication() {
-        return localIpAddress.orElse(ipAddress);
-    }
-
     @Override
     protected URL getDeviceStateQueryUrl() {
         return uriToURL(URIUtil.newURI("http", this.ipAddress.getHostName(), this.port, "/", "HMI=&UPD=0"));
@@ -100,24 +95,46 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
                 String.format("HMI=%s&UPD=1", this.deviceStatus.getDeviceCommandStatus())));
     }
 
-    @Override
+    /**
+     * Update device state from intercepted message from device to remote server (device's own send of command)
+     * This is sent in response to cloud-side command (likely a form of acknowledgement)
+     *
+     * @implNote This function is a WORK IN PROGRESS (and not doing anything useful at the present!)
+     * @param fromDevice
+     */
     public void updateDeviceStateFromPostRtRequest(DeviceSidePostRtUpdateDTO fromDevice) {
         if (this.cpuId.isEmpty()) {
-            logger.warn(
-                    "Got poll update from device {}, but was not able to match it to this device b/c no CPUID is configured. Configure {} setting to allow this mode...",
+            logger.debug(
+                    "Got post update confirmation from device {}, but was not able to match it to this device b/c no CPUID is configured. Configure {} setting to allow this mode...",
                     fromDevice.cpuId, ArgoClimaBindingConstants.PARAMETER_DEVICE_CPU_ID);
             return;
         }
         if (!this.cpuId.get().equalsIgnoreCase(fromDevice.cpuId)) {
-            logger.warn("Got post update from device [ID={}], but this entity belongs to device [ID={}]. Ignoring...",
+            logger.trace("Got post update from device [ID={}], but this entity belongs to device [ID={}]. Ignoring...",
                     fromDevice.cpuId, this.cpuId.orElse("???"));
             return;
         }
-        var paramArray = fromDevice.dataParam.split(",");
-        logger.info("Params are... {}", paramArray.toString());
+
+        // NOTICE (on possible future extension): The values from 'data' param of the response are NOT following the HMI
+        // syntax in the GET requests (much more data is available in this requests)
+        // There are some similarities -> ex. target/actual temperatures are at offset 112 & 113 of the array,
+        // so at the very least, could get the known values (but not as trivial as:
+        // # fromDevice.dataParam.split(",").Arrays.stream(paramArray).skip(111).limit(39).toList()
+        // Overall, this needs more reverse-engineering (but works w/o this information, so not implementing for now)
     }
 
-    @Override
+    /**
+     * Update device state from intercepted message from device to remote server (device's own polling)
+     * <p>
+     * Important: The device-sent message will only be used for update if it matches to configured value
+     * (this is to avoid updating status of a completely different device)
+     * <p>
+     * Most robust match is by CPUID, though if n/a, localIP is used as heuristic alternative as well
+     *
+     * @param hmiStringFromDevice The status update string device has sent
+     * @param deviceIP The local IP of the device (as reported by the device itself)
+     * @param deviceCpuId The CPUID of the device (as reported by the device itself)
+     */
     public void updateDeviceStateFromPushRequest(String hmiStringFromDevice, String deviceIP, String deviceCpuId) {
         if (this.cpuId.isEmpty() && this.localIpAddress.isEmpty()) {
             logger.warn(
@@ -129,14 +146,14 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         }
 
         if (this.cpuId.isPresent() && !this.cpuId.get().equalsIgnoreCase(deviceCpuId)) {
-            logger.warn(
+            logger.trace(
                     "Got poll update from device [ID={} | IP={}], but this entity belongs to device [ID={}]. Ignoring...",
                     deviceCpuId, deviceIP, this.cpuId.get());
             return; // direct mismatch
         }
 
         if (!this.localIpAddress.orElse(this.ipAddress).getHostAddress().equalsIgnoreCase(deviceIP)) {
-            logger.warn(
+            logger.trace(
                     "Got poll update from device [ID={} | IP={}], but this entity belongs to device [ID={} | IP={}]. Ignoring...",
                     deviceCpuId, deviceIP, this.cpuId.orElse("???"),
                     this.localIpAddress.orElse(this.ipAddress).getHostAddress());
@@ -185,6 +202,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
 
     @Override
     protected DeviceStatus extractDeviceStatusFromResponse(String apiResponse) {
-        return new DeviceStatus(apiResponse); // TODO
+        // local device response does not have all properties, but is always fresh
+        return new DeviceStatus(apiResponse, OffsetDateTime.now()); // TODO
     }
 }

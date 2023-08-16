@@ -12,7 +12,6 @@
  */
 package org.openhab.binding.argoclima.internal.handler;
 
-import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -69,23 +68,19 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfiguration config) throws Exception {
         // TODO Auto-generated method stub
 
-        var targetCpuID = config.deviceCpuId.isBlank() ? Optional.<String> empty() : Optional.of(config.deviceCpuId); // TODO
-        var localIpAddress = config.localDeviceIP.isBlank() ? Optional.<InetAddress> empty()
-                : Optional.of(config.getLocalDeviceIP()); // TODO
+        var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.getLocalDevicePort(),
+                config.getLocalDeviceIP(), config.getDeviceCpuId(), this.client, this.timeZoneProvider,
+                this::updateChannelsFromDevice, this::updateStatus, this::updateThingProperties);
 
-        var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.localDevicePort, localIpAddress,
-                targetCpuID, this.client, this.timeZoneProvider, this::updateChannelsFromDevice, this::updateStatus,
-                this::updateThingProperties);
-
-        if (config.connectionMode == ConnectionMode.REMOTE_API_PROXY
-                || config.connectionMode == ConnectionMode.REMOTE_API_STUB) {
-            var passthroughClient = Optional.<PassthroughHttpClient> empty();
-            if (config.connectionMode == ConnectionMode.REMOTE_API_PROXY) {
+        if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY
+                || config.getConnectionMode() == ConnectionMode.REMOTE_API_STUB) {
+            var passthroughClient = Optional.<PassthroughHttpClient>empty();
+            if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY) {
                 passthroughClient = Optional.of(new PassthroughHttpClient(config.getOemServerAddress().getHostAddress(),
-                        config.oemServerPort, clientFactory));
+                        config.getOemServerPort(), clientFactory));
             }
 
-            serverStub = new RemoteArgoApiServerStub(config.getStubServerListenAddresses(), config.stubServerPort,
+            serverStub = new RemoteArgoApiServerStub(config.getStubServerListenAddresses(), config.getStubServerPort(),
                     this.getThing().getUID().toString(), passthroughClient, Optional.of(deviceApi));
             try {
                 serverStub.start();
@@ -94,7 +89,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
                 logger.error("Failed to start RPC server", e1); // TODO: crash
                 throw new ArgoRemoteServerStubStartupException(
                         String.format("[%s mode] Failed to start RPC server at port: %d. Error: %s",
-                                config.connectionMode, config.stubServerPort, e1.getMessage()));
+                                config.getConnectionMode(), config.getStubServerPort(), e1.getMessage()));
             }
         }
         return deviceApi;

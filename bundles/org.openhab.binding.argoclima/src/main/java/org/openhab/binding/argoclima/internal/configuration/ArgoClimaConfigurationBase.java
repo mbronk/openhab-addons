@@ -39,6 +39,13 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     /////////////////////
     // Types
     /////////////////////
+    /**
+     * Custom Day of Week class implementation (with integer values matching Argo API) and support of stacking into
+     * EnumSet
+     * (flags-like)
+     *
+     * @author Mateusz Bronk - Initial contribution
+     */
     public static enum Weekday implements IArgoApiEnum {
         SUN(0x00),
         MON(0x01),
@@ -59,6 +66,12 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
             return this.value;
         }
 
+        /**
+         * Maps {@link java.time.DayOfWeek java.time.DayOfWeek} to Argo API custom enum ({@link Weekday})
+         *
+         * @param d The DayOfWeek to convert
+         * @return Argo-compatible Weekday for {@code d}
+         */
         public static Weekday ofDay(DayOfWeek d) {
             switch (d) {
                 case SUNDAY:
@@ -89,9 +102,9 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     /////////////////////
     // Configuration parameters (defined in thing-types.xml or ArgoClimaConfigProvider)
     /////////////////////
-    public String deviceCpuId = "";
-    public int refreshInterval = -1;
-    public int oemServerPort = -1;
+    private String deviceCpuId = "";
+    private int refreshInterval = -1;
+    private int oemServerPort = -1;
     private String oemServerAddress = "";
 
     private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS; // EnumSet.noneOf(Weekday.class);
@@ -106,12 +119,45 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
 
     public boolean resetToFactoryDefaults = false;
 
+    /**
+     * Get the user-configured CPUID of the Argo device (used in matching to a concrete device in a stub mode)
+     *
+     * @return The configured CPUID (if provided by the user = not blank)
+     */
+    public Optional<String> getDeviceCpuId() {
+        return this.deviceCpuId.isBlank() ? Optional.<String>empty() : Optional.of(this.deviceCpuId);
+    }
+
+    /**
+     * Get the refresh interval the device is polled with (in seconds)
+     *
+     * @return The interval value {@code 0} - to disable polling
+     */
+    public int getRefreshInterval() {
+        return this.refreshInterval;
+    }
+
+    /**
+     * The OEM server's address, used to pass through the communications to (in REMOTE_API_PROXY) mode
+     *
+     * @return The vendor's server IP address
+     * @throws ArgoConfigurationException In case the IP cannot be found
+     */
     public InetAddress getOemServerAddress() throws ArgoConfigurationException {
         try {
             return InetAddress.getByName(oemServerAddress);
         } catch (UnknownHostException e) {
             throw new ArgoConfigurationException("Invalid oemServerAddress configuration", oemServerAddress, e);
         }
+    }
+
+    /**
+     * The OEM server's port, used to pass through the communications to (in REMOTE_API_PROXY) mode
+     *
+     * @return Vendor's server port. {@code -1} for no value
+     */
+    public int getOemServerPort() {
+        return this.oemServerPort;
     }
 
     /**
