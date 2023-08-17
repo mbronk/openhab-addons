@@ -18,6 +18,7 @@ import java.text.MessageFormat;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.function.Consumer;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -25,8 +26,9 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.URIUtil;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
-import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfiguration;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSideUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
@@ -48,17 +50,20 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     private final Optional<String> cpuId;
     public int port;
     private ArgoDeviceStatus deviceStatus;
+    private final boolean matchAnyIncomingDeviceIp;
 
-    public ArgoClimaLocalDevice(ArgoClimaConfiguration config, InetAddress targetDeviceIpAddress, int port,
+    public ArgoClimaLocalDevice(ArgoClimaConfigurationLocal config, InetAddress targetDeviceIpAddress, int port,
             Optional<InetAddress> localDeviceIpAddress, Optional<String> cpuId, HttpClient client,
             TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
-            Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate) {
+            Consumer<ThingStatus> onReachableStatusChange,
+            Consumer<SortedMap<String, String>> onDevicePropertiesUpdate) {
         super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate, "");
         this.ipAddress = targetDeviceIpAddress;
         this.port = port;
         this.deviceStatus = new ArgoDeviceStatus(config);
         this.localIpAddress = localDeviceIpAddress; // .orElse(targetDeviceIpAddress);
         this.cpuId = cpuId;
+        this.matchAnyIncomingDeviceIp = config.getMatchAnyIncomingDeviceIp();
     }
 
     @Override
@@ -135,15 +140,10 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
      * @param deviceIP The local IP of the device (as reported by the device itself)
      * @param deviceCpuId The CPUID of the device (as reported by the device itself)
      */
-    public void updateDeviceStateFromPushRequest(String hmiStringFromDevice, String deviceIP, String deviceCpuId) {
-        if (this.cpuId.isEmpty() && this.localIpAddress.isEmpty()) {
-            logger.warn(
-                    "Got poll update from device {}[IP={}], but was not able to match it to this device with IP={}. Configure {} and/or {} settings to allow detection...",
-                    deviceCpuId, deviceIP, this.ipAddress.getHostAddress(),
-                    ArgoClimaBindingConstants.PARAMETER_DEVICE_CPU_ID,
-                    ArgoClimaBindingConstants.PARAMETER_LOCAL_DEVICE_IP);
-            return; // unable to match to device
-        }
+    public void updateDeviceStateFromPushRequest(DeviceSideUpdateDTO deviceUpdate) {
+        String hmiStringFromDevice = deviceUpdate.currentValues;
+        String deviceIP = deviceUpdate.deviceIp;
+        String deviceCpuId = deviceUpdate.cpuId;
 
         if (this.cpuId.isPresent() && !this.cpuId.get().equalsIgnoreCase(deviceCpuId)) {
             logger.trace(
@@ -153,17 +153,55 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         }
 
         if (!this.localIpAddress.orElse(this.ipAddress).getHostAddress().equalsIgnoreCase(deviceIP)) {
-            logger.trace(
-                    "Got poll update from device [ID={} | IP={}], but this entity belongs to device [ID={} | IP={}]. Ignoring...",
-                    deviceCpuId, deviceIP, this.cpuId.orElse("???"),
-                    this.localIpAddress.orElse(this.ipAddress).getHostAddress());
-            return; // heuristic mismatch
+            if (this.matchAnyIncomingDeviceIp) {
+                logger.debug(
+                        "Got poll update from device {}[IP={}], which is not a match to this device [{}={}]. Ignoring the mismatch due to matchAnyIncomingDeviceIp==true...",
+                        deviceCpuId, deviceIP, this.localIpAddress.isPresent() ? "localIP" : "hostname",
+                        this.localIpAddress.orElse(this.ipAddress).getHostAddress());
+            } else {
+                if (this.cpuId.isEmpty() && this.localIpAddress.isEmpty()) {
+                    logger.warn(
+                            "Got poll update from device {}[IP={}], but was not able to match it to this device with IP={}. Configure {} and/or {} settings to allow detection...",
+                            deviceCpuId, deviceIP, this.ipAddress.getHostAddress(),
+                            ArgoClimaBindingConstants.PARAMETER_DEVICE_CPU_ID,
+                            ArgoClimaBindingConstants.PARAMETER_LOCAL_DEVICE_IP);
+                } else {
+                    logger.trace(
+                            "Got poll update from device [ID={} | IP={}], but this entity belongs to device [ID={} | IP={}]. Ignoring...",
+                            deviceCpuId, deviceIP, this.cpuId.orElse("???"),
+                            this.localIpAddress.orElse(this.ipAddress).getHostAddress());
+                }
+                return; // IP address heuristic mismatch
+            }
         }
 
         // TODO: update cpuID || IP
+
         this.deviceStatus.fromDeviceString(hmiStringFromDevice);
         this.onReachableStatusChange.accept(ThingStatus.ONLINE);
         this.onStateUpdate.accept(this.deviceStatus.getCurrentStateMap());
+
+        var properties = new DeviceStatus.DeviceProperties(OffsetDateTime.now(), deviceUpdate);
+
+        // this.updateDevicePropertiesFromDeviceResponse(null, deviceStatus)
+        //
+        // var metaProperties = metadata.asPropertiesRaw(this.timeZoneProvider);
+        // var responseProperties = Map.of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,
+        // this.deviceStatus.getSetting(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION).toString(false));
+
+        synchronized (this) {
+            // this.deviceProperties.clear();
+            this.deviceProperties.putAll(properties.asPropertiesRaw(this.timeZoneProvider));
+        }
+        this.onDevicePropertiesUpdate.accept(getCurrentDeviceProperties());
+
+        // var status = new DeviceStatus(hmiStringFromDevice, OffsetDateTime.now()); // TODO
+
+        // TODO: checkme
+        // this.deviceStatus.fromDeviceString(status.getCommandString());
+        // this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
+
+        // this.onDevicePropertiesUpdate.accept(getCurrentDeviceProperties());
 
         // if(this)
 

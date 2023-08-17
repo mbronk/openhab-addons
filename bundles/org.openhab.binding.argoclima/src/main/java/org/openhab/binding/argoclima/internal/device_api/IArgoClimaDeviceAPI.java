@@ -14,6 +14,7 @@ package org.openhab.binding.argoclima.internal.device_api;
 
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -69,7 +70,7 @@ public interface IArgoClimaDeviceAPI {
      * @return A key-value map of device properties (both static/from configuration as well as the dynamic - read from
      *         device)
      */
-    Map<String, String> getCurrentDeviceProperties();
+    SortedMap<String, String> getCurrentDeviceProperties();
 
     /**
      * Send any pending commands to the device (upon synchronizing with freshest device-side state)

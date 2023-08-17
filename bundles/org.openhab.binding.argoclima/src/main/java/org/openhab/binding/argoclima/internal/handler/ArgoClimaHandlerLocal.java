@@ -18,8 +18,8 @@ import java.util.Optional;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
-import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfiguration;
-import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfiguration.ConnectionMode;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal;
+import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal.ConnectionMode;
 import org.openhab.binding.argoclima.internal.device_api.ArgoClimaLocalDevice;
 import org.openhab.binding.argoclima.internal.device_api.IArgoClimaDeviceAPI;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.PassthroughHttpClient;
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfiguration> {
+public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigurationLocal> {
 
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerLocal.class);
 
@@ -56,16 +56,16 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     }
 
     @Override
-    protected ArgoClimaConfiguration getConfigInternal() throws ArgoConfigurationException {
+    protected ArgoClimaConfigurationLocal getConfigInternal() throws ArgoConfigurationException {
         try {
-            return getConfigAs(ArgoClimaConfiguration.class);
+            return getConfigAs(ArgoClimaConfigurationLocal.class);
         } catch (IllegalArgumentException ex) {
             throw new ArgoConfigurationException("Error loading thing configuration", "", ex);
         }
     }
 
     @Override
-    protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfiguration config) throws Exception {
+    protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationLocal config) throws Exception {
         // TODO Auto-generated method stub
 
         var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.getLocalDevicePort(),
@@ -81,7 +81,8 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
             }
 
             serverStub = new RemoteArgoApiServerStub(config.getStubServerListenAddresses(), config.getStubServerPort(),
-                    this.getThing().getUID().toString(), passthroughClient, Optional.of(deviceApi));
+                    this.getThing().getUID().toString(), passthroughClient, Optional.of(deviceApi),
+                    config.getShowCleartextPasswords());
             try {
                 serverStub.start();
             } catch (Exception e1) {

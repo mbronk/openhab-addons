@@ -23,13 +23,13 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**
- * The {@link ArgoClimaConfiguration} class extends base configuration parameters with ones specific
+ * The {@link ArgoClimaConfigurationLocal} class extends base configuration parameters with ones specific
  * to local connection (including a remote API stub / proxy)
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
+public class ArgoClimaConfigurationLocal extends ArgoClimaConfigurationBase {
     public static enum ConnectionMode {
         LOCAL_CONNECTION,
         REMOTE_API_STUB,
@@ -48,6 +48,8 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
     private boolean useLocalConnection = true;
     private int stubServerPort = -1;
     private List<String> stubServerListenAddresses = List.of();
+    private boolean showCleartextPasswords = false;
+    private boolean matchAnyIncomingDeviceIp = false;
 
     /**
      * Retrieves the *target* IP address of the LOCAL Argo device (from hostname and/or IP)
@@ -131,11 +133,39 @@ public class ArgoClimaConfiguration extends ArgoClimaConfigurationBase {
     }
 
     @Override
+    public int getRefreshInterval() {
+        if (!this.useLocalConnection) {
+            return 0;
+        }
+        return super.getRefreshInterval();
+    }
+
+    /**
+     * Returns information whether the passwords are to be shown in the clear or replaced with ***
+     *
+     * @return Configured value
+     */
+    public boolean getShowCleartextPasswords() {
+        return this.showCleartextPasswords;
+    }
+
+    /**
+     * Should the incoming (intercepted) device-side updates be a strict match to local IP (if provided) or hostname
+     * (fallback)
+     *
+     * @return True - if requiring exact match, False - if IP mismatch is allowed
+     */
+    public boolean getMatchAnyIncomingDeviceIp() {
+        return this.matchAnyIncomingDeviceIp;
+    }
+
+    @Override
     protected String getExtraFieldDescription() {
         return String.format(
-                "hostname=%s, localDeviceIP=%s, localDevicePort=%d, connectionMode=%s, useLocalConnection=%s, stubServerPort=%d, stubServerListenAddresses=%s",
+                "hostname=%s, localDeviceIP=%s, localDevicePort=%d, connectionMode=%s, useLocalConnection=%s, stubServerPort=%d, stubServerListenAddresses=%s, showCleartextPasswords=%s, matchAnyIncomingDeviceIp=%s",
                 getOrDefault(this::getHostname), getOrDefault(this::getLocalDeviceIP), localDevicePort, connectionMode,
-                useLocalConnection, stubServerPort, getOrDefault(this::getStubServerListenAddresses));
+                useLocalConnection, stubServerPort, getOrDefault(this::getStubServerListenAddresses),
+                showCleartextPasswords, matchAnyIncomingDeviceIp);
     }
 
     @Override

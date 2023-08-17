@@ -27,7 +27,7 @@ public class ArgoClimaBindingConstants {
     public static final String BINDING_ID = "argoclima";
 
     // List of all Thing Type UIDs
-    public static final ThingTypeUID THING_TYPE_ARGOCLIMA_LOCAL = new ThingTypeUID(BINDING_ID, "argoclima");
+    public static final ThingTypeUID THING_TYPE_ARGOCLIMA_LOCAL = new ThingTypeUID(BINDING_ID, "argoclima-local");
     public static final ThingTypeUID THING_TYPE_ARGOCLIMA_REMOTE = new ThingTypeUID(BINDING_ID, "argoclima-remote");
 
     // Thing configuration parameters
@@ -43,6 +43,8 @@ public class ArgoClimaBindingConstants {
     public static final String PARAMETER_STUB_SERVER_LISTEN_ADDRESSES = "stubServerListenAddresses";
     public static final String PARAMETER_OEM_SERVER_PORT = "oemServerPort";
     public static final String PARAMETER_OEM_SERVER_ADDRESS = "oemServerAddress";
+    public static final String PARAMETER_SHOW_CLEARTEXT_PASSWORDS = "showCleartextPasswords";
+    public static final String PARAMETER_MATCH_ANY_INCOMING_DEVICE_IP = "matchAnyIncomingDeviceIp";
 
     public static final String PARAMETER_USERNAME = "username";
     public static final String PARAMETER_PASSWORD = "password";
@@ -61,6 +63,11 @@ public class ArgoClimaBindingConstants {
     public static final String PROPERTY_WIFI_FW = "wifiFirmwareVersion";
     public static final String PROPERTY_LAST_SEEN = "lastSeen";
     public static final String PROPERTY_WEB_UI = "argoWebUI";
+    public static final String PROPERTY_WEB_UI_USERNAME = "argoWebUIUsername";
+    public static final String PROPERTY_WEB_UI_PASSWORD = "argoWebUIPassword";
+    public static final String PROPERTY_WIFI_SSID = "wifiSSID";
+    public static final String PROPERTY_WIFI_PASSWORD = "wifiPassword";
+    public static final String PROPERTY_LOCAL_TIME = "localTime";
 
     // List of all Channel IDs
     public static final String CHANNEL_POWER = "acControls#power";

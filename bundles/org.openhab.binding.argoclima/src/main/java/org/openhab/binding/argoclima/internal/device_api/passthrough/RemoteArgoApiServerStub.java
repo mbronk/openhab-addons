@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -33,8 +34,10 @@ import javax.servlet.http.HttpServletResponse;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.util.UrlEncoded;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
@@ -55,25 +58,26 @@ public class RemoteArgoApiServerStub {
     private final Set<InetAddress> listenIpAddresses;
     private final int listenPort;
     private final String id;
+    private final boolean showCleartextPasswords;
     Optional<Server> server = Optional.empty();
     Optional<PassthroughHttpClient> passthroughClient = Optional.empty();
     private final Optional<ArgoClimaLocalDevice> deviceApi;
     private static final String RPC_POOL_NAME = "OH-jetty-" + BINDING_ID + "_serverStub";
 
     public RemoteArgoApiServerStub(Set<InetAddress> listenIpAddresses, int listenPort, String thingUid,
-            Optional<PassthroughHttpClient> passthroughClient, Optional<ArgoClimaLocalDevice> deviceApi) {
-        // this.listener = listener;
-        // this.config = config;
+            Optional<PassthroughHttpClient> passthroughClient, Optional<ArgoClimaLocalDevice> deviceApi,
+            boolean showCleartextPasswords) {
         this.listenIpAddresses = listenIpAddresses;
         this.listenPort = listenPort;
         this.id = thingUid;
         this.passthroughClient = passthroughClient;
         this.deviceApi = deviceApi;
-        // new Socket("31.14.128.210", 80); // server address
+        this.showCleartextPasswords = showCleartextPasswords;
     }
 
     public synchronized void start() {
-        logger.info("Initializing Argo API Stub server at port {}", this.listenPort);
+        logger.info("[{}] Initializing Argo API Stub server at: {}", this.id, this.listenIpAddresses.stream()
+                .map(x -> String.format("%s:%s", x.toString(), this.listenPort)).collect(Collectors.joining(",")));
 
         try {
             startJettyServer(this.listenPort);
@@ -84,7 +88,7 @@ public class RemoteArgoApiServerStub {
 
         if (this.passthroughClient.isPresent()) {
             try {
-                this.passthroughClient.get().start(); // THIS IS BAD!!!
+                this.passthroughClient.get().start();
             } catch (Exception e) {
                 throw new RuntimeException(
                         String.format("Starting passthrough API client for host=%s, port=%d failed. %s",
@@ -112,7 +116,16 @@ public class RemoteArgoApiServerStub {
         if (this.server.isPresent()) {
             stopJettyServer();
         }
-        var server = new Server(port);
+
+        var server = new Server();
+        var connectors = this.listenIpAddresses.stream().map(addr -> {
+            var connector = new ServerConnector(server);
+            connector.setHost(addr.getHostName());
+            connector.setPort(port);
+            return connector;
+        }).toArray(Connector[]::new);
+        server.setConnectors(connectors);
+
         this.server = Optional.of(server);
 
         var tp = server.getThreadPool();
@@ -121,12 +134,7 @@ public class RemoteArgoApiServerStub {
             ((QueuedThreadPool) tp).setDaemon(true); // Lower our priority (just in case)
         }
 
-        // Disable sending built-in "Server" header
-        // Stream.of(server.getConnectors()).flatMap(connector -> connector.getConnectionFactories().stream())
-        // .filter(connFactory -> connFactory instanceof HttpConnectionFactory)
-        // .forEach(httpConnFactory -> ((HttpConnectionFactory) httpConnFactory).getHttpConfiguration()
-        // .setSendServerVersion(false));
-        server.setHandler(new ArgoDeviceRequestHandler());
+        server.setHandler(new ArgoDeviceRequestHandler(this.showCleartextPasswords));
         server.start();
     }
 
@@ -150,13 +158,28 @@ public class RemoteArgoApiServerStub {
     }
 
     public enum DeviceRequestType {
+        /** Purpose unknown */
         GET_UI_ACN,
+
+        /** Get current time from server */
         GET_UI_NTP,
+
+        /** Submit current status (in GET param) and get latest command from remote-side */
         GET_UI_FLG,
+
+        /** Use case not known */
         GET_UI_UPD,
+
+        /** Unit Wifi firmware update request */
         GET_OU_FW,
+
+        /** Unit UI FW update request */
         GET_UI_FW,
+
+        /** Confirm server-side request is fulfilled, respond with extended status */
         POST_UI_RT,
+
+        /** Unrecognized command type */
         UNKNOWN
     }
 
@@ -222,6 +245,12 @@ public class RemoteArgoApiServerStub {
 
     public class ArgoDeviceRequestHandler extends AbstractHandler {
 
+        private final boolean showCleartextPasswords;
+
+        public ArgoDeviceRequestHandler(boolean showCleartextPasswords) {
+            this.showCleartextPasswords = showCleartextPasswords;
+        }
+
         @Override
         public void handle(@Nullable String target, @Nullable Request baseRequest, @Nullable HttpServletRequest request,
                 @Nullable HttpServletResponse response) throws IOException, ServletException {
@@ -235,11 +264,10 @@ public class RemoteArgoApiServerStub {
 
             switch (requestType) {
                 case GET_UI_FLG:
-                    var updateDto = DeviceSideUpdateDTO.fromDeviceRequest(request);
+                    var updateDto = DeviceSideUpdateDTO.fromDeviceRequest(request, this.showCleartextPasswords);
                     logger.debug("Got device-side update: {}", updateDto);
                     // Use for new update
-                    deviceApi.ifPresent(x -> x.updateDeviceStateFromPushRequest(updateDto.currentValues,
-                            updateDto.deviceIp, updateDto.cpuId));
+                    deviceApi.ifPresent(x -> x.updateDeviceStateFromPushRequest(updateDto));
                     break;
                 case POST_UI_RT:
                     var postRtDto = DeviceSidePostRtUpdateDTO.fromDeviceRequestBody(body);

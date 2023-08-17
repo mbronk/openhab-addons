@@ -17,6 +17,7 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -53,7 +54,8 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
     public ArgoClimaRemoteDevice(ArgoClimaConfigurationRemote config, HttpClient client,
             TimeZoneProvider timeZoneProvider, InetAddress oemServerHostname, int oemServerPort, String username,
             String passwordMD5, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
-            Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate) {
+            Consumer<ThingStatus> onReachableStatusChange,
+            Consumer<SortedMap<String, String>> onDevicePropertiesUpdate) {
         super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate,
                 "REMOTE_API");
         this.oemServerHostname = oemServerHostname;
@@ -119,9 +121,13 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
                         this.deviceStatus.getDeviceCommandStatus())));
     }
 
-    private URL getWebUiUrl() {
-        return uriToURL(URIUtil.newURI("http", this.oemServerHostname.getHostName(), this.oemServerPort,
-                "/UI/WEBAPP/webapp.php", ""));
+    // private URL getWebUiUrl() {
+    // return uriToURL(URIUtil.newURI("http", this.oemServerHostname.getHostName(), this.oemServerPort,
+    // "/UI/WEBAPP/webapp.php", ""));
+    // }
+
+    public static URL getWebUiUrl(String hostName, int port) {
+        return uriToURL(URIUtil.newURI("http", hostName, port, "/UI/WEBAPP/webapp.php", ""));
     }
 
     @Override
@@ -142,7 +148,7 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         // matcher.group("lastSeen"));
 
         var properties = new DeviceProperties(matcher.group("localIP"), matcher.group("lastSeen"),
-                Optional.of(this.getWebUiUrl()));
+                Optional.of(getWebUiUrl(this.oemServerHostname.getHostName(), this.oemServerPort)));
 
         // var localIp = matcher.group("localIP");
         // var lastSeen = matcher.group("lastSeen");

@@ -47,7 +47,7 @@ public class DeviceSideUpdateDTO {
     public final UiFlgSetupParam setup;
     public final String remoteServerId;
 
-    private DeviceSideUpdateDTO(Map<String, String> parameterMap) {
+    private DeviceSideUpdateDTO(Map<String, String> parameterMap, boolean showCleartextPasswords) {
         this.command = Objects.requireNonNullElse(parameterMap.get("CM"), "");
         this.username = Objects.requireNonNullElse(parameterMap.get("USN"), "");
         this.passwordHash = Objects.requireNonNullElse(parameterMap.get("PSW"), "");
@@ -57,14 +57,15 @@ public class DeviceSideUpdateDTO {
         this.cpuId = Objects.requireNonNullElse(parameterMap.get("CPU_ID"), "");
         this.currentValues = Objects.requireNonNullElse(parameterMap.get("HMI"), "");
         this.timezoneId = Objects.requireNonNullElse(parameterMap.get("TZ"), "");
-        this.setup = new UiFlgSetupParam(Objects.requireNonNullElse(parameterMap.get("SETUP"), ""));
+        this.setup = new UiFlgSetupParam(Objects.requireNonNullElse(parameterMap.get("SETUP"), ""),
+                showCleartextPasswords);
         this.remoteServerId = Objects.requireNonNullElse(parameterMap.get("SERVER_ID"), "");
     }
 
-    public static DeviceSideUpdateDTO fromDeviceRequest(HttpServletRequest request) {
+    public static DeviceSideUpdateDTO fromDeviceRequest(HttpServletRequest request, boolean showCleartextPasswords) {
         Map<String, String> flattenedParams = request.getParameterMap().entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, x -> (x.getValue().length < 1) ? "" : x.getValue()[0]));
-        return new DeviceSideUpdateDTO(flattenedParams);
+        return new DeviceSideUpdateDTO(flattenedParams, showCleartextPasswords);
     }
 
     @Override
@@ -89,7 +90,7 @@ public class DeviceSideUpdateDTO {
         public Optional<String> unitVersionAvailable = Optional.empty();
         public Optional<String> localTime = Optional.empty();
 
-        public UiFlgSetupParam(String rawString) {
+        public UiFlgSetupParam(String rawString, boolean showCleartextPasswords) {
             this.rawString = rawString;
             try {
                 this.bytes = Optional.of(DatatypeConverter.parseHexBinary(rawString));
@@ -106,13 +107,18 @@ public class DeviceSideUpdateDTO {
                 this.wifiPassword = Optional.of(new String(byte32arr).trim()); // yep, it is passed through to vendor's
                                                                                // servers **as plaintext**. Over plain
                                                                                // HTTP! :///
-                this.wifiPassword = Optional.of(this.wifiPassword.get().replaceAll(".", "*"));
+                if (!showCleartextPasswords) {
+                    this.wifiPassword = Optional.of(this.wifiPassword.get().replaceAll(".", "*"));
+                }
 
                 bb.position(0x40);
                 bb.get(byte16arr);
                 this.username = Optional.of(new String(byte16arr).trim());
                 bb.get(byte32arr);
                 this.password = Optional.of(new String(byte32arr).trim());
+                if (!showCleartextPasswords) {
+                    this.password = Optional.of(this.password.get().replaceAll(".", "*"));
+                }
                 bb.get(byte16arr);
                 this.localIP = Optional.of(new String(byte16arr).trim());
 

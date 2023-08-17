@@ -5,7 +5,7 @@
 	xmlns:thing="https://openhab.org/schemas/thing-description/v1.0.0"
 	xsi:schemaLocation="https://openhab.org/schemas/thing-description/v1.0.0 https://openhab.org/schemas/thing-description-1.0.0.xsd">
 
-	<thing-type id="argoclima">
+	<thing-type id="argoclima-local">
 		<label>ArgoClima A/C - local</label>
 		<description><![CDATA[ArgoClima Ulisse Eco 13-compatible Air Conditioner <i>(local LAN connection)</i>
 		<br/>
@@ -153,6 +153,28 @@
 				<default>80</default>
 				<advanced>true</advanced>
 			</parameter>
+			
+	         <parameter name="showCleartextPasswords" type="boolean" groupName="serverStub">
+                <label>Show passwords in clear text</label>
+                <description><![CDATA[If enabled, the DeviceProperties will show <b>WiFi</b> and <b>UI</b> passwords in cleartext (the way they are sent to Argo servers).
+                When disabled (default), the property values will be replaced with <code>***</code>.
+                <i> <- (applicable only to <code>REMOTE_*</code> connection modes)</i> 
+                <br/><b>IMPORTANT:</b> Regardless of this setting, the values ARE sent in the clear (and w/o HTTPS) by the device to the vendor servers.
+                To prevent them from leaking, you may want to create a firewall rule redirecting HVAC traffic to OpenHab <i>(instead of talking to Argo servers)</i>, and use <code>REMOTE_API_STUB</code> mode of this binding.]]></description>
+                <default>false</default>
+                <advanced>true</advanced>
+            </parameter>
+            
+            <parameter name="matchAnyIncomingDeviceIp" type="boolean" groupName="serverStub">
+                <label>Match ANY incoming device IP</label>
+                <description><![CDATA[If enabled, will <b>not</b> attempt to match the incoming Argo requests by IP (neither <code>'Local IP address (behind NAT)'</code> nor <code>'Hostname'</code>), 
+                and instead accept <b>ANY</b> device-side Argo protocol request as matching <b>THIS</b> Thing.
+                <br/> Applicable only to <code>REMOTE_*</code> modes. 
+                <i>(not recommended, use only for <b>single</b> Argo HVAC in the network, when its local IP is not known</i>)]]></description>
+                <default>false</default>
+                <advanced>true</advanced>
+            </parameter>
+            
 		</config-description>
 	</thing-type>
 

@@ -19,6 +19,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -474,6 +475,12 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     }
 
     private final void initializeThing() {
+        if (this.config.get().getRefreshInterval() == 0) {
+            updateStatus(ThingStatus.UNKNOWN, ThingStatusDetail.NOT_YET_READY,
+                    "Direct communication with device is disabled. Awaiting device-side request");
+            return;
+        }
+
         String message = "";
         try {
             // TODO: do a few retries here?
@@ -564,8 +571,8 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         // this.updateThingProperties(Map.of(ArgoClimaBindingConstants.PROPERTY_CPU_ID, "something"));
     }
 
-    protected final void updateThingProperties(Map<String, String> entries) {
-        var currentProps = this.editProperties();
+    protected final void updateThingProperties(SortedMap<String, String> entries) {
+        var currentProps = this.editProperties(); // This unfortunately loses sorting
         entries.entrySet().stream().forEach(x -> currentProps.put(x.getKey(), x.getValue()));
         this.updateProperties(currentProps);
     }

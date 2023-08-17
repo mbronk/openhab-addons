@@ -23,11 +23,12 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -38,6 +39,7 @@ import org.eclipse.jetty.client.api.ContentResponse;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSideUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoApiDataElement;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
@@ -67,8 +69,9 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     protected ArgoDeviceStatus deviceStatus;
     protected Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate;
     protected Consumer<ThingStatus> onReachableStatusChange;
-    protected Consumer<Map<String, String>> onDevicePropertiesUpdate;
-    private HashMap<String, String> deviceProperties;
+    protected Consumer<SortedMap<String, String>> onDevicePropertiesUpdate;
+    // protected HashMap<String, String> deviceProperties;
+    protected SortedMap<String, String> deviceProperties;
     private final String remoteEndName;
 
     /**
@@ -84,7 +87,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
      */
     public ArgoClimaDeviceApiBase(ArgoClimaConfigurationBase config, HttpClient client,
             TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
-            Consumer<ThingStatus> onReachableStatusChange, Consumer<Map<String, String>> onDevicePropertiesUpdate,
+            Consumer<ThingStatus> onReachableStatusChange, Consumer<SortedMap<String, String>> onDevicePropertiesUpdate,
             String remoteEndName) {
         this.client = client;
         this.timeZoneProvider = timeZoneProvider;
@@ -92,7 +95,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         this.onStateUpdate = onStateUpdate;
         this.onReachableStatusChange = onReachableStatusChange;
         this.onDevicePropertiesUpdate = onDevicePropertiesUpdate;
-        this.deviceProperties = new HashMap<String, String>();
+        this.deviceProperties = new TreeMap<String, String>();
         this.remoteEndName = remoteEndName.isBlank() ? "DEVICE" : remoteEndName.trim().toUpperCase();
     }
 
@@ -109,8 +112,8 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     }
 
     @Override
-    public final Map<String, String> getCurrentDeviceProperties() {
-        return Collections.unmodifiableMap(this.deviceProperties);
+    public final SortedMap<String, String> getCurrentDeviceProperties() {
+        return Collections.unmodifiableSortedMap(this.deviceProperties);
     }
 
     protected String pollForCurrentStatusFromDeviceSync(URL url) throws ArgoLocalApiCommunicationException {
@@ -167,6 +170,14 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
             private Optional<String> localIP;
             private Optional<OffsetDateTime> lastSeen;
             private Optional<URL> vendorUiUrl;
+            private Optional<String> cpuId = Optional.empty();
+            private Optional<String> webUiUsername = Optional.empty();
+            private Optional<String> webUiPassword = Optional.empty();
+            private Optional<String> unitFWVersion = Optional.empty();
+            private Optional<String> wifiFWVersion = Optional.empty();
+            private Optional<String> wifiSSID = Optional.empty();
+            private Optional<String> wifiPassword = Optional.empty();
+            private Optional<String> localTime = Optional.empty();
 
             public DeviceProperties(String localIP, String lastSeenStr, Optional<URL> vendorUiAddress) {
                 this.localIP = lastSeenStr.isEmpty() ? Optional.empty() : Optional.of(localIP);
@@ -194,6 +205,20 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                 this.vendorUiUrl = Optional.empty();
             }
 
+            public DeviceProperties(OffsetDateTime lastSeen, DeviceSideUpdateDTO properties) {
+                this.localIP = Optional.of(properties.setup.localIP.orElse(properties.deviceIp));
+                this.lastSeen = Optional.of(lastSeen);
+                this.vendorUiUrl = Optional.of(ArgoClimaRemoteDevice.getWebUiUrl(properties.remoteServerId, 80));
+                this.cpuId = Optional.of(properties.cpuId);
+                this.webUiUsername = Optional.of(properties.setup.username.orElse(properties.username));
+                this.webUiPassword = properties.setup.password;
+                this.unitFWVersion = Optional.of(properties.setup.unitVersionInstalled.orElse(properties.unitFirmware));
+                this.wifiFWVersion = Optional.of(properties.setup.wifiVersionInstalled.orElse(properties.wifiFirmware));
+                this.wifiSSID = properties.setup.wifiSSID;
+                this.wifiPassword = properties.setup.wifiPassword;
+                this.localTime = properties.setup.localTime;
+            }
+
             public String getLocalIP() {
                 return localIP.orElse("UNKNOWN");
             }
@@ -216,8 +241,8 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                 return Duration.between(getLastSeen().toInstant(), Instant.now());
             }
 
-            Map<String, String> asPropertiesRaw(TimeZoneProvider timeZoneProvider) {
-                var result = new HashMap<String, String>();
+            SortedMap<String, String> asPropertiesRaw(TimeZoneProvider timeZoneProvider) {
+                var result = new TreeMap<String, String>();
 
                 if (this.lastSeen.isPresent()) {
                     result.put(ArgoClimaBindingConstants.PROPERTY_LAST_SEEN, this.getLastSeenStr(timeZoneProvider));
@@ -230,7 +255,15 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                             this.vendorUiUrl.map(x -> x.toString()).orElse("N/A"));
                 }
 
-                return Collections.unmodifiableMap(result);
+                this.cpuId.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_CPU_ID, value));
+                this.webUiUsername.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_WEB_UI_USERNAME, value));
+                this.webUiPassword.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_WEB_UI_PASSWORD, value));
+                this.unitFWVersion.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_UNIT_FW, value));
+                this.wifiFWVersion.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_WIFI_FW, value));
+                this.wifiSSID.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_WIFI_SSID, value));
+                this.wifiPassword.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_WIFI_PASSWORD, value));
+                this.localTime.map(value -> result.put(ArgoClimaBindingConstants.PROPERTY_LOCAL_TIME, value));
+                return Collections.unmodifiableSortedMap(result);
             }
         }
 
