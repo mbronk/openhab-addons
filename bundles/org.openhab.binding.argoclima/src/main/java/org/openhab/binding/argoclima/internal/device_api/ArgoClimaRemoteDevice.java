@@ -24,9 +24,8 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.util.URIUtil;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
-import org.openhab.binding.argoclima.internal.device_api.ArgoClimaDeviceApiBase.DeviceStatus.DeviceProperties;
+import org.openhab.binding.argoclima.internal.device_api.DeviceStatus.DeviceProperties;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
@@ -36,6 +35,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Argo protocol implementation for a REMOTE connection to the device
+ * <p>
+ * The HVAC device MUST be communicating with actual Argo servers for this method work.
+ * This means the device is either directly connected to the Internet (w/o traffic intercept), or there's an
+ * intercepting Stub server already running in a PASS-THROUGH mode (sniffing the messages but passing through to the
+ * actual vendor's servers)
+ *
+ * <p>
+ * Use of this mode is actually NOT recommended for advanced users as cleartext device & WiFi passwords are sent to Argo
+ * servers through unencrypted HTTP connection (sic!). If the Argo UI access is desired (ex. for FW update or IR
+ * remote-like experience), consider using this mode only on a dedicated WiFi network (and possibly through VPN)
+ *
  * @author Mateusz Bronk - Initial contribution
  *
  */
@@ -43,14 +54,29 @@ import org.slf4j.LoggerFactory;
 public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
     private static final Logger logger = LoggerFactory.getLogger(ArgoClimaRemoteDevice.class);
 
-    public final InetAddress oemServerHostname;
-    public final int oemServerPort;
-    public final String username;
-    public final String passwordMD5Hash;
-    final static Pattern REMOTE_API_RESPONSE_EXPECTED = Pattern.compile(
+    private final InetAddress oemServerHostname;
+    private final int oemServerPort;
+    private final String username;
+    private final String passwordMD5Hash;
+    private final static Pattern REMOTE_API_RESPONSE_EXPECTED = Pattern.compile(
             "^[\\\\{][|](?<commands>[^|]+)[|](?<localIP>[^|]+)[|](?<lastSeen>[^|]+)[|][\\\\}]\\s*$",
-            Pattern.CASE_INSENSITIVE);
+            Pattern.CASE_INSENSITIVE); // Capture group names are used in code!
 
+    /**
+     * C-tor
+     *
+     * @param config The Thing configuration
+     * @param client The common HTTP client used for issuing requests to the remote server
+     * @param timeZoneProvider System-wide TZ provider, for parsing/displaying local dates
+     * @param oemServerHostname The address of the remote (vendor's) server
+     * @param oemServerPort The port of remote (vendor's) server
+     * @param username The username used for authenticating to the remote server
+     * @param passwordMD5 A MD5 hash of the password used for authenticating to the remote server (custom Basic-like
+     *            auth)
+     * @param onStateUpdate Callback to be invoked when device status gets updated(device-side channel updates)
+     * @param onReachableStatusChange Callback to be invoked when device's reachability status (online/offline) changes
+     * @param onDevicePropertiesUpdate Callback to invoke when device properties get refreshed
+     */
     public ArgoClimaRemoteDevice(ArgoClimaConfigurationRemote config, HttpClient client,
             TimeZoneProvider timeZoneProvider, InetAddress oemServerHostname, int oemServerPort, String username,
             String passwordMD5, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
@@ -64,42 +90,19 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         this.passwordMD5Hash = passwordMD5;
     }
 
-    // private static boolean checkLastCommunicationState(DeviceStatus status) {
-    // var delta = status.getProperties().getLastSeenDelta();
-    //
-    //
-    // if(delta.toMinutes() > 30) {
-    // return false;
-    // }
-    // // TODO
-    // return true;
-    // }
-
     @Override
     public final Pair<Boolean, String> isReachable() {
-        // TODO: last successful comms also may qualify?
-
         try {
             var status = extractDeviceStatusFromResponse(pollForCurrentStatusFromDeviceSync(getDeviceStateQueryUrl()));
-            // var delta = status.getProperties().getLastSeenDelta();
-            // logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
-            //
-            // if (delta.toMinutes() > 30) {
-            // return Pair.of(false, MessageFormat.format("Device was last seen {0} minutes ago", delta.toMinutes()));
-            // }
-            //
-            // if (!checkLastCommunicationState(status)) {
-            // return Pair.of(false, "Device was Last Seen xx h ago"); // TODO
-            // }
             this.deviceStatus.fromDeviceString(status.getCommandString());
             this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
             status.throwIfStatusIsStale();
             return Pair.of(true, "");
         } catch (ArgoLocalApiCommunicationException e) {
-            logger.warn("Device not reachable: {}", e.getMessage());
+            logger.debug("Device not reachable: {}", e.getMessage());
             return Pair.of(false,
                     MessageFormat.format(
-                            "Failed to communicate with Argo HVAC device at [http://{0}:{1,number,#}{2}]. {3}",
+                            "Failed to communicate with Argo HVAC remote device at [http://{0}:{1,number,#}{2}]. {3}",
                             this.getDeviceStateQueryUrl().getHost(),
                             this.getDeviceStateQueryUrl().getPort() != -1 ? this.getDeviceStateQueryUrl().getPort()
                                     : this.getDeviceStateQueryUrl().getDefaultPort(),
@@ -109,69 +112,48 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
 
     @Override
     protected URL getDeviceStateQueryUrl() {
-        // http://31.14.128.210/UI/UI.php?CM=UI_TC&USN=&PSW=MD5&UPD=0&HMI=
-        return uriToURL(URIUtil.newURI("http", this.oemServerHostname.getHostName(), this.oemServerPort, "/UI/UI.php",
-                String.format("CM=UI_TC&USN=%s&PSW=%s&HMI=&UPD=0", this.username, this.passwordMD5Hash)));
+        // Hard-coded values are part of ARGO protocol
+        return newUrl(this.oemServerHostname.getHostName(), this.oemServerPort, "/UI/UI.php",
+                String.format("CM=UI_TC&USN=%s&PSW=%s&HMI=&UPD=0", this.username, this.passwordMD5Hash));
     }
 
     @Override
     protected URL getDeviceStateUpdateUrl() {
-        return uriToURL(URIUtil.newURI("http", this.oemServerHostname.getHostName(), this.oemServerPort, "/UI/UI.php",
+        // Hard-coded values are part of ARGO protocol
+        return newUrl(this.oemServerHostname.getHostName(), this.oemServerPort, "/UI/UI.php",
                 String.format("CM=UI_TC&USN=%s&PSW=%s&HMI=%s&UPD=1", this.username, this.passwordMD5Hash,
-                        this.deviceStatus.getDeviceCommandStatus())));
-    }
-
-    // private URL getWebUiUrl() {
-    // return uriToURL(URIUtil.newURI("http", this.oemServerHostname.getHostName(), this.oemServerPort,
-    // "/UI/WEBAPP/webapp.php", ""));
-    // }
-
-    public static URL getWebUiUrl(String hostName, int port) {
-        return uriToURL(URIUtil.newURI("http", hostName, port, "/UI/WEBAPP/webapp.php", ""));
+                        this.deviceStatus.getDeviceCommandStatus()));
     }
 
     @Override
     protected DeviceStatus extractDeviceStatusFromResponse(String apiResponse)
             throws ArgoLocalApiCommunicationException {
         if (apiResponse.isBlank()) {
-            throw new ArgoLocalApiCommunicationException("Remote API response was empty. Check username and password");
+            throw new ArgoLocalApiCommunicationException(
+                    "The remote API response was empty. Check username and password");
         }
 
         var matcher = REMOTE_API_RESPONSE_EXPECTED.matcher(apiResponse);
         if (!matcher.matches()) {
             throw new ArgoLocalApiCommunicationException(
-                    String.format("Remote API response [%s] was not recognized", apiResponse));
+                    String.format("The remote API response [%s] was not recognized", apiResponse));
         }
 
-        // this.onStateUpdate.
-        // var properties = Map.of(DevicePropertyType.LocalIP, matcher.group("localIP"), DevicePropertyType.LastSeen,
-        // matcher.group("lastSeen"));
-
+        // Group names must match regex above
         var properties = new DeviceProperties(matcher.group("localIP"), matcher.group("lastSeen"),
                 Optional.of(getWebUiUrl(this.oemServerHostname.getHostName(), this.oemServerPort)));
 
-        // var localIp = matcher.group("localIP");
-        // var lastSeen = matcher.group("lastSeen");
-        // logger.info("Local IP is: {}. Last seen: {}", localIp, lastSeen); // TODO: do sth with it
-
-        // logger.info("Local IP is: {}. Last seen: {}", properties.getLocalIP(),
-        // properties.getLastSeenStr(this.timeZoneProvider)); // TODO: do
-        // sth with
-        // it
-        // <-- TODO matcher.groups
-
-        // var delta = properties.getLastSeenDelta();
-        // // logger.warn("Last comms state: {} - {}", delta, delta.toMinutes());
-        //
-        // if (delta.toSeconds() > ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toSeconds()) {
-        // throw new ArgoLocalApiCommunicationException(MessageFormat.format(
-        // "Device was last seen {0} mins ago (threshold is set at {1} min). Please ensure the HVAC is connected to WiFi
-        // and communicating with Argo servers",
-        // delta.toMinutes(), ArgoClimaConfigurationRemote.LAST_SEEN_UNAVAILABILITY_THRESHOLD.toMinutes()));
-        //
-        // // http://31.14.128.210/UI/WEBAPP/webapp.php
-        // }
-
         return new DeviceStatus(matcher.group("commands"), properties);
+    }
+
+    /**
+     * Return the full URL to the Vendor's web application
+     *
+     * @param hostName The OEM server host
+     * @param port The OEM server port
+     * @return Full URL to the UI webapp
+     */
+    public static URL getWebUiUrl(String hostName, int port) {
+        return newUrl(hostName, port, "/UI/WEBAPP/webapp.php", "");
     }
 }

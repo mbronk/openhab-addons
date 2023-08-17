@@ -24,7 +24,6 @@ import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.util.URIUtil;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
@@ -39,19 +38,43 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Argo protocol implementation for a LOCAL connection to the device
+ * <p>
+ * IMPORTANT: Local doesn't necessarily mean "directly reachable". This class is also used for devices behind NAT, where
+ * all the communication is happening indirect (through intercepted device-side polls, and modifying responses through
+ * stub/proxy server)
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaLocalDevice.class);
-    public final InetAddress ipAddress;
-    private final Optional<InetAddress> localIpAddress;
-    private final Optional<String> cpuId;
-    public int port;
-    private ArgoDeviceStatus deviceStatus;
+    private final InetAddress ipAddress; // The direct IP address
+    private final Optional<InetAddress> localIpAddress; // The indirect IP address (local subnet) - possibly not
+                                                        // reachable if behind NAT (optional)
+    private final Optional<String> cpuId; // The configured CPU id (if any) - for matching intercepted responses
+    private final int port;
+    private final ArgoDeviceStatus deviceStatus;
     private final boolean matchAnyIncomingDeviceIp;
 
+    /**
+     * C-tor
+     *
+     * @param config The Thing configuration
+     * @param targetDeviceIpAddress The IP address of the directly-connected device (for indirect mode, the device does
+     *            NOT need to be reachable through this address!)
+     * @param port The port to talk to the directly-connected device
+     * @param localDeviceIpAddress Optional, local subnet IP of the device (ex. if behind NAT). Used to match
+     *            intercepted responses (in indirect mode) to this thing. This may be
+     *            {@link ArgoClimaConfigurationLocal#getMatchAnyIncomingDeviceIp() bypassed}
+     * @param cpuId Optional, CPUID of the WiFi chip of the device. If provided, will be used to match intercepted
+     *            responses (in indirect mode) to this thing
+     * @param client The common HTTP client used for issuing direct requests
+     * @param timeZoneProvider System-wide TZ provider, for parsing/displaying local dates
+     * @param onStateUpdate Callback to be invoked when device status gets updated(device-side channel updates)
+     * @param onReachableStatusChange Callback to be invoked when device's reachability status (online/offline) changes
+     * @param onDevicePropertiesUpdate Callback to invoke when device properties get refreshed
+     */
     public ArgoClimaLocalDevice(ArgoClimaConfigurationLocal config, InetAddress targetDeviceIpAddress, int port,
             Optional<InetAddress> localDeviceIpAddress, Optional<String> cpuId, HttpClient client,
             TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
@@ -61,24 +84,35 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         this.ipAddress = targetDeviceIpAddress;
         this.port = port;
         this.deviceStatus = new ArgoDeviceStatus(config);
-        this.localIpAddress = localDeviceIpAddress; // .orElse(targetDeviceIpAddress);
+        this.localIpAddress = localDeviceIpAddress;
         this.cpuId = cpuId;
         this.matchAnyIncomingDeviceIp = config.getMatchAnyIncomingDeviceIp();
     }
 
     @Override
-    public final Pair<Boolean, String> isReachable() {
-        // TODO: last successful comms also may qualify?
+    protected URL getDeviceStateQueryUrl() {
+        // Hard-coded values are part of ARGO protocol
+        return newUrl(this.ipAddress.getHostName(), this.port, "/", "HMI=&UPD=0");
+    }
 
+    @Override
+    protected URL getDeviceStateUpdateUrl() {
+        // Hard-coded values are part of ARGO protocol
+        return newUrl(this.ipAddress.getHostName(), this.port, "/",
+                String.format("HMI=%s&UPD=1", this.deviceStatus.getDeviceCommandStatus()));
+    }
+
+    @Override
+    public final Pair<Boolean, String> isReachable() {
         try {
             var status = extractDeviceStatusFromResponse(pollForCurrentStatusFromDeviceSync(getDeviceStateQueryUrl()));
 
-            // TODO: checkme
             this.deviceStatus.fromDeviceString(status.getCommandString());
             this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
+
             return Pair.of(true, "");
         } catch (ArgoLocalApiCommunicationException e) {
-            logger.warn("Device not reachable: {}", e.getMessage());
+            logger.debug("Device not reachable: {}", e.getMessage());
             return Pair.of(false,
                     MessageFormat.format(
                             "Failed to communicate with Argo HVAC device at [http://{0}:{1,number,#}{2}]. {3}",
@@ -90,14 +124,9 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     }
 
     @Override
-    protected URL getDeviceStateQueryUrl() {
-        return uriToURL(URIUtil.newURI("http", this.ipAddress.getHostName(), this.port, "/", "HMI=&UPD=0"));
-    }
-
-    @Override
-    protected URL getDeviceStateUpdateUrl() {
-        return uriToURL(URIUtil.newURI("http", this.ipAddress.getHostName(), this.port, "/",
-                String.format("HMI=%s&UPD=1", this.deviceStatus.getDeviceCommandStatus())));
+    protected DeviceStatus extractDeviceStatusFromResponse(String apiResponse) {
+        // local device response does not have all properties, but is always fresh
+        return new DeviceStatus(apiResponse, OffsetDateTime.now());
     }
 
     /**
@@ -105,7 +134,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
      * This is sent in response to cloud-side command (likely a form of acknowledgement)
      *
      * @implNote This function is a WORK IN PROGRESS (and not doing anything useful at the present!)
-     * @param fromDevice
+     * @param fromDevice the POST message sent by the device, in acknowledgement of fulfilling remote-side command
      */
     public void updateDeviceStateFromPostRtRequest(DeviceSidePostRtUpdateDTO fromDevice) {
         if (this.cpuId.isEmpty()) {
@@ -121,7 +150,8 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         }
 
         // NOTICE (on possible future extension): The values from 'data' param of the response are NOT following the HMI
-        // syntax in the GET requests (much more data is available in this requests)
+        // syntax in the GET requests (much more data is available in this requests - and while actual responses seem
+        // empty... perhaps a response to this can provide iFeel temperatures?)
         // There are some similarities -> ex. target/actual temperatures are at offset 112 & 113 of the array,
         // so at the very least, could get the known values (but not as trivial as:
         // # fromDevice.dataParam.split(",").Arrays.stream(paramArray).skip(111).limit(39).toList()
@@ -136,9 +166,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
      * <p>
      * Most robust match is by CPUID, though if n/a, localIP is used as heuristic alternative as well
      *
-     * @param hmiStringFromDevice The status update string device has sent
-     * @param deviceIP The local IP of the device (as reported by the device itself)
-     * @param deviceCpuId The CPUID of the device (as reported by the device itself)
+     * @param deviceUpdate The device-side update request
      */
     public void updateDeviceStateFromPushRequest(DeviceSideUpdateDTO deviceUpdate) {
         String hmiStringFromDevice = deviceUpdate.currentValues;
@@ -175,72 +203,16 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
             }
         }
 
-        // TODO: update cpuID || IP
-
         this.deviceStatus.fromDeviceString(hmiStringFromDevice);
-        this.onReachableStatusChange.accept(ThingStatus.ONLINE);
-        this.onStateUpdate.accept(this.deviceStatus.getCurrentStateMap());
+        this.onReachableStatusChange.accept(ThingStatus.ONLINE); // Device communicated with us, so we consider it
+                                                                 // ONLINE
+        this.onStateUpdate.accept(this.deviceStatus.getCurrentStateMap()); // Update channels from device's state
 
         var properties = new DeviceStatus.DeviceProperties(OffsetDateTime.now(), deviceUpdate);
-
-        // this.updateDevicePropertiesFromDeviceResponse(null, deviceStatus)
-        //
-        // var metaProperties = metadata.asPropertiesRaw(this.timeZoneProvider);
-        // var responseProperties = Map.of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,
-        // this.deviceStatus.getSetting(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION).toString(false));
-
         synchronized (this) {
-            // this.deviceProperties.clear();
+            // update shared properties (which may be updated using direct method as well)
             this.deviceProperties.putAll(properties.asPropertiesRaw(this.timeZoneProvider));
         }
         this.onDevicePropertiesUpdate.accept(getCurrentDeviceProperties());
-
-        // var status = new DeviceStatus(hmiStringFromDevice, OffsetDateTime.now()); // TODO
-
-        // TODO: checkme
-        // this.deviceStatus.fromDeviceString(status.getCommandString());
-        // this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
-
-        // this.onDevicePropertiesUpdate.accept(getCurrentDeviceProperties());
-
-        // if(this)
-
-        // if (this.cpuId.isPresent() && this.cpuId.get().equalsIgnoreCase(deviceCpuId)) {
-        // // direct match
-        // this.deviceStatus.fromDeviceString(hmiStringFromDevice);
-        // this.onReachableStatusChange.accept(ThingStatus.ONLINE);
-        // this.onStateUpdate.accept(this.deviceStatus.getCurrentStateMap());
-        //
-        // //Update IP etc...
-        // } else if (this.cpuId.isEmpty()
-        // && this.localIpAddress.orElse(this.ipAddress).getHostAddress().equalsIgnoreCase(deviceIP)) {
-        // // heuristic (ip-based) match
-        // this.deviceStatus.fromDeviceString(hmiStringFromDevice);
-        // this.onReachableStatusChange.accept(ThingStatus.ONLINE);
-        // this.onStateUpdate.accept(this.deviceStatus.getCurrentStateMap());
-        // } else {
-        // // no match
-        // if (this.cpuId.isEmpty() && this.localIpAddress.isEmpty()) {
-        // logger.warn(
-        // "Got poll update from device {}[IP={}], but was not able to match it to this device with IP={}. Configure {}
-        // or {} settings to allow detection...",
-        // deviceCpuId, deviceIP, this.ipAddress.getHostAddress(),
-        // ArgoClimaBindingConstants.PARAMETER_DEVICE_CPU_ID,
-        // ArgoClimaBindingConstants.PARAMETER_LOCAL_DEVICE_IP);
-        // } else {
-        // logger.warn(
-        // "Got poll update from device [ID={} | IP={}], but this entity belongs to device [ID={} | IP={}].
-        // Ignoring...",
-        // deviceCpuId, deviceIP, this.cpuId.orElse("???"),
-        // this.localIpAddress.orElse(this.ipAddress).getHostAddress());
-        // }
-        //
-        // }
-    }
-
-    @Override
-    protected DeviceStatus extractDeviceStatusFromResponse(String apiResponse) {
-        // local device response does not have all properties, but is always fresh
-        return new DeviceStatus(apiResponse, OffsetDateTime.now()); // TODO
     }
 }
