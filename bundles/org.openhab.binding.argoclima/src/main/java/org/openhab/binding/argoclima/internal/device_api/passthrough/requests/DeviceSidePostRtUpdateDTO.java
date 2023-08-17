@@ -15,27 +15,55 @@ package org.openhab.binding.argoclima.internal.device_api.passthrough.requests;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.util.MultiMap;
 import org.eclipse.jetty.util.UrlEncoded;
+import org.openhab.binding.argoclima.internal.device_api.passthrough.responses.RemoteGetUiFlgResponseDTO;
 
 /**
  * Device's update - sent from AC to manufacturer's remote server (via POST ...CM=UI_RT command)
+ *
+ * @implNote These updates seem to only be sent if requested by the remote side (when the response to {@code GET UI_FLG}
+ *           contains a {@link RemoteGetUiFlgResponseDTO.UiFlgResponsePreamble#Flag_0_Request_POST_UI_RT bit set in the
+ *           preamble}
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class DeviceSidePostRtUpdateDTO {
+    /** The name of the POST command carried in body. Seems fixed to {@code UI_RT} for this format */
     public final String command;
+
+    /** The username for the remote server (and hence the UI) */
     public final String username;
+
+    /** A MD5 hash of password to the remote server (and hence the UI) */
     public final String passwordHash;
+
+    /** The CPU_ID (unique & immutable HVAC identifier) send by the device */
     public final String cpuId;
+
+    /** Unknown purpose, seems to be set to 1 in all requests observed. DEL is for delta? */
     public final String delParam;
+
+    /**
+     * Unknown format - has multiple comma-separated values, and looks like a massive superset of the HMI string
+     * typically sent (156 values vs 39)
+     *
+     * @implNote The ordering of values is different from the HMI string, though there are similarities. Since it
+     *           doesn't seem to carry anything immediately obvious or attractive, this is not being parsed at this
+     *           point. Likely conveys all the "schedule" settings as well as configuration parameters though...
+     */
     public final String dataParam;
 
+    /**
+     * Private c-tor (from response body, which seems to be URL-encoded query-like param set)
+     *
+     * @param bodyArgumentMap The payload, decomposed into K->V map
+     */
     private DeviceSidePostRtUpdateDTO(Map<String, String> bodyArgumentMap) {
         this.command = Objects.requireNonNullElse(bodyArgumentMap.get("CM"), "");
         this.username = Objects.requireNonNullElse(bodyArgumentMap.get("USN"), "");
@@ -46,12 +74,20 @@ public class DeviceSidePostRtUpdateDTO {
         this.dataParam = Objects.requireNonNullElse(bodyArgumentMap.get("DATA"), "");
     }
 
-    @SuppressWarnings("null")
+    /**
+     * Named c-tor (constructs this DTO from device-side request body)
+     *
+     * @implNote Headers or URL do not seem to carry any meaningful (variable) information, hence not parsing them
+     * @implNote This class does only shallow parsing for now (ex. does not decode the 'data' element to an array)
+     * @param requestBody The body of the device-side request to parse
+     * @return Pre-parsed DTO
+     */
     public static DeviceSidePostRtUpdateDTO fromDeviceRequestBody(String requestBody) {
-        var paramsParsed = new MultiMap<String>();
+        var paramsParsed = new MultiMap<@Nullable String>(); // @Nullable here due to UrlEncoded API
         UrlEncoded.decodeTo(requestBody, paramsParsed, StandardCharsets.US_ASCII);
+
         Map<String, String> flattenedParams = paramsParsed.keySet().stream()
-                .collect(Collectors.toMap(Function.identity(), x -> paramsParsed.getString(x)));
+                .collect(Collectors.toMap(Objects::requireNonNull, paramsParsed::getString));
         return new DeviceSidePostRtUpdateDTO(flattenedParams);
     }
 
