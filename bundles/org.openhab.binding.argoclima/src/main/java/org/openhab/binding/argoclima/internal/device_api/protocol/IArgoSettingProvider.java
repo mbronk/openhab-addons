@@ -18,12 +18,25 @@ import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgo
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 
 /**
- * @author Mateusz Bronk - Initial contribution
+ * Interface for accessing HVAC-specific settings (knobs that can be controlled or report status)
  *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public interface IArgoSettingProvider {
+    /**
+     * Retrieve a concrete HVAC protocol element by its kind
+     *
+     * @param type The kind of element (setting) to return
+     * @return The controllable element of requested kind
+     * @throws RuntimeException In case the element is N/A
+     */
     public ArgoApiDataElement<IArgoElement> getSetting(ArgoDeviceSettingType type);
 
+    /**
+     * Get the schedule provider (for configuring schedule timers)
+     *
+     * @return Current schedule provider
+     */
     public IScheduleConfigurationProvider getScheduleProvider();
 }

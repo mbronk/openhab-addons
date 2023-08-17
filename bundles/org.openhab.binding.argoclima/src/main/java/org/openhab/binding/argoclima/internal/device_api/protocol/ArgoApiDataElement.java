@@ -23,27 +23,53 @@ import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
 
 /**
+ * Wrapper for Argo API protocol knobs, providing an overlay functionality for converting them between framework values
+ * and raw protocol values, as well as command confirmation support
+ * <p>
+ * Supports R/O (update-only), W/O (set-only) as well as R/W (update and set) knobs
+ * <p>
+ * Since the Status(query) and Command(send) commands have different syntax and item ordering, this class is tracking
+ * respective position of an element in a protocol using {@link #queryResponseIndex} and
+ * {@link #statusUpdateRequestIndex}, respectively
+ *
+ * @param <T> The underlying param type (with its internal logic of converting to/from Argo protocol
  *
  * @author Mateusz Bronk - Initial contribution
- *
- * @param <T>
  */
 @NonNullByDefault
 public class ArgoApiDataElement<T extends IArgoElement> {
+    /**
+     * Type of the data element
+     *
+     * @author Mateusz Bronk - Initial contribution
+     */
     public enum DataElementType {
         READ_WRITE,
         READ_ONLY,
         WRITE_ONLY
     }
 
-    public final int queryResponseIndex;
-    public final int statusUpdateRequestIndex;
-    private DataElementType type;
-    // private @Nullable String rawValue;
-    private T rawValue;
+    /** The kind(type) of setting - aka. the *actual* thing it controls */
     public final ArgoDeviceSettingType settingType;
-    // private @Nullable T valueToSet;
 
+    /** The index of this API element in a device-side update */
+    public final int queryResponseIndex;
+
+    /** The index of this API element in a remote-side command */
+    public final int statusUpdateRequestIndex;
+
+    private DataElementType type;
+    private T rawValue;
+
+    /**
+     * Private c-tor
+     *
+     * @param settingType Kind of this knob (what it controls)
+     * @param rawValue The raw API protocol value
+     * @param queryIndex The index of this element in a device-side status update (or {@code -1} if N/A)
+     * @param updateIndex The index of this element in a cloud-side command (or {@code -1} if N/A)
+     * @param type The direction of this element (R/O, R/W, W/O)
+     */
     private ArgoApiDataElement(ArgoDeviceSettingType settingType, T rawValue, int queryIndex, int updateIndex,
             DataElementType type) {
         this.settingType = settingType;
@@ -53,84 +79,44 @@ public class ArgoApiDataElement<T extends IArgoElement> {
         this.rawValue = rawValue;
     }
 
-    public void abortPendingCommand() {
-        this.rawValue.abortPendingCommand();
-    }
-
+    /**
+     * Named c-tor for a R/W element
+     *
+     * @param settingType Kind of this knob (what it controls)
+     * @param rawValue The raw API protocol value
+     * @param queryIndex The index of this element in a device-side status update
+     * @param updateIndex The index of this element in a cloud-side command
+     * @return The wrapped protocol API element
+     */
     public static ArgoApiDataElement<IArgoElement> readWriteElement(ArgoDeviceSettingType settingType,
             IArgoElement rawValue, int queryIndex, int updateIndex) {
         return new ArgoApiDataElement<>(settingType, rawValue, queryIndex, updateIndex, DataElementType.READ_WRITE);
     }
-    //
-    // public static <T extends IArgoElement> ArgoApiDataElement<T> readWriteElement(T rawValue, int queryIndex,
-    // int updateIndex) {
-    // return new ArgoApiDataElement<>(rawValue, queryIndex, updateIndex, DataElementType.READ_WRITE);
-    // }
 
+    /**
+     * Named c-tor for a R/O element
+     *
+     * @param settingType Kind of this knob (what it controls)
+     * @param rawValue The raw API protocol value
+     * @param queryIndex The index of this element in a device-side status update
+     * @return The wrapped protocol API element
+     */
     public static ArgoApiDataElement<IArgoElement> readOnlyElement(ArgoDeviceSettingType settingType,
             IArgoElement rawValue, int queryIndex) {
         return new ArgoApiDataElement<>(settingType, rawValue, queryIndex, -1, DataElementType.READ_ONLY);
     }
 
+    /**
+     * Named c-tor for a W/O element
+     *
+     * @param settingType Kind of this knob (what it controls)
+     * @param rawValue The raw API protocol value
+     * @param updateIndex The index of this element in a cloud-side command
+     * @return The wrapped protocol API element
+     */
     public static ArgoApiDataElement<IArgoElement> writeOnlyElement(ArgoDeviceSettingType settingType,
             IArgoElement rawValue, int updateIndex) {
         return new ArgoApiDataElement<>(settingType, rawValue, -1, updateIndex, DataElementType.WRITE_ONLY);
-    }
-
-    // public static <T extends IArgoElement> ArgoApiDataElement<T> readOnlyElement(T rawValue, int queryIndex) {
-    // return new ArgoApiDataElement<>(rawValue, queryIndex, -1, DataElementType.READ_ONLY);
-    // }
-    //
-    // public static <T extends IArgoElement> ArgoApiDataElement<T> writeOnlyElement(T rawValue, int updateIndex) {
-    // return new ArgoApiDataElement<>(rawValue, -1, updateIndex, DataElementType.WRITE_ONLY);
-    // }
-
-    public State fromDeviceResponse(String[] responseElements) {
-        if (this.type == DataElementType.READ_WRITE || this.type == DataElementType.READ_ONLY) {
-            // this.rawValue = responseElements[queryResponseIndex];
-            // State newState =
-            return this.rawValue.updateFromApiResponse(responseElements[queryResponseIndex]);
-            // TODO: err handling
-        }
-        /*
-         * else if ((this.type == DataElementType.WRITE_ONLY && this.rawValue.toState() != UnDefType.UNDEF)) {
-         * return this.rawValue.updateFromApiResponse(""); // TODO - this is baaad
-         * }
-         */
-        return UnDefType.NULL;
-    }
-
-    public Optional<Pair<Integer, String>> toDeviceResponse() {
-        if (this.rawValue.isUpdatePending() || this.rawValue.isAlwaysSent()) {
-            return Optional.of(Pair.of(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue()));
-        }
-        return Optional.empty();
-    }
-
-    public boolean isUpdatePending() {
-        return this.rawValue.isUpdatePending();
-    }
-
-    public boolean shouldBeSentToDevice() {
-        return this.rawValue.isUpdatePending() || this.rawValue.isAlwaysSent();
-    }
-
-    public void notifyCommandSent() {
-        this.rawValue.notifyCommandSent();
-    }
-
-    //
-    // public String getValue() {
-    // return rawValue;
-    // }
-
-    public boolean isReadable() {
-        return this.type == DataElementType.READ_ONLY || this.type == DataElementType.READ_WRITE
-                || (this.type == DataElementType.WRITE_ONLY && this.rawValue.toState() != UnDefType.UNDEF);
-    }
-
-    public State getState() {
-        return rawValue.toState();
     }
 
     @Override
@@ -138,6 +124,12 @@ public class ArgoApiDataElement<T extends IArgoElement> {
         return toString(true);
     }
 
+    /**
+     * Extended {@code toString()} method, allowing to also include the kind of knob
+     *
+     * @param includeType If true, includes the setting type (what it controls) in the string representation
+     * @return String representation
+     */
     public String toString(boolean includeType) {
         var prefix = "";
         if (includeType) {
@@ -146,6 +138,47 @@ public class ArgoApiDataElement<T extends IArgoElement> {
         return prefix + rawValue.toString();
     }
 
+    /**
+     * Abort pending command targeting this knob (do not send it anymore, consider current device-side state as stable)
+     */
+    public void abortPendingCommand() {
+        this.rawValue.abortPendingCommand();
+    }
+
+    /**
+     * Output parsed value of this element (reported in a new device-side update) in OH framework-compatible
+     * representation
+     * <p>
+     * This call does not update internal representation of this element!
+     *
+     * @param responseElements All "state" response elements sent by the device (device always sends state of ALL knobs)
+     * @return OH-compatible representation of current device state
+     */
+    public State fromDeviceResponse(String[] responseElements) {
+        if (this.type == DataElementType.READ_WRITE || this.type == DataElementType.READ_ONLY) {
+            return this.rawValue.updateFromApiResponse(responseElements[queryResponseIndex]);
+            // TODO: err handling
+        }
+        return UnDefType.NULL; // Write-only elements do not have any state reported
+    }
+
+    /**
+     * Output this element's currently-stored value in OH framework-compatible representation
+     *
+     * @return OH-compatible representation of current device state
+     */
+    public State getState() {
+        return rawValue.toState();
+    }
+
+    /**
+     * Handle framework-side command targeting this element
+     *
+     * @param command The command to handle
+     * @return Status on whether the command has been handled (accepted). Note "handled" here doesn't mean
+     *         sent&confirmed by the device, merely recognized by the framework and accepted for subsequent device-side
+     *         communication (which happens asynchronously to this call)
+     */
     public boolean handleCommand(Command command) {
         if (this.type != DataElementType.WRITE_ONLY && this.type != DataElementType.READ_WRITE) {
             return false; // attempting to write a R/O value
@@ -153,5 +186,56 @@ public class ArgoApiDataElement<T extends IArgoElement> {
         boolean waitForConfirmation = this.type != DataElementType.WRITE_ONLY;
 
         return rawValue.handleCommand(command, waitForConfirmation);
+    }
+
+    /**
+     * Convert this elements' current value to a device-compatible command request
+     * <p>
+     * Value is returned only if this item has a pending update (or is always sent fresh as part of protocol)
+     *
+     * @return A pair of (updateIndex, ApiValue) representing this element as a command (if it had update)
+     */
+    public Optional<Pair<Integer, String>> toDeviceResponse() {
+        if (this.rawValue.isUpdatePending() || this.rawValue.isAlwaysSent()) {
+            return Optional.of(Pair.of(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue()));
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Check if this element has any withstanding updates (commands not yet confirmed by the device)
+     *
+     * @return True if the element has any updates pending. False - otherwise
+     */
+    public boolean isUpdatePending() {
+        return this.rawValue.isUpdatePending();
+    }
+
+    /**
+     * Check if this element should be sent to device (either has withstanding command or is always sent)
+     *
+     * @return True if the element needs sending to the device. False - otherwise
+     */
+    public boolean shouldBeSentToDevice() {
+        return this.rawValue.isUpdatePending() || this.rawValue.isAlwaysSent();
+    }
+
+    /**
+     * Notify that the withstanding command has just been sent to the device (and is now pending device-side
+     * confirmation)
+     */
+    public void notifyCommandSent() {
+        this.rawValue.notifyCommandSent();
+    }
+
+    /**
+     * Check if this element can be read (either allows reading, or doesn't, but there's a cached value available
+     * already)
+     *
+     * @return True if this element can be read. False - otherwise
+     */
+    public boolean isReadable() {
+        return this.type == DataElementType.READ_ONLY || this.type == DataElementType.READ_WRITE
+                || (this.type == DataElementType.WRITE_ONLY && this.rawValue.toState() != UnDefType.UNDEF);
     }
 }
