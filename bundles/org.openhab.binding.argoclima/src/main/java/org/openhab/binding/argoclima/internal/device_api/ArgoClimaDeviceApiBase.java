@@ -54,7 +54,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaDeviceApiBase.class);
     private final HttpClient client;
     protected final TimeZoneProvider timeZoneProvider;
-    protected ArgoDeviceStatus deviceStatus;
+    protected final ArgoDeviceStatus deviceStatus;
     protected Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate;
     protected Consumer<ThingStatus> onReachableStatusChange;
     protected Consumer<SortedMap<String, String>> onDevicePropertiesUpdate;
@@ -230,8 +230,13 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     public void sendCommandsToDevice() throws ArgoLocalApiCommunicationException {
         var deviceResponse = pollForCurrentStatusFromDeviceSync(getDeviceStateUpdateUrl());
 
-        this.deviceStatus.getItemsWithPendingUpdates().forEach(x -> x.notifyCommandSent());
+        notifyCommandsPassedToDevice(); // Just sent directly
         logger.debug("State update command finished. Device response: {}", deviceResponse);
+    }
+
+    @Override
+    public void notifyCommandsPassedToDevice() {
+        deviceStatus.getItemsWithPendingUpdates().forEach(x -> x.notifyCommandSent());
     }
 
     @Override

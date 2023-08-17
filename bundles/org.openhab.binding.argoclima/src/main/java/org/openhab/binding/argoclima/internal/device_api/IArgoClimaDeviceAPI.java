@@ -73,11 +73,19 @@ public interface IArgoClimaDeviceAPI {
     SortedMap<String, String> getCurrentDeviceProperties();
 
     /**
-     * Send any pending commands to the device (upon synchronizing with freshest device-side state)
+     * Directly send any pending commands to the device (upon synchronizing with freshest device-side state)
      *
      * @throws ArgoLocalApiCommunicationException thrown when unable to communicate with the Argo device
      */
     void sendCommandsToDevice() throws ArgoLocalApiCommunicationException;
+
+    /**
+     * Notify that the pending commands have been passed to the device and are now pending confirmation from its end
+     *
+     * @implNote Used mostly for indirect mode, where the time when commands are consumed is dependent on device's own
+     *           polling (can't trigger any device-facing comms in an indirect mode)
+     */
+    void notifyCommandsPassedToDevice();
 
     /**
      * Handle any setting command from UI

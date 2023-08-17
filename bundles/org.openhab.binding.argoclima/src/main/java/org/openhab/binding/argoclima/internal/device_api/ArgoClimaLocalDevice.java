@@ -28,7 +28,6 @@ import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device_api.passthrough.requests.DeviceSideUpdateDTO;
-import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
@@ -54,7 +53,6 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
                                                         // reachable if behind NAT (optional)
     private final Optional<String> cpuId; // The configured CPU id (if any) - for matching intercepted responses
     private final int port;
-    private final ArgoDeviceStatus deviceStatus;
     private final boolean matchAnyIncomingDeviceIp;
 
     /**
@@ -83,7 +81,6 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate, "");
         this.ipAddress = targetDeviceIpAddress;
         this.port = port;
-        this.deviceStatus = new ArgoDeviceStatus(config);
         this.localIpAddress = localDeviceIpAddress;
         this.cpuId = cpuId;
         this.matchAnyIncomingDeviceIp = config.getMatchAnyIncomingDeviceIp();
@@ -203,9 +200,9 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
             }
         }
 
-        this.deviceStatus.fromDeviceString(hmiStringFromDevice);
         this.onReachableStatusChange.accept(ThingStatus.ONLINE); // Device communicated with us, so we consider it
                                                                  // ONLINE
+        this.deviceStatus.fromDeviceString(hmiStringFromDevice);
         this.onStateUpdate.accept(this.deviceStatus.getCurrentStateMap()); // Update channels from device's state
 
         var properties = new DeviceStatus.DeviceProperties(OffsetDateTime.now(), deviceUpdate);
@@ -214,5 +211,15 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
             this.deviceProperties.putAll(properties.asPropertiesRaw(this.timeZoneProvider));
         }
         this.onDevicePropertiesUpdate.accept(getCurrentDeviceProperties());
+    }
+
+    /**
+     * Get latest "command" string to be sent back to the device in response to its own poll
+     * If there are no updates pending, this string will be similar to a canned "nothing to do" response
+     *
+     * @return Command string to send back to device
+     */
+    public String getCurrentCommandString() {
+        return this.deviceStatus.getDeviceCommandStatus();
     }
 }

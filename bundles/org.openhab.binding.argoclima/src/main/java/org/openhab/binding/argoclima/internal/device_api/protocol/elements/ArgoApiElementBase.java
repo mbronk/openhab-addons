@@ -151,13 +151,20 @@ public abstract class ArgoApiElementBase implements IArgoElement {
 
     @Override
     public boolean isUpdatePending() {
-        // logger.info("Is update pending: CURRENT_STATE=[{}], LAST_STATE_FROM_DEVICE=[{}], PLANNED_STATE=[{}]",
-        // toState(),
-        // getLastStateFromDevice(), this.lastCommandResult);
+        if (lastCommandResult.isEmpty()) {
+            return false; // no withstanding command
+        }
 
-        return this.lastCommandResult.isPresent() && this.lastCommandResult.get().handled
-                && !this.lastCommandResult.get().deviceCommandToSend.get().equals(lastRawValueFromDevice);
-        // TODO: can this .get.equals yield null?
+        if (!lastCommandResult.orElseThrow().handled) {
+            return false; // last command was not handled correctly - there's nothing to update
+        }
+
+        if (lastCommandResult.orElseThrow().deviceCommandToSend
+                .map(valueToSend -> valueToSend.equals(lastRawValueFromDevice)).orElse(false)) {
+            return false; // the device already reports the requested state - nothing to do
+        }
+
+        return true;
     }
 
     @Override

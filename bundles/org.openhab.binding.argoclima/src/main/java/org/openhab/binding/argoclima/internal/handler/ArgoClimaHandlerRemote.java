@@ -40,7 +40,8 @@ public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfig
     private final TimeZoneProvider timeZoneProvider;
 
     public ArgoClimaHandlerRemote(Thing thing, HttpClientFactory clientFactory, TimeZoneProvider timeZoneProvider) {
-        super(thing, true, Duration.ofSeconds(5), Duration.ofSeconds(20), Duration.ofSeconds(60));
+        super(thing, true, Duration.ofSeconds(5), Duration.ofSeconds(20), Duration.ofSeconds(60),
+                Duration.ofSeconds(60));
         this.client = clientFactory.getCommonHttpClient();
         this.timeZoneProvider = timeZoneProvider;
     }

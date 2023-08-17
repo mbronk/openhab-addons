@@ -21,7 +21,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -40,19 +39,33 @@ import org.slf4j.LoggerFactory;
  * (upstream) and passing the response through back to the device (with ability to intercept
  * content and change it - MitM)
  *
+ * @implNote The HTTP client is custom (as it needs to simulate the actual Argo device, with all its quirks), hence
+ *           using separate instance and threadpool for it.
+ *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class PassthroughHttpClient {
     private static final Logger logger = LoggerFactory.getLogger(PassthroughHttpClient.class);
-    private HttpClient rawHttpClient;
-    public final String upstreamTargetHost;
-    public final int upstreamTargetPort;
-    private boolean isStarted = false;
     private static final String RPC_POOL_NAME = BINDING_ID + "_apiProxy";
     private static final List<String> HEADERS_TO_IGNORE = List.of("content-length", "content-type", "content-encoding",
             "host", "accept-encoding");
+    private final HttpClient rawHttpClient;
+    private boolean isStarted = false;
 
+    /** The hostname of OEM vendor's (upstream) server to talk to */
+    public final String upstreamTargetHost;
+
+    /** The port of OEM vendor's (upstream) server to talk to */
+    public final int upstreamTargetPort;
+
+    /**
+     * C-tor, creates new HTTP client (requires starting!)
+     *
+     * @param upstreamIpAddress The hostname of OEM vendor's (upstream) server to talk to
+     * @param upstreamPort The port of OEM vendor's (upstream) server to talk to
+     * @param clientFactory Framework-provided factory for creating new Jetty's HTTP clients
+     */
     public PassthroughHttpClient(String upstreamIpAddress, int upstreamPort, HttpClientFactory clientFactory) {
         // Impl. note: Using Openhab's (globally-configurable) settings for custom threadpool. We technically may need
         // less threads (and longer TTL) here... but not fiddling with thread pool settings post-creation, to avoid
@@ -70,18 +83,28 @@ public class PassthroughHttpClient {
         this.upstreamTargetPort = upstreamPort;
     }
 
+    /**
+     * Start pass-through HTTP client (simulating the device).
+     *
+     * @throws Exception In case of startup failure
+     */
     public synchronized void start() throws Exception {
+        logger.trace("Starting passthrough http client...");
         if (this.isStarted) {
             stop();
         }
-        logger.info("Starting passthrough http client...");
         this.rawHttpClient.start();
-        logger.info("Starting passthrough http client...STARTED");
         this.rawHttpClient.getContentDecoderFactories().clear(); // Prevent decoding gzip (device doesn't support it).
                                                                  // Stops sending Accept header
         this.isStarted = true;
+        logger.trace("Passthrough http client started");
     }
 
+    /**
+     * Stops the pass-through HTTP client
+     *
+     * @throws Exception In case of stop failure
+     */
     public synchronized void stop() throws Exception {
         this.rawHttpClient.stop();
         this.rawHttpClient.destroy();
@@ -89,15 +112,16 @@ public class PassthroughHttpClient {
     }
 
     /**
+     * Pass the downstream HTTP request through to upstream server (as-is)
      *
-     * @param downstreamHttpRequest
-     * @return
-     * @throws IOException
+     * @param downstreamHttpRequest The device-side request to pass on
+     * @param downstreamHttpRequestBody The body of the request (provided separately, because the stream has been read
+     *            already, as it is also used for sniffing)
+     * @return The response from remote side
+     * @throws InterruptedException if send thread is interrupted
+     * @throws TimeoutException if send times out
+     * @throws ExecutionException if execution fails
      */
-    public static String getRequestBodyAsString(Request downstreamHttpRequest) throws IOException {
-        return downstreamHttpRequest.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
-    }
-
     public ContentResponse passthroughRequest(Request downstreamHttpRequest, String downstreamHttpRequestBody)
             throws InterruptedException, TimeoutException, ExecutionException {
         var request = this.rawHttpClient.newRequest(this.upstreamTargetHost, this.upstreamTargetPort)
@@ -105,7 +129,7 @@ public class PassthroughHttpClient {
                 .version(downstreamHttpRequest.getHttpVersion())
                 .content(new StringContentProvider(downstreamHttpRequestBody));
 
-        // re-add headers
+        // re-add headers from downstream request to this one (except explicitly-ignored list)
         for (var headerName : Collections.list(downstreamHttpRequest.getHeaderNames())) {
             if (HEADERS_TO_IGNORE.stream().noneMatch(x -> x.equalsIgnoreCase(headerName))) {
                 request.header(headerName, downstreamHttpRequest.getHeader(headerName));
@@ -118,6 +142,16 @@ public class PassthroughHttpClient {
         return request.send();
     }
 
+    /**
+     * Forward upstream server's response back to the device-side (possibly overriding the body)
+     *
+     * @param response The response received from remote side (vendor's server)
+     * @param targetResponse The response to send to the device side (from this interceptor)
+     * @param overrideBodyToReturn If provided, replace the response body from upstream with THIS content (useful when
+     *            communicating with the device indirectly, and want to "send" it a command (send = let it pool for it
+     *            on its own)
+     * @throws IOException If response writing fails
+     */
     public static void forwardUpstreamResponse(ContentResponse response, HttpServletResponse targetResponse,
             Optional<String> overrideBodyToReturn) throws IOException {
         targetResponse.setContentType(Objects.requireNonNullElse(response.getMediaType(), "text/html"));

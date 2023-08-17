@@ -288,17 +288,18 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
         String[] commands = new String[36];
         Arrays.fill(commands, "N");
 
-        dataElements.entrySet().stream().filter(x -> x.getValue().shouldBeSentToDevice())
-                .map(x -> x.getValue().toDeviceResponse()).forEach(p -> {
-                    if (p.orElseThrow().getLeft() < 0 || p.orElseThrow().getLeft() > commands.length) {
-                        throw new RuntimeException(String.format(
-                                "Attempting to set device command %d := %s, while only commands 0..%d are supported",
-                                p.orElseThrow().getLeft(), p.orElseThrow().getRight(), commands.length));
-                    }
-                    commands[p.orElseThrow().getLeft()] = p.orElseThrow().getRight();
-                });
+        var itemsToSend = dataElements.entrySet().stream().filter(x -> x.getValue().shouldBeSentToDevice()).toList();
+        logger.info("Sending {} updates to device {}", itemsToSend.size(),
+                itemsToSend.stream().map(x -> x.getKey().toString()).collect(Collectors.joining(", ")));
 
-        // TODO: add current time setting (can override internally etc, maybe?
+        itemsToSend.stream().map(x -> x.getValue().toDeviceResponse()).forEach(p -> {
+            if (p.orElseThrow().getLeft() < 0 || p.orElseThrow().getLeft() > commands.length) {
+                throw new RuntimeException(String.format(
+                        "Attempting to set device command %d := %s, while only commands 0..%d are supported",
+                        p.orElseThrow().getLeft(), p.orElseThrow().getRight(), commands.length));
+            }
+            commands[p.orElseThrow().getLeft()] = p.orElseThrow().getRight();
+        });
 
         return String.join(",", commands);
     }

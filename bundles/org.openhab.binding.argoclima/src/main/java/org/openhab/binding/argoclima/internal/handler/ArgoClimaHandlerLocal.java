@@ -49,7 +49,8 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     private @Nullable RemoteArgoApiServerStub serverStub;
 
     public ArgoClimaHandlerLocal(Thing thing, HttpClientFactory clientFactory, TimeZoneProvider timeZoneProvider) {
-        super(thing, true, Duration.ofSeconds(3), Duration.ofSeconds(10), Duration.ofSeconds(20));
+        super(thing, true, Duration.ofSeconds(3), Duration.ofSeconds(10), Duration.ofSeconds(20),
+                Duration.ofSeconds(120)); // device polls every minute, so give it 2 to catch up
         this.client = clientFactory.getCommonHttpClient();
         this.clientFactory = clientFactory;
         this.timeZoneProvider = timeZoneProvider;

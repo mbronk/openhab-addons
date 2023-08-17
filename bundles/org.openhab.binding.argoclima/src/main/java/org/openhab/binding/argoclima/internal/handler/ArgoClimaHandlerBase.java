@@ -69,14 +69,16 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     private final Duration SEND_COMMAND_STATUS_POLL_FREQUENCY; // = Duration.ofSeconds(3);
     private final Duration SEND_COMMAND_RESUBMIT_FREQUENCY; // = Duration.ofSeconds(10);
     private final Duration SEND_COMMAND_MAX_WAIT_TIME; // = Duration.ofSeconds(30);
+    private final Duration SEND_COMMAND_MAX_WAIT_TIME_INDIRECT; // = Duration.ofSeconds(30);
 
     public ArgoClimaHandlerBase(Thing thing, boolean awaitConfirmationAfterSend, Duration poolFrequencyAfterSend,
-            Duration sendRetryFrequency, Duration sendMaxRetryTime) {
+            Duration sendRetryFrequency, Duration sendMaxRetryTime, Duration sendMaxWaitTimeIndirect) {
         super(thing);
         this.SEND_COMMAND_AWAIT_CONFIRMATION = awaitConfirmationAfterSend;
         this.SEND_COMMAND_STATUS_POLL_FREQUENCY = poolFrequencyAfterSend;
         this.SEND_COMMAND_RESUBMIT_FREQUENCY = sendRetryFrequency;
         this.SEND_COMMAND_MAX_WAIT_TIME = sendMaxRetryTime;
+        this.SEND_COMMAND_MAX_WAIT_TIME_INDIRECT = sendMaxWaitTimeIndirect;
     }
 
     protected abstract ConfigT getConfigInternal() throws ArgoConfigurationException;
@@ -600,6 +602,10 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     }
 
     private final void sendCommandsToDeviceAwaitConfirmation(boolean forceRefresh) {
+
+        boolean doNotTalkToDevice = (this.config.get().getRefreshInterval() == 0); // TODO: this needs to be on the
+                                                                                   // separate setting and not interval
+
         if (SEND_COMMAND_STATUS_POLL_FREQUENCY.isNegative() || SEND_COMMAND_RESUBMIT_FREQUENCY.isNegative()
                 || SEND_COMMAND_MAX_WAIT_TIME.isNegative()) {
             throw new IllegalArgumentException("The frequency cannot be negative");
@@ -628,7 +634,8 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             // Instant lastCommandSendTime = Instant.MIN;
             // // Instant lastStatusRefreshTime = Instant.MIN;
 
-            var triesEndTime = Instant.now().plus(SEND_COMMAND_MAX_WAIT_TIME);
+            var triesEndTime = Instant.now()
+                    .plus(doNotTalkToDevice ? SEND_COMMAND_MAX_WAIT_TIME_INDIRECT : SEND_COMMAND_MAX_WAIT_TIME);
 
             var nextCommandSendTime = Instant.MIN; // 1st send is instant
             var nextStateUpdateTime = Instant.now().plus(SEND_COMMAND_STATUS_POLL_FREQUENCY); // 1st poll is delayed
@@ -641,7 +648,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                         nextCommandSendTime = Instant.now().plus(SEND_COMMAND_RESUBMIT_FREQUENCY);
                         if (!this.deviceApi.get().hasPendingCommands()) {
                             if (forceRefresh) {
-                                updateStateFromDevice(false);
+                                updateStateFromDevice(doNotTalkToDevice);
                                 // var newState = this.deviceApi.get().queryDeviceForUpdatedState(); // no updates but
                                 // // refresh was forced
                                 // // TODO - shouldn't this do updateChannelsFromDevice(newState);
@@ -653,7 +660,13 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                             return; // false; // no update made
                         }
 
-                        this.deviceApi.get().sendCommandsToDevice();
+                        if (!doNotTalkToDevice) {
+                            this.deviceApi.get().sendCommandsToDevice();
+                        } else {
+                            logger.warn("Not sending the device update directly - waiting for poll to happen");
+                            // this.deviceApi.get().notifyCommandsPassedToDevice(); // TODO: move out from here to logic
+                            // // which does
+                        }
 
                         if (!this.deviceApi.get().hasPendingCommands()) {
                             logger.info("ALL UPDATED ON 1st try!!");
@@ -671,7 +684,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                         // long to process
                         // commands. Giving it a few sec. before
                         // re-confirming
-                        updateStateFromDevice(false);
+                        updateStateFromDevice(doNotTalkToDevice);
                         // this.deviceApi.get().queryDeviceForUpdatedState();
                         if (this.deviceApi.get().hasPendingCommands()) {
                             throw new ArgoLocalApiCommunicationException("Update not confirmed. Value was not set");
