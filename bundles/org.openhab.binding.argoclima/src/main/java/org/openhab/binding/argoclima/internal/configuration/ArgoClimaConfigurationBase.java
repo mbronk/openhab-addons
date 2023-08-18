@@ -42,19 +42,21 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     /////////////////////
     /**
      * Custom Day of Week class implementation (with integer values matching Argo API) and support of stacking into
-     * EnumSet
-     * (flags-like)
+     * EnumSet (flags-like)
+     *
+     * @implNote Ordering is important! The ordinal values start from 0 (0-SUN, 1-MON, ...) and are also used - for
+     *           {@link org.openhab.binding.argoclima.internal.device_api.protocol.elements.CurrentWeekdayParam}
      *
      * @author Mateusz Bronk - Initial contribution
      */
     public static enum Weekday implements IArgoApiEnum {
-        SUN(0x00),
-        MON(0x01),
-        TUE(0x02),
-        WED(0x04),
-        THU(0x08),
-        FRI(0x10),
-        SAT(0x20);
+        SUN(0x01), // ordinal: 0
+        MON(0x02), // ordinal: 1
+        TUE(0x04), // ordinal: 2
+        WED(0x08), // ordinal: 3
+        THU(0x10), // ordinal: 4
+        FRI(0x20), // ordinal: 5
+        SAT(0x40); // ordinal: 6
 
         private int value;
 

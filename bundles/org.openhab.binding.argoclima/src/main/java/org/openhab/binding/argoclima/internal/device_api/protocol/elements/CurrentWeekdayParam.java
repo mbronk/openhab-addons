@@ -73,6 +73,7 @@ public class CurrentWeekdayParam extends ArgoApiElementBase {
 
     @Override
     public String getDeviceApiValue() {
-        return Integer.toString(Weekday.ofDay(utcToday()).getIntValue());
+        // deliberately using ordinal, not getIntValue() here as the latter is for bitmasks!
+        return Integer.toString(Weekday.ofDay(utcToday()).ordinal());
     }
 }

@@ -15,11 +15,12 @@ package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 import java.util.EnumSet;
 import java.util.Optional;
 
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
-import org.openhab.core.library.types.DecimalType;
+import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -28,54 +29,51 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Weekdays element (accepting sets of days for schedule to run on)
  *
+ * @see {@link TimeParam}
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class WeekdayParam extends ArgoApiElementBase {
     private static final Logger logger = LoggerFactory.getLogger(WeekdayParam.class);
+    private Optional<EnumSet<Weekday>> currentValue = Optional.empty();
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     */
     public WeekdayParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider);
     }
-    // public enum Weekday implements IArgoApiEnum {
-    // SUNDAY(0x00),
-    // MONDAY(0x01),
-    // TUESDAY(0x02),
-    // WEDNESDAY(0x04),
-    // THURSDAY(0x08),
-    // FRIDAY(0x10),
-    // SATURDAY(0x20);
-    //
-    // private int value;
-    //
-    // Weekday(int intValue) {
-    // this.value = intValue;
-    // }
-    //
-    // @Override
-    // public int getIntValue() {
-    // return this.value;
-    // }
-    // }
 
-    private Optional<EnumSet<Weekday>> currentValue = Optional.empty();
-
-    private static State valueToState(Optional<EnumSet<Weekday>> value) {
-        if (value.isEmpty()) {
-            return UnDefType.UNDEF;
-        }
-        return new StringType(value.get().toString()); // TODO:
-    }
-
+    /**
+     * Converts the internal {@code EnumSet}-based storage to raw ARGO API value ("flags enum" - represented as
+     * int/bitmap)
+     *
+     * @param values The set of days to convert
+     * @implNote This impl. assumes all the values are in range of the underlying enum type (no craziness such as
+     *           casting 1000 to Weekday)
+     * @return Int representation of the set of weekdays
+     */
     public static int toRawValue(EnumSet<Weekday> values) {
         int ret = 0;
         for (Weekday val : values) {
-            ret |= val.getIntValue(); // (1 << val.getIntValue());
+            ret |= val.getIntValue();
         }
         return ret;
     }
 
+    /**
+     * Unpacks the Argo API integer with flags-packed weekdays into EnumSet
+     *
+     * @implNote This is not checking if the int value is not having values outside of the Enum values (these will be
+     *           silently skipped on conversion!). Could do a bitmask-based sanity check, but... Occam's Razor ;)
+     *
+     * @param value The raw value to convert
+     * @return Unpacked value
+     */
     public static EnumSet<Weekday> fromRawValue(int value) {
         EnumSet<Weekday> ret = EnumSet.noneOf(Weekday.class);
         for (Weekday val : EnumSet.allOf(Weekday.class)) {
@@ -86,22 +84,37 @@ public class WeekdayParam extends ArgoApiElementBase {
         return ret;
     }
 
-    // = Optional.empty();
+    /**
+     * Converts the raw value to framework-compatible {@link State}
+     *
+     * @implNote While the raw data is technically an integer, and could be represented as
+     *           {@link org.openhab.core.library.types.DecimalType DecimalType}, a {@code String} was chosen for better
+     *           readability
+     *           <p>
+     *           This parameter is actually **NOT** mapped to any channel (and instead sourced from config), thus not
+     *           causing any awkward usage for the user
+     *
+     * @param value Value to convert
+     * @return Converted value (or empty, on conversion failure)
+     */
+    private static State valueToState(Optional<EnumSet<Weekday>> value) {
+        if (value.isEmpty()) {
+            return UnDefType.UNDEF;
+        }
+        return new StringType(value.orElseThrow().toString()); // TODO: checkme
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implNote The currently used context of this class (schedule timer) has WRITE-ONLY elements, hence this
+     *           method is unlikely to ever be called
+     */
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
         strToInt(responseValue).ifPresent(raw -> {
             this.currentValue = Optional.of(fromRawValue(raw));
         });
-
-        // TODO check value w/ bitmask
-    }
-
-    @Override
-    public String toString() {
-        if (currentValue.isEmpty()) {
-            return "???";
-        }
-        return currentValue.get().toString();
     }
 
     @Override
@@ -110,48 +123,94 @@ public class WeekdayParam extends ArgoApiElementBase {
     }
 
     @Override
+    public String toString() {
+        if (currentValue.isEmpty()) {
+            return "???";
+        }
+        return currentValue.orElseThrow().toString();
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Timer weekday values are always sent to the device together with other values (as long as there are other
+     * updates,
+     * and any schedule timer is currently active)
+     */
+    @Override
     public boolean isAlwaysSent() {
-        // logger.warn("isScheduleTimerEnabled={}", isScheduleTimerEnabled());
         return isScheduleTimerEnabled().isPresent();
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Specialized implementation allowing to get a value from default config provider (if it wansn't set before)
+     * Since the value is write-only and framework's value may be N/A we need to re-fetch it in such case.
+     */
     @Override
     public String getDeviceApiValue() {
-        var defaultresult = super.getDeviceApiValue();
-        if (defaultresult == ArgoDeviceStatus.NO_VALUE && isScheduleTimerEnabled().isPresent()) {
-            // TODO: only send when scheduleTimer is RAW/NON-CONFIRMED
-            if (currentValue.isPresent()) {
-                return Integer.toString(toRawValue(currentValue.get())); // TODO: only send it as long as TimerType is
-                                                                         // sent?
-            } else {
-                // TODO: IF no value set, get which schedule is enabled and get from settings direct
-                // TODO: need to know who I am (on or off) :/
-                // settingsProvider.getScheduleProvider().getSchedule1OnTime()
-            }
+        var defaultResult = super.getDeviceApiValue();
+        var activeScheduleTimer = isScheduleTimerEnabled();
 
+        if (defaultResult != ArgoDeviceStatus.NO_VALUE || activeScheduleTimer.isEmpty()) {
+            return defaultResult; // There's already a pending command recognized by binding, or schedule timer is off -
+                                  // we're good to go with the default
         }
-        return defaultresult;
+
+        if (currentValue.isPresent()) {
+            // We have a value, and schedule timer is enabled, so let's send it
+            // Consideration: Only send those as long as the pending command is *schedule timer change*, not *any
+            // change*?... Seems to not be required though so... YAGNI
+            return Integer.toString(toRawValue(currentValue.get()));
+        }
+
+        // OOPS - We have a schedule timer active already, but no value (and have to provide something). Let's fetch it
+        // from the configuration
+        var timerId = activeScheduleTimer.orElseThrow();
+
+        try {
+            EnumSet<Weekday> configuredValue = settingsProvider.getScheduleProvider().getScheduleDayOfWeek(timerId);
+
+            // let's initialize our value from the config's one (lazily)
+            currentValue = Optional.of(configuredValue);
+            return Integer.toString(toRawValue(currentValue.get()));
+        } catch (ArgoConfigurationException e) {
+            logger.warn("Retrieving configured weekdays value for timer failed. Error: {}", e.getMessage());
+            return defaultResult;
+        }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Gets the local time value from Numbers as well as comma-separated String representation such as
+     * {@code [SUN, MON, TUE, WED, THU, FRI, SAT]}
+     *
+     * @see #valueToState
+     */
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        // TODO handle
-        // return toRawValue()
-        logger.warn("TODO");
+        EnumSet<Weekday> newValue;
 
-        if (command instanceof DecimalType) {
-            var rawCommand = (DecimalType) command;
-            var newValue = fromRawValue(rawCommand.intValue());
-
-            this.currentValue = Optional.of(newValue);
-
-            var result = HandleCommandResult.accepted(Integer.toString(rawCommand.intValue()),
-                    valueToState(Optional.of(newValue)));
-            result.setDeferred(isScheduleTimerEnabled().isEmpty());
-            return result;
+        if (command instanceof Number) {
+            var rawValue = ((Number) command).intValue();
+            newValue = fromRawValue(rawValue);
+        } else if (command instanceof StringType) {
+            var toParse = StringUtils.strip(((StringType) command).toFullString(), "[]{}()");
+            EnumSet<Weekday> parsed = EnumSet.noneOf(Weekday.class);
+            for (String s : toParse.split(",")) {
+                parsed.add(Weekday.valueOf(s.strip()));
+            }
+            newValue = parsed;
+        } else {
+            return HandleCommandResult.rejected(); // unsupported type of command
         }
 
-        return HandleCommandResult.rejected(); // This value is NOT send to the device, unless a DelayTimer0 is
-                                               // activaterd
+        // Not checking if current value is the same as requested (this is a send-always value, so no real need)
+        this.currentValue = Optional.of(newValue);
+        // Accept the command (and if it was sent when no timer was active, make it deferred)
+        return HandleCommandResult.accepted(Integer.toString(toRawValue(newValue)), valueToState(Optional.of(newValue)))
+                .setDeferred(isScheduleTimerEnabled().isEmpty());
     }
 }
