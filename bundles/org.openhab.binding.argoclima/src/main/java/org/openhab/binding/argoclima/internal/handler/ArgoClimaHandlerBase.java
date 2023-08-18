@@ -460,7 +460,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     private final void updateStateFromDevice(boolean useCachedState) throws ArgoLocalApiCommunicationException {
         var newState = (useCachedState) ? this.deviceApi.get().getLastStateReadFromDevice()
                 : this.deviceApi.get().queryDeviceForUpdatedState();
-        // logger.info(newState.toString());
+        logger.info(newState.toString()); // TODO: this log line is likely redundant (and need to find a better one)
         updateChannelsFromDevice(newState);
         updateThingProperties(this.deviceApi.get().getCurrentDeviceProperties());
     }

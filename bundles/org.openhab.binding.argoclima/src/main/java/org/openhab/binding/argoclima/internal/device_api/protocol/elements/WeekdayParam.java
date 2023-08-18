@@ -112,13 +112,13 @@ public class WeekdayParam extends ArgoApiElementBase {
     @Override
     public boolean isAlwaysSent() {
         // logger.warn("isScheduleTimerEnabled={}", isScheduleTimerEnabled());
-        return isScheduleTimerEnabled();
+        return isScheduleTimerEnabled().isPresent();
     }
 
     @Override
     public String getDeviceApiValue() {
         var defaultresult = super.getDeviceApiValue();
-        if (defaultresult == ArgoDeviceStatus.NO_VALUE && isScheduleTimerEnabled()) {
+        if (defaultresult == ArgoDeviceStatus.NO_VALUE && isScheduleTimerEnabled().isPresent()) {
             // TODO: only send when scheduleTimer is RAW/NON-CONFIRMED
             if (currentValue.isPresent()) {
                 return Integer.toString(toRawValue(currentValue.get())); // TODO: only send it as long as TimerType is
@@ -147,7 +147,7 @@ public class WeekdayParam extends ArgoApiElementBase {
 
             var result = HandleCommandResult.accepted(Integer.toString(rawCommand.intValue()),
                     valueToState(Optional.of(newValue)));
-            result.setDeferred(!isScheduleTimerEnabled());
+            result.setDeferred(isScheduleTimerEnabled().isEmpty());
             return result;
         }
 

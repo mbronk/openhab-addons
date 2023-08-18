@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
 import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
@@ -107,15 +108,25 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     private int oemServerPort = -1;
     private String oemServerAddress = "";
 
-    private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(1).weekdays();
-    private String schedule1OnTime = ArgoClimaConfigProvider.getScheduleDefaults(1).startTime();
-    private String schedule1OffTime = ArgoClimaConfigProvider.getScheduleDefaults(1).endTime();
-    private Set<Weekday> schedule2DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(2).weekdays();
-    private String schedule2OnTime = ArgoClimaConfigProvider.getScheduleDefaults(2).startTime();
-    private String schedule2OffTime = ArgoClimaConfigProvider.getScheduleDefaults(2).endTime();
-    private Set<Weekday> schedule3DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(3).weekdays();
-    private String schedule3OnTime = ArgoClimaConfigProvider.getScheduleDefaults(3).startTime();
-    private String schedule3OffTime = ArgoClimaConfigProvider.getScheduleDefaults(3).endTime();
+    // Note this boilerplate is actually necessary as these values are injected by framework!
+    private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1)
+            .weekdays();
+    private String schedule1OnTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1)
+            .startTime();
+    private String schedule1OffTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1)
+            .endTime();
+    private Set<Weekday> schedule2DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_2)
+            .weekdays();
+    private String schedule2OnTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_2)
+            .startTime();
+    private String schedule2OffTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_2)
+            .endTime();
+    private Set<Weekday> schedule3DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_3)
+            .weekdays();
+    private String schedule3OnTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_3)
+            .startTime();
+    private String schedule3OffTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_3)
+            .endTime();
 
     public boolean resetToFactoryDefaults = false;
 
@@ -198,80 +209,75 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     }
 
     @Override
-    public EnumSet<Weekday> getSchedule1DayOfWeek() throws ArgoConfigurationException {
-        if (schedule1DayOfWeek.isEmpty()) {
-            return ArgoClimaConfigProvider.getScheduleDefaults(1).weekdays();
+    public EnumSet<Weekday> getScheduleDayOfWeek(ScheduleTimerType scheduleType) throws ArgoConfigurationException {
+        Pair<Set<Weekday>, String> configValue;
+        switch (scheduleType) {
+            case SCHEDULE_1:
+                configValue = Pair.of(schedule1DayOfWeek, "schedule1DayOfWeek");
+                break;
+            case SCHEDULE_2:
+                configValue = Pair.of(schedule2DayOfWeek, "schedule2DayOfWeek");
+                break;
+            case SCHEDULE_3:
+                configValue = Pair.of(schedule3DayOfWeek, "schedule3DayOfWeek");
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid schedule timer: " + scheduleType.toString());
         }
-        return canonizeWeekdaysAfterDeserialization(schedule1DayOfWeek, "schedule1DayOfWeek");
+
+        if (configValue.getLeft().isEmpty()) {
+            return ArgoClimaConfigProvider.getScheduleDefaults(scheduleType).weekdays();
+        }
+        return canonizeWeekdaysAfterDeserialization(configValue.getLeft(), configValue.getRight());
     }
 
     @Override
-    public LocalTime getSchedule1OnTime() throws ArgoConfigurationException {
+    public LocalTime getScheduleOnTime(ScheduleTimerType scheduleType) throws ArgoConfigurationException {
+        Pair<String, String> configValue;
+        switch (scheduleType) {
+            case SCHEDULE_1:
+                configValue = Pair.of(schedule1OnTime, "schedule1OnTime");
+                break;
+            case SCHEDULE_2:
+                configValue = Pair.of(schedule2OnTime, "schedule2OnTime");
+                break;
+            case SCHEDULE_3:
+                configValue = Pair.of(schedule3OnTime, "schedule3OnTime");
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid schedule timer: " + scheduleType.toString());
+        }
+
         try {
-            return LocalTime.parse(schedule1OnTime);
+            return LocalTime.parse(configValue.getLeft());
         } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException("Invalid schedule1OnTime format", schedule1OnTime, e);
+            throw new ArgoConfigurationException(String.format("Invalid %s format", configValue.getRight()),
+                    configValue.getLeft(), e);
         }
     }
 
     @Override
-    public LocalTime getSchedule1OffTime() throws ArgoConfigurationException {
+    public LocalTime getScheduleOffTime(ScheduleTimerType scheduleType) throws ArgoConfigurationException {
+        Pair<String, String> configValue;
+        switch (scheduleType) {
+            case SCHEDULE_1:
+                configValue = Pair.of(schedule1OffTime, "schedule1OffTime");
+                break;
+            case SCHEDULE_2:
+                configValue = Pair.of(schedule2OffTime, "schedule2OffTime");
+                break;
+            case SCHEDULE_3:
+                configValue = Pair.of(schedule3OffTime, "schedule3OffTime");
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid schedule timer: " + scheduleType.toString());
+        }
+
         try {
-            return LocalTime.parse(schedule1OffTime);
+            return LocalTime.parse(configValue.getLeft());
         } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException("Invalid schedule1OffTime format", schedule1OffTime, e);
-        }
-    }
-
-    @Override
-    public EnumSet<Weekday> getSchedule2DayOfWeek() throws ArgoConfigurationException {
-        if (schedule2DayOfWeek.isEmpty()) {
-            return ArgoClimaConfigProvider.getScheduleDefaults(2).weekdays();
-        }
-        return canonizeWeekdaysAfterDeserialization(schedule2DayOfWeek, "schedule2DayOfWeek");
-    }
-
-    @Override
-    public LocalTime getSchedule2OnTime() throws ArgoConfigurationException {
-        try {
-            return LocalTime.parse(schedule2OnTime);
-        } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException("Invalid schedule2OnTime format", schedule2OnTime, e);
-        }
-    }
-
-    @Override
-    public LocalTime getSchedule2OffTime() throws ArgoConfigurationException {
-        try {
-            return LocalTime.parse(schedule2OffTime);
-        } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException("Invalid schedule2OffTime format", schedule2OffTime, e);
-        }
-    }
-
-    @Override
-    public EnumSet<Weekday> getSchedule3DayOfWeek() throws ArgoConfigurationException {
-        if (schedule3DayOfWeek.isEmpty()) {
-            return ArgoClimaConfigProvider.getScheduleDefaults(3).weekdays();
-        }
-        return canonizeWeekdaysAfterDeserialization(schedule3DayOfWeek, "schedule3DayOfWeek");
-    }
-
-    @Override
-    public LocalTime getSchedule3OnTime() throws ArgoConfigurationException {
-        try {
-            return LocalTime.parse(schedule3OnTime);
-        } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException("Invalid schedule3OnTime format", schedule3OnTime, e);
-        }
-    }
-
-    @Override
-    public LocalTime getSchedule3OffTime() throws ArgoConfigurationException {
-        try {
-            return LocalTime.parse(schedule3OffTime);
-        } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException("Invalid schedule3OffTime format", schedule3OffTime, e);
+            throw new ArgoConfigurationException(String.format("Invalid %s format", configValue.getRight()),
+                    configValue.getLeft(), e);
         }
     }
 
@@ -301,12 +307,16 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
         return String.format("Config: { %s, deviceCpuId=%s, refreshInterval=%d, oemServerPort=%d, oemServerAddress=%s,"
                 + "schedule1DayOfWeek=%s, schedule1OnTime=%s, schedule1OffTime=%s, schedule2DayOfWeek=%s, schedule2OnTime=%s, schedule2OffTime=%s, schedule3DayOfWeek=%s, schedule3OnTime=%s, schedule3OffTime=%s, resetToFactoryDefaults=%s}",
                 getExtraFieldDescription(), deviceCpuId, refreshInterval, oemServerPort,
-                getOrDefault(this::getOemServerAddress), getOrDefault(this::getSchedule1DayOfWeek),
-                getOrDefault(this::getSchedule1OnTime), getOrDefault(this::getSchedule1OffTime),
-                getOrDefault(this::getSchedule2DayOfWeek), getOrDefault(this::getSchedule2OnTime),
-                getOrDefault(this::getSchedule2OffTime), getOrDefault(this::getSchedule3DayOfWeek),
-                getOrDefault(this::getSchedule3OnTime), getOrDefault(this::getSchedule3OffTime),
-                resetToFactoryDefaults);
+                getOrDefault(this::getOemServerAddress),
+                getOrDefault(() -> getScheduleDayOfWeek(ScheduleTimerType.SCHEDULE_1)),
+                getOrDefault(() -> getScheduleOnTime(ScheduleTimerType.SCHEDULE_1)),
+                getOrDefault(() -> getScheduleOffTime(ScheduleTimerType.SCHEDULE_1)),
+                getOrDefault(() -> getScheduleDayOfWeek(ScheduleTimerType.SCHEDULE_2)),
+                getOrDefault(() -> getScheduleOnTime(ScheduleTimerType.SCHEDULE_2)),
+                getOrDefault(() -> getScheduleOffTime(ScheduleTimerType.SCHEDULE_2)),
+                getOrDefault(() -> getScheduleDayOfWeek(ScheduleTimerType.SCHEDULE_3)),
+                getOrDefault(() -> getScheduleOnTime(ScheduleTimerType.SCHEDULE_3)),
+                getOrDefault(() -> getScheduleOffTime(ScheduleTimerType.SCHEDULE_3)), resetToFactoryDefaults);
     }
 
     /**
@@ -342,17 +352,17 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
             // want the side-effect of these calls
             getOemServerAddress();
 
-            getSchedule1DayOfWeek();
-            getSchedule1OnTime();
-            getSchedule1OffTime();
+            getScheduleDayOfWeek(ScheduleTimerType.SCHEDULE_1);
+            getScheduleOnTime(ScheduleTimerType.SCHEDULE_1);
+            getScheduleOffTime(ScheduleTimerType.SCHEDULE_1);
 
-            getSchedule2DayOfWeek();
-            getSchedule2OnTime();
-            getSchedule2OffTime();
+            getScheduleDayOfWeek(ScheduleTimerType.SCHEDULE_2);
+            getScheduleOnTime(ScheduleTimerType.SCHEDULE_2);
+            getScheduleOffTime(ScheduleTimerType.SCHEDULE_2);
 
-            getSchedule3DayOfWeek();
-            getSchedule3OnTime();
-            getSchedule3OffTime();
+            getScheduleDayOfWeek(ScheduleTimerType.SCHEDULE_3);
+            getScheduleOnTime(ScheduleTimerType.SCHEDULE_3);
+            getScheduleOffTime(ScheduleTimerType.SCHEDULE_3);
 
             validateInternal();
             return "";

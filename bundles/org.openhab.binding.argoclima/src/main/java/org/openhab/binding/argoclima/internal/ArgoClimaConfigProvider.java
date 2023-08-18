@@ -25,6 +25,7 @@ import java.util.Objects;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
+import org.openhab.binding.argoclima.internal.configuration.IScheduleConfigurationProvider.ScheduleTimerType;
 import org.openhab.core.config.core.ConfigDescription;
 import org.openhab.core.config.core.ConfigDescriptionBuilder;
 import org.openhab.core.config.core.ConfigDescriptionParameter;
@@ -55,28 +56,23 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaConfigProvider.class);
     private final ThingRegistry thingRegistry;
     private static final int SCHEDULE_TIMERS_COUNT = 3;
-    // public static final String DEFAULT_SCHEDULE_START_TIME = "08:00";
-    // public static final String DEFAULT_SCHEDULE_END_TIME = "18:00";
-    // public static final EnumSet<Weekday> DEFAULT_SCHEDULE_WEEKDAYS = EnumSet.of(Weekday.MON, Weekday.TUE,
-    // Weekday.WED,
-    // Weekday.THU, Weekday.FRI);
-    // public static final EnumSet<Weekday> DEFAULT_SCHEDULE_WEEKEND = EnumSet.of(Weekday.SAT, Weekday.SUN);
 
     public record ScheduleDefaults(String startTime, String endTime, EnumSet<Weekday> weekdays) {
     }
 
-    private static final Map<Integer, ScheduleDefaults> SCHEDULE_DEFAULTS = Map.of(1,
+    private static final Map<ScheduleTimerType, ScheduleDefaults> SCHEDULE_DEFAULTS = Map.of(
+            ScheduleTimerType.SCHEDULE_1,
             new ScheduleDefaults("08:00", "18:00",
                     EnumSet.of(
                             Weekday.MON, Weekday.TUE, Weekday.WED, Weekday.THU, Weekday.FRI, Weekday.SAT, Weekday.SUN)),
-            2,
+            ScheduleTimerType.SCHEDULE_2,
             new ScheduleDefaults("15:00", "20:00",
                     EnumSet.of(Weekday.MON, Weekday.TUE, Weekday.WED, Weekday.THU, Weekday.FRI)),
-            3, new ScheduleDefaults("11:00", "22:00", EnumSet.of(Weekday.SAT, Weekday.SUN)));
+            ScheduleTimerType.SCHEDULE_3, new ScheduleDefaults("11:00", "22:00", EnumSet.of(Weekday.SAT, Weekday.SUN)));
 
-    public static final ScheduleDefaults getScheduleDefaults(int scheduleTimerType) {
-        if (scheduleTimerType < 1 || scheduleTimerType > SCHEDULE_TIMERS_COUNT) {
-            throw new IllegalArgumentException("Invalid schedule timer");
+    public static final ScheduleDefaults getScheduleDefaults(ScheduleTimerType scheduleTimerType) {
+        if (!EnumSet.allOf(ScheduleTimerType.class).contains(scheduleTimerType)) {
+            throw new IllegalArgumentException("Invalid schedule timer: " + scheduleTimerType.toString());
         }
         var result = SCHEDULE_DEFAULTS.get(scheduleTimerType);
         Objects.requireNonNull(result);
@@ -154,8 +150,8 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))//
                     .withLabel("Days").withDescription("Days when the schedule is run").withOptions(daysOfWeek)
-                    .withDefault(getScheduleDefaults(i).weekdays().toString()).withMultiple(true).withMultipleLimit(7)
-                    .build());
+                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).weekdays().toString())
+                    .withMultiple(true).withMultipleLimit(7).build());
 
             // NOTE: Deliberately *not* using .withContext("time") - does work, but causes UI to detect each entry to
             // the page as a change
@@ -164,13 +160,13 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
                     .withPattern("\\d{1-2}:\\d{1-2}").withLabel("On time").withDescription("Time when the A/C turns on")
-                    .withDefault(getScheduleDefaults(i).startTime()).build());
+                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).startTime()).build());
             parameters.add(ConfigDescriptionParameterBuilder
                     .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_OFF_TIME, i), Type.TEXT)
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
                     .withLabel("Off time").withDescription("Time when the A/C turns off")
-                    .withDefault(getScheduleDefaults(i).endTime()).build());
+                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).endTime()).build());
         }
         if (thing.isEnabled()) {
             parameters.add(ConfigDescriptionParameterBuilder

@@ -36,76 +36,54 @@ import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationExcepti
  */
 @NonNullByDefault
 public interface IScheduleConfigurationProvider {
+    /**
+     * The type of schedule timer (1|2|3)
+     *
+     * @author Mateusz Bronk - Initial contribution
+     */
+    public static enum ScheduleTimerType {
+        SCHEDULE_1,
+        SCHEDULE_2,
+        SCHEDULE_3;
+
+        public static ScheduleTimerType fromInt(int value) {
+            switch (value) {
+                case 1:
+                    return SCHEDULE_1;
+                case 2:
+                    return SCHEDULE_2;
+                case 3:
+                    return SCHEDULE_3;
+                default:
+                    throw new IllegalArgumentException(String.format("Invalid value for ScheduleTimerType: %d", value));
+            }
+        }
+    }
 
     /**
-     * The days of week when schedule 1 shall be active
+     * The days of week when schedule shall be active
      *
+     * @param scheduleType Which schedule timer to target (1|2|3)
      * @return The configured value
      * @throws ArgoConfigurationException In case of configuration error
      */
-    public EnumSet<Weekday> getSchedule1DayOfWeek() throws ArgoConfigurationException;
+    public EnumSet<Weekday> getScheduleDayOfWeek(ScheduleTimerType scheduleType) throws ArgoConfigurationException;
 
     /**
      * The time of day schedule 1 shall turn the AC on
      *
+     * @param scheduleType Which schedule timer to target (1|2|3)
      * @return The configured value
      * @throws ArgoConfigurationException In case of configuration error
      */
-    public LocalTime getSchedule1OnTime() throws ArgoConfigurationException;
+    public LocalTime getScheduleOnTime(ScheduleTimerType scheduleType) throws ArgoConfigurationException;
 
     /**
      * The time of day schedule 1 shall turn the AC off
      *
+     * @param scheduleType Which schedule timer to target (1|2|3)
      * @return The configured value
      * @throws ArgoConfigurationException In case of configuration error
      */
-    public LocalTime getSchedule1OffTime() throws ArgoConfigurationException;
-
-    /**
-     * The days of week when schedule 2 shall be active
-     *
-     * @return The configured value
-     * @throws ArgoConfigurationException In case of configuration error
-     */
-    public EnumSet<Weekday> getSchedule2DayOfWeek() throws ArgoConfigurationException;
-
-    /**
-     * The time of day schedule 2 shall turn the AC on
-     *
-     * @return The configured value
-     * @throws ArgoConfigurationException In case of configuration error
-     */
-    public LocalTime getSchedule2OnTime() throws ArgoConfigurationException;
-
-    /**
-     * The time of day schedule 2 shall turn the AC off
-     *
-     * @return The configured value
-     * @throws ArgoConfigurationException In case of configuration error
-     */
-    public LocalTime getSchedule2OffTime() throws ArgoConfigurationException;
-
-    /**
-     * The days of week when schedule 3 shall be active
-     *
-     * @return The configured value
-     * @throws ArgoConfigurationException In case of configuration error
-     */
-    public EnumSet<Weekday> getSchedule3DayOfWeek() throws ArgoConfigurationException;
-
-    /**
-     * The time of day schedule 3 shall turn the AC on
-     *
-     * @return The configured value
-     * @throws ArgoConfigurationException In case of configuration error
-     */
-    public LocalTime getSchedule3OnTime() throws ArgoConfigurationException;
-
-    /**
-     * The time of day schedule 3 shall turn the AC off
-     *
-     * @return The configured value
-     * @throws ArgoConfigurationException In case of configuration error
-     */
-    public LocalTime getSchedule3OffTime() throws ArgoConfigurationException;
+    public LocalTime getScheduleOffTime(ScheduleTimerType scheduleType) throws ArgoConfigurationException;
 }

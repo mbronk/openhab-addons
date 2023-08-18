@@ -87,11 +87,16 @@ public interface IArgoElement {
     public boolean isUpdatePending();
 
     /**
-     * Returns true if the value is always sent to the device on next communication cycle (opportunistically), even if
-     * there was no
-     * command (ex. current time)
+     * Returns true if the value is always sent to the device on next communication cycle (regardless of whether this
+     * value has new updates or received a direct command).
+     * Example: current time
+     * <p>
+     * Note items marked as always-sent do NOT count towards pending updates (unless they had received a direct
+     * command). Ex. the always-sent comment will be sent together with any other "direct" commands, but won't trigger
+     * an update cycle on its own, and rather be appended to the user-triggered values on each update (for example, time
+     * update is NOT sent to the device each minute, but gets synchronized on every command)
      *
-     * @return True if the value is always sent
+     * @return True if the value is always sent in an update cycle
      */
     public boolean isAlwaysSent();
 }

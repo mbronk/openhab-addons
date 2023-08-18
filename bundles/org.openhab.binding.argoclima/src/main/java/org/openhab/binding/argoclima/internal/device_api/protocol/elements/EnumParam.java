@@ -89,7 +89,7 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
         if (value.isEmpty()) {
             return UnDefType.UNDEF;
         }
-        return new StringType(value.get().toString());
+        return new StringType(value.orElseThrow().toString());
     }
 
     @Override

@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
+import org.openhab.binding.argoclima.internal.configuration.IScheduleConfigurationProvider.ScheduleTimerType;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
@@ -351,18 +352,25 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     /**
      * Helper method to check if any one of the schedule timers is currently running
      *
-     * @return True if one of the schedule timers (1|2|3) is currently active on the device. False - otherwise
+     * @return Index of one of the schedule timers (1|2|3) which is currently active on the device. Empty optional -
+     *         otherwise
      */
-    protected final boolean isScheduleTimerEnabled() {
+    protected final Optional<ScheduleTimerType> isScheduleTimerEnabled() {
         var currentTimer = EnumParam
                 .fromType(settingsProvider.getSetting(ArgoDeviceSettingType.ACTIVE_TIMER).getState(), TimerType.class);
 
         if (currentTimer.isEmpty()) {
-            return false;
+            return Optional.empty();
         }
 
-        return currentTimer.get() == TimerType.SCHEDULE_TIMER_1 || currentTimer.get() == TimerType.SCHEDULE_TIMER_2
-                || currentTimer.get() == TimerType.SCHEDULE_TIMER_3;
+        switch (currentTimer.orElseThrow()) {
+            case SCHEDULE_TIMER_1:
+            case SCHEDULE_TIMER_2:
+            case SCHEDULE_TIMER_3:
+                return Optional.of(TimerType.toScheduleTimerType(currentTimer.orElseThrow()));
+            default:
+                return Optional.empty();
+        }
     }
 
     /**
