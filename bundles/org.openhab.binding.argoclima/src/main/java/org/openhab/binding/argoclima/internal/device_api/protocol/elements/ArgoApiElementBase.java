@@ -183,7 +183,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     ///////////
     // FIELDS
     ///////////
-    private final Logger logger = LoggerFactory.getLogger(ArgoApiElementBase.class);
+    private static final Logger logger = LoggerFactory.getLogger(ArgoApiElementBase.class);
     protected final IArgoSettingProvider settingsProvider;
 
     /**
@@ -265,9 +265,11 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     @Override
     public final void notifyCommandSent() {
         if (this.isUpdatePending()) {
-            if (!this.inFlightCommand.get().isConfirmable()) {
-                confirmPendingCommand(CommandFinalizationReason.SENT_NON_CONFIRMABLE);
-            }
+            inFlightCommand.ifPresent(cmd -> {
+                if (!cmd.isConfirmable()) {
+                    confirmPendingCommand(CommandFinalizationReason.SENT_NON_CONFIRMABLE);
+                }
+            });
         }
     }
 
@@ -294,51 +296,56 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         return !deviceReportsValueAlready;
     }
 
-    // default
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Wrapper implementation for handling confirmations/deferrals. Delegates actual work to
+     * {@link #handleCommandInternalEx(Command)}
+     */
+    @Override
+    public final boolean handleCommand(Command command, boolean isConfirmable) {
+        var result = this.handleCommandInternalEx(command);
+
+        if (result.handled) {
+            if (!isConfirmable) {
+                // The value is not confirmable (upon sending to the device, we'll just assume it will flip to the
+                // desired state)
+                result.setConfirmable(false);
+            }
+            if (!result.isDeferred()) {
+                // Deferred commands do not count as in-flight (will get intercepted when other command uses their
+                // value)
+                synchronized (this) {
+                    this.inFlightCommand = Optional.of(result);
+                }
+            }
+        }
+        return result.handled;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Default implementation of a typical param, which is NOT always sent (to be further overridden in inheriting
+     * classes)
+     */
     @Override
     public boolean isAlwaysSent() {
         return false;
     }
 
-    // default
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Default implementation (to be further overridden in inheriting classes) getting pending command or
+     * {@code NO_VALUE} special value to not effect any change
+     */
     @Override
     public String getDeviceApiValue() {
         if (!isUpdatePending()) {
             return ArgoDeviceStatus.NO_VALUE;
         }
         return this.inFlightCommand.get().deviceCommandToSend.get();
-    }
-
-    @Override
-    public final boolean handleCommand(Command command, boolean isConfirmable) {
-        var result = this.handleCommandInternalEx(command);
-
-        // this.raw
-
-        if (result.handled) {
-            if (!isConfirmable) {
-                result.setConfirmable(false);
-                // TODO set current value as target
-
-                // TODO: clear planned state (always null
-            }
-            if (!result.isDeferred()) {
-                synchronized (this) {
-                    this.inFlightCommand = Optional.of(result);
-                }
-            }
-            // this.targetRawValue = result.deviceCommandToSend.get();
-            return true;
-        }
-        return false;
-        //
-        // String newRawValue = this.handleCommandInternal(command);
-        // if (newRawValue != null) {
-        // this.targetRawValue = newRawValue; // do not touch otherwise
-        // return true;
-        // }
-        // // this.updatePending = false;
-        // return false; // TODO
     }
 
     /**
@@ -358,6 +365,11 @@ public abstract class ArgoApiElementBase implements IArgoElement {
                 || currentTimer.get() == TimerType.SCHEDULE_TIMER_3;
     }
 
+    /**
+     * Called when an in-flight command reaches a final state (successful or not) and no longer requires tracking
+     *
+     * @param reason The reason for finalizing the command (for logging)
+     */
     private final void confirmPendingCommand(CommandFinalizationReason reason) {
         var commandName = inFlightCommand.map(c -> c.plannedState.map(s -> s.toFullString()).orElse("N/A"))
                 .orElse("Unknown");
@@ -380,29 +392,6 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         }
     }
 
-    // protected void updateState(String channelID, State state) {
-    // ChannelUID channelUID = new ChannelUID(this.getThing().getUID(), channelID);
-    // updateState(channelUID, state);
-    // }
-
-    // @Override
-    // public String toApiSetting() {
-    // return NO_VALUE; // to be overridden in derived class
-    // }
-
-    protected static int toInt(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            throw new RuntimeException(String.format("The value %s is not a valid integer", value), e);
-        }
-    }
-
-    // @Override
-    // public State getCurentState() {
-    // return this.getAsState();
-    // }
-
     private final boolean hasInFlightCommand() {
         if (inFlightCommand.isEmpty()) {
             return false; // no withstanding command
@@ -419,4 +408,18 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         return inFlightCommand.map(c -> c.deviceCommandToSend.orElse(DEFAULT)).orElse(DEFAULT);
     }
 
+    /**
+     * Utility function trying to convert from String to int
+     *
+     * @param value Value to convert
+     * @return Converted value (if successful) or empty (on failure)
+     */
+    protected static Optional<Integer> strToInt(String value) {
+        try {
+            return Optional.of(Integer.parseInt(value));
+        } catch (NumberFormatException e) {
+            logger.warn("The value {} is not a valid integer. Error: {}", value, e.getMessage());
+            return Optional.empty();
+        }
+    }
 }

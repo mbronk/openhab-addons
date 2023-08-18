@@ -56,7 +56,8 @@ public class DelayMinutesParam extends ArgoApiElementBase {
 
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
-        currentValue = Optional.of(adjustRange(toInt(responseValue)));
+        strToInt(responseValue).ifPresent(val -> currentValue = Optional.of(adjustRange(val)));
+
         // TODO: check range?
     }
 

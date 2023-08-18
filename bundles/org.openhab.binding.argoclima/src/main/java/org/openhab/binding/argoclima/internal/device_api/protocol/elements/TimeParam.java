@@ -74,13 +74,13 @@ public class TimeParam extends ArgoApiElementBase {
 
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
-        // TODO Auto-generated method stub
-        int raw = toInt(responseValue);
-        int hh = Math.floorDiv(raw, 60);
-        int mm = raw - hh;
+        strToInt(responseValue).ifPresent(raw -> {
+            int hh = Math.floorDiv(raw, 60);
+            int mm = raw - hh;
 
-        // this.currentValue = Optional.of(LocalTime.of(hh, mm));
-        this.currentValue = Optional.of(hh * 60 + mm);
+            // this.currentValue = Optional.of(LocalTime.of(hh, mm));
+            this.currentValue = Optional.of(hh * 60 + mm);
+        });
     }
 
     @Override

@@ -46,8 +46,12 @@ public class RangeParam extends ArgoApiElementBase {
 
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
+        strToInt(responseValue).ifPresent(raw -> {
+            currentValue = Optional.of(raw);
+        });
+
         // TODO: if double then ?
-        currentValue = Optional.of(toInt(responseValue));
+
         // if (this.minValue.compareTo(minValue) > 1) {
         //
         // }

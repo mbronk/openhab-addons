@@ -29,6 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Timer mode parameter (handling schedule timers as well as delay timer) - special class of enum, as the timers are not
+ * fully standalone elements
+ *
  * @author Mateusz Bronk - Initial contribution
  *
  */
@@ -36,65 +39,89 @@ import org.slf4j.LoggerFactory;
 public class ActiveTimerModeParam extends EnumParam<TimerType> {
     private static final Logger logger = LoggerFactory.getLogger(ActiveTimerModeParam.class);
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     */
     public ActiveTimerModeParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider, TimerType.class);
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Does pre-work for schedule timers and - if one of them is selected - injects (sends commands) to appropriate
+     * elements.
+     * Coordinates multiple timer parameters (ex. for TIMER1, need to fetch schedule1 params for day of week, on time
+     * and off time), and finally lets the super class handle THIS setting
+     *
+     */
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        if (command instanceof StringType) {
-            TimerType newTimerType = fromType(command, TimerType.class).get();
-            Optional<EnumSet<Weekday>> activeDays = Optional.empty();
-            Optional<LocalTime> scheduleOnTime = Optional.empty();
-            Optional<LocalTime> scheduleOffTime = Optional.empty();
-            boolean isScheduleTimer = false;
-            try {
-                switch (newTimerType) {
-                    case SCHEDULE_TIMER_1:
-                        activeDays = Optional.of(settingsProvider.getScheduleProvider().getSchedule1DayOfWeek());
-                        scheduleOnTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule1OnTime());
-                        scheduleOffTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule1OffTime());
-                        isScheduleTimer = true;
-                        break;
-                    case SCHEDULE_TIMER_2:
-                        activeDays = Optional.of(settingsProvider.getScheduleProvider().getSchedule2DayOfWeek());
-                        scheduleOnTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule2OnTime());
-                        scheduleOffTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule2OffTime());
-                        isScheduleTimer = true;
-                        break;
-                    case SCHEDULE_TIMER_3:
-                        // get values from settings
-                        activeDays = Optional.of(settingsProvider.getScheduleProvider().getSchedule3DayOfWeek());
-                        scheduleOnTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule3OnTime());
-                        scheduleOffTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule3OffTime());
-                        isScheduleTimer = true;
-                        break;
-                    default:
-                        isScheduleTimer = false;
-                        break;
-                }
-            } catch (ArgoConfigurationException e) {
-                // TODO Auto-generated catch block
-                logger.warn("{}", e.getMessage());
-            }
-
-            if (isScheduleTimer) {
-                logger.info("New timer value is: {}. Days={}, On={}, Off={}", newTimerType, activeDays, scheduleOnTime,
-                        scheduleOffTime);
-
-                var timerDays = settingsProvider.getSetting(ArgoDeviceSettingType.TIMER_N_ENABLED_DAYS);
-                var timerOn = settingsProvider.getSetting(ArgoDeviceSettingType.TIMER_N_ON_TIME);
-                var timerOff = settingsProvider.getSetting(ArgoDeviceSettingType.TIMER_N_OFF_TIME);
-
-                timerOn.handleCommand(new DecimalType(
-                        TimeParam.fromHhMm(scheduleOnTime.get().getHour(), scheduleOnTime.get().getMinute())));
-                timerOff.handleCommand(new DecimalType(
-                        TimeParam.fromHhMm(scheduleOffTime.get().getHour(), scheduleOffTime.get().getMinute())));
-
-                timerDays.handleCommand(new DecimalType(WeekdayParam.toRawValue(activeDays.get())));
-            }
-
+        if (!(command instanceof StringType)) {
+            return HandleCommandResult.rejected(); // Unsupported command type, nothing to do anyway
         }
+
+        var requestedValue = fromType(command, TimerType.class);
+        if (requestedValue.isEmpty()) {
+            return HandleCommandResult.rejected(); // Value not valid for a timer enum, rejecting command as a whole
+        }
+        TimerType newTimerType = requestedValue.orElseThrow(); // Boilerplate, guaranteed no-throw at this point
+
+        if (!EnumSet.of(TimerType.SCHEDULE_TIMER_1, TimerType.SCHEDULE_TIMER_2, TimerType.SCHEDULE_TIMER_3)
+                .contains(newTimerType)) {
+            return super.handleCommandInternalEx(command); // Not a schedule timer requested -> handle regularly
+        }
+
+        // This boilerplate could be refactored and cut down significantly (but... well...)
+        // Using Nullables to cut on the Optionals (and redundant orElseThrow()), where the value impossible to be a
+        // null
+        Optional<EnumSet<Weekday>> activeDays = Optional.empty();
+        Optional<LocalTime> scheduleOnTime = Optional.empty();
+        Optional<LocalTime> scheduleOffTime = Optional.empty();
+        try { // get values from settings
+            switch (newTimerType) {
+                case SCHEDULE_TIMER_1:
+                    activeDays = Optional.of(settingsProvider.getScheduleProvider().getSchedule1DayOfWeek());
+                    scheduleOnTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule1OnTime());
+                    scheduleOffTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule1OffTime());
+                    break;
+                case SCHEDULE_TIMER_2:
+                    activeDays = Optional.of(settingsProvider.getScheduleProvider().getSchedule2DayOfWeek());
+                    scheduleOnTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule2OnTime());
+                    scheduleOffTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule2OffTime());
+                    break;
+                case SCHEDULE_TIMER_3:
+                    activeDays = Optional.of(settingsProvider.getScheduleProvider().getSchedule3DayOfWeek());
+                    scheduleOnTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule3OnTime());
+                    scheduleOffTime = Optional.of(settingsProvider.getScheduleProvider().getSchedule3OffTime());
+                    break;
+                default:
+                    throw new IllegalStateException("Unsupported schedule timer type"); // Just a fail-safe, can never
+                                                                                        // happen due to the early
+                                                                                        // return above
+            }
+        } catch (ArgoConfigurationException e) {
+            logger.warn("Invalid schedule configuration for {}. Error: {}", newTimerType, e.getMessage());
+            return HandleCommandResult.rejected(); // This technically won't ever happen as invalid config would fail
+                                                   // binding startup (aka. way before control ever reaches this place)
+        }
+
+        logger.info("New timer value is: {}. Days={}, On={}, Off={}", newTimerType, activeDays, scheduleOnTime,
+                scheduleOffTime);
+
+        var timerDays = settingsProvider.getSetting(ArgoDeviceSettingType.TIMER_N_ENABLED_DAYS);
+        var timerOn = settingsProvider.getSetting(ArgoDeviceSettingType.TIMER_N_ON_TIME);
+        var timerOff = settingsProvider.getSetting(ArgoDeviceSettingType.TIMER_N_OFF_TIME);
+
+        timerOn.handleCommand(
+                new DecimalType(TimeParam.fromHhMm(scheduleOnTime.get().getHour(), scheduleOnTime.get().getMinute())));
+        timerOff.handleCommand(new DecimalType(
+                TimeParam.fromHhMm(scheduleOffTime.get().getHour(), scheduleOffTime.get().getMinute())));
+
+        timerDays.handleCommand(new DecimalType(WeekdayParam.toRawValue(activeDays.get())));
+
         return super.handleCommandInternalEx(command);
     }
 }

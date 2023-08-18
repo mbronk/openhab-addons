@@ -89,11 +89,11 @@ public class WeekdayParam extends ArgoApiElementBase {
     // = Optional.empty();
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
-        int rawValue = toInt(responseValue);
+        strToInt(responseValue).ifPresent(raw -> {
+            this.currentValue = Optional.of(fromRawValue(raw));
+        });
 
         // TODO check value w/ bitmask
-        this.currentValue = Optional.of(fromRawValue(rawValue));
-        // TODO Auto-generated method stub
     }
 
     @Override

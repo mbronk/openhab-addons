@@ -27,69 +27,42 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Enum-type of a param (supports mapping to/from enumerations implementing {@link IArgoApiEnum}
+ *
+ * @implNote Some enums (ex. timer type) may require unique handling of updates, hence this class'es implementation of
+ *           {@link #handleCommandInternalEx(Command)} is not final
  *
  * @author Mateusz Bronk - Initial contribution
  *
- * @param <E>
+ * @param <E> The type of underlying enum
  */
 @NonNullByDefault
 public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementBase {
     private static final Logger logger = LoggerFactory.getLogger(EnumParam.class);
-    private Optional<E> currentValue = Optional.empty();
-    private Class<E> cls;
+    private Optional<E> currentValue;
+    private final Class<E> cls;
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     * @param cls The type of underlying Enum (implementing {@link IArgoApiEnum} for mapping to/from integer values)
+     */
     public EnumParam(IArgoSettingProvider settingsProvider, Class<E> cls) {
         super(settingsProvider);
         this.cls = cls;
         this.currentValue = Optional.empty();
     }
 
-    @Override
-    protected void updateFromApiResponseInternal(String responseValue) {
-        // TODO Auto-generated method stub
-        int rawValue = 0;
-        try {
-            rawValue = Integer.parseInt(responseValue);
-        } catch (NumberFormatException e) {
-            throw new RuntimeException(String.format("The value %s is not a valid integer", responseValue), e);
-        }
-
-        this.currentValue = this.fromInt(rawValue);
-    }
-
-    // @SuppressWarnings("null") // TODO
-    private Optional<E> fromInt(int value) {
-        return EnumSet.allOf(this.cls).stream().filter(p -> p.getIntValue() == value).findFirst();
-    }
-
-    @Override
-    public String toString() {
-        if (currentValue.isEmpty()) {
-            return "???";
-        }
-        return currentValue.get().toString();
-        // return currentValue.toString();
-    }
-
-    private static <E extends Enum<E> & IArgoApiEnum> State valueToState(Optional<E> value) {
-        if (value.isEmpty()) {
-            return UnDefType.UNDEF;
-        }
-        return new StringType(value.get().toString());
-    }
-
-    @Override
-    public State toState() {
-        return valueToState(currentValue);
-    }
-
     /**
-     * Gets the raw enum value from {@link Command} or {@link State}
+     * Gets the raw enum value from {@link Type} ({@link Command} or {@link State}) which are themselves strings
      *
-     * @param <E>
-     * @param value
-     * @param cls
-     * @return
+     * @see {@link #valueToState(Optional)} for a reverse conversion
+     *
+     * @param <E> The type of underlying enum - implementing {@link IArgoApiEnum}
+     * @param value Value to convert
+     * @param cls The class of underlying Enum (implementing {@link IArgoApiEnum} for mapping to/from integer values)
+     * @return Converted value (or empty, on conversion failure)
      */
     public static <E extends Enum<E> & IArgoApiEnum> Optional<E> fromType(Type value, Class<E> cls) {
         if (value instanceof StringType) {
@@ -101,34 +74,76 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
                 return Optional.empty();
             }
         }
-        return Optional.empty();
+        return Optional.empty(); // Not a string Command/State -> ignoring the conversion
+    }
+
+    /**
+     * Converts enum value to framework-compatible {@link State}
+     *
+     * @see {@link #fromType(Type, Class)} for a reverse conversion
+     * @param <E> The type of underlying enum - implementing {@link IArgoApiEnum}
+     * @param value The value to convert (wrapped into an optional)
+     * @return Converted value. {@link UnDefType.UNDEF} if n/a
+     */
+    private static <E extends Enum<E> & IArgoApiEnum> State valueToState(Optional<E> value) {
+        if (value.isEmpty()) {
+            return UnDefType.UNDEF;
+        }
+        return new StringType(value.get().toString());
     }
 
     @Override
-    protected HandleCommandResult handleCommandInternalEx(Command command) {
-        if (command instanceof StringType) {
-            E val = fromType(command, cls).get();
-            if (this.currentValue.isEmpty() || this.currentValue.get().compareTo(val) != 0) {
-
-                var newRawValue = Optional.of(val);
-
-                this.currentValue = newRawValue;
-                return HandleCommandResult.accepted(Integer.toString(newRawValue.get().getIntValue()),
-                        valueToState(newRawValue));
-            }
-        }
-
-        return HandleCommandResult.rejected();
+    protected void updateFromApiResponseInternal(String responseValue) {
+        strToInt(responseValue).ifPresent(raw -> {
+            this.currentValue = this.fromInt(raw);
+        });
     }
 
-    // protected @Nullable String handleCommandInternal(Command command) {
-    // if (command instanceof QuantityType<?>) {
-    // int newValue = ((QuantityType<?>) command).intValue();
-    // if (this.currentValue.isEmpty() || this.currentValue.get().intValue() != newValue) {
-    // this.currentValue = Optional.of(newValue);
-    // }
-    // return Integer.toString(this.currentValue.get().intValue());
-    // }
-    // return null; // TODO
-    // }
+    @Override
+    public State toState() {
+        return valueToState(currentValue);
+    }
+
+    @Override
+    public String toString() {
+        if (currentValue.isEmpty()) {
+            return "???";
+        }
+        return currentValue.get().toString();
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Default behavior - may be overridden for specialized enums
+     */
+    @Override
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
+        if (!(command instanceof StringType)) {
+            return HandleCommandResult.rejected(); // Unsupported command type
+        }
+
+        var requestedValue = fromType(command, cls);
+        if (requestedValue.isEmpty()) {
+            return HandleCommandResult.rejected(); // Value not valid for this enum
+        }
+
+        E val = requestedValue.orElseThrow(); // boilerplate, guaranteed to always succeed
+        if (currentValue.map(cv -> (cv.compareTo(val) == 0)).orElse(false)) {
+            return HandleCommandResult.rejected(); // Current value is the same as requested - nothing to do
+        }
+
+        this.currentValue = requestedValue; // We allow it!
+        return HandleCommandResult.accepted(Integer.toString(val.getIntValue()), valueToState(requestedValue));
+    }
+
+    /**
+     * Convert from int value to this enum
+     *
+     * @param value Int value (must match the underlying enum's {@link IArgoApiEnum#getIntValue()}
+     * @return Converted value or empty if no match
+     */
+    private Optional<E> fromInt(int value) {
+        return EnumSet.allOf(this.cls).stream().filter(p -> p.getIntValue() == value).findFirst();
+    }
 }
