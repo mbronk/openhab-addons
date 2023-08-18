@@ -22,6 +22,7 @@ import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
 
 /**
+ * Read-only element communicating the unit firmware version
  *
  * @author Mateusz Bronk - Initial contribution
  */
@@ -29,6 +30,11 @@ import org.openhab.core.types.UnDefType;
 public class FwVersionParam extends ArgoApiElementBase {
     private Optional<String> currentValue = Optional.empty();
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     */
     public FwVersionParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider);
     }
@@ -46,21 +52,20 @@ public class FwVersionParam extends ArgoApiElementBase {
     }
 
     @Override
-    public String toString() {
-        if (currentValue.isEmpty()) {
-            return "???";
-        }
-        return "0" + currentValue.get();
-        // return currentValue.toString();
-    }
-
-    @Override
     public State toState() {
         return valueToState(currentValue);
     }
 
     @Override
+    public String toString() {
+        if (currentValue.isEmpty()) {
+            return "???";
+        }
+        return "0" + currentValue.get();
+    }
+
+    @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        return HandleCommandResult.rejected();
+        return HandleCommandResult.rejected(); // this is not handling any commands
     }
 }

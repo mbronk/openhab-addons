@@ -27,25 +27,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The element reporting current day of week to the device
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class CurrentWeekdayParam extends ArgoApiElementBase {
-
     private static final Logger logger = LoggerFactory.getLogger(CurrentWeekdayParam.class);
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     */
     public CurrentWeekdayParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider);
     }
 
+    private static DayOfWeek utcToday() {
+        return ZonedDateTime.now(ZoneId.of("UTC")).getDayOfWeek();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @implNote This element doesn't really get any device-side commands
+     */
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
         logger.warn("Got state: {} for a parameter that doesn't support it!", responseValue);
-    }
-
-    private static DayOfWeek utcToday() {
-        return ZonedDateTime.now(ZoneId.of("UTC")).getDayOfWeek();
     }
 
     @Override
@@ -54,26 +64,31 @@ public class CurrentWeekdayParam extends ArgoApiElementBase {
                 utcToday().getDisplayName(TextStyle.SHORT_STANDALONE, Locale.US));
     }
 
-    @Override
-    protected HandleCommandResult handleCommandInternalEx(Command command) {
-        logger.warn("Got command for a parameter that doesn't support it!");
-        return HandleCommandResult.rejected(); // Does not handle any commands
-    }
-
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The current day of week is always sent
+     */
     @Override
     public boolean isAlwaysSent() {
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Specialized implementation, always providing latest *today* value
+     *
+     * @implNote deliberately using ordinal, not getIntValue() here as the latter is for bitmasks!
+     */
     @Override
-    public String toString() {
-        // TODO Auto-generated method stub
-        return super.toString();
+    public String getDeviceApiValue() {
+        return Integer.toString(Weekday.ofDay(utcToday()).ordinal());
     }
 
     @Override
-    public String getDeviceApiValue() {
-        // deliberately using ordinal, not getIntValue() here as the latter is for bitmasks!
-        return Integer.toString(Weekday.ofDay(utcToday()).ordinal());
+    protected HandleCommandResult handleCommandInternalEx(Command command) {
+        logger.warn("Got command for a parameter that doesn't support it!");
+        return HandleCommandResult.rejected(); // Does not handle any commands
     }
 }

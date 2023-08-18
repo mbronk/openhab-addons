@@ -17,12 +17,14 @@ import java.time.ZonedDateTime;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
+import org.openhab.core.library.types.DateTimeType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The element reporting current time to the device
  *
  * @author Mateusz Bronk - Initial contribution
  */
@@ -30,46 +32,58 @@ import org.slf4j.LoggerFactory;
 public class CurrentTimeParam extends ArgoApiElementBase {
     private static final Logger logger = LoggerFactory.getLogger(CurrentTimeParam.class);
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     */
     public CurrentTimeParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider);
-    }
-
-    @Override
-    protected void updateFromApiResponseInternal(String responseValue) {
-        logger.warn("Got state: {} for a parameter that doesn't support it!", responseValue);
     }
 
     private static ZonedDateTime utcNow() {
         return ZonedDateTime.now(ZoneId.of("UTC"));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @implNote This element doesn't really get any device-side commands
+     */
+    @Override
+    protected void updateFromApiResponseInternal(String responseValue) {
+        logger.warn("Got state: {} for a parameter that doesn't support it!", responseValue);
+    }
+
     @Override
     public State toState() {
-        return new org.openhab.core.library.types.DateTimeType(utcNow());
+        return new DateTimeType(utcNow());
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * The current time is always sent
+     */
+    @Override
+    public boolean isAlwaysSent() {
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Specialized implementation, always providing latest *now* value
+     */
+    @Override
+    public String getDeviceApiValue() {
+        var t = utcNow();
+        return Integer.toString(TimeParam.fromHhMm(t.getHour(), t.getMinute()));
     }
 
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
         logger.warn("Got command for a parameter that doesn't support it!");
         return HandleCommandResult.rejected(); // Does not handle any commands
-    }
-
-    @Override
-    public boolean isAlwaysSent() {
-        return true;
-    }
-
-    @Override
-    public String toString() {
-        // TODO Auto-generated method stub
-        return super.toString();
-    }
-
-    @Override
-    public String getDeviceApiValue() {
-        // var test = this.settingsProvider.getSetting(ArgoDeviceSettingType.ACTIVE_TIMER);
-        // logger.warn("TODO REMOVEME: Active timer is now: {}", test);
-        var t = utcNow();
-        return Integer.toString(TimeParam.fromHhMm(t.getHour(), t.getMinute()));
     }
 }

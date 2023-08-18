@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The element for controlling/receiving temperature
  *
  * @author Mateusz Bronk - Initial contribution
  */
@@ -35,10 +36,10 @@ import org.slf4j.LoggerFactory;
 public class TemperatureParam extends ArgoApiElementBase {
     private static final Logger logger = LoggerFactory.getLogger(TemperatureParam.class);
 
-    private double minValue;
-    private double maxValue;
+    private final double minValue;
+    private final double maxValue;
+    private final double step;
     private Optional<Double> currentValue = Optional.empty();
-    private double step;
 
     public TemperatureParam(IArgoSettingProvider settingsProvider, double min, double max, double step) {
         super(settingsProvider);
@@ -94,7 +95,7 @@ public class TemperatureParam extends ArgoApiElementBase {
 
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        if (command instanceof QuantityType<?>) {
+        if (command instanceof QuantityType<?>) { // TODO
             var rawCommand = (QuantityType<?>) command;
             var valueCelscius = rawCommand.toUnit(SIUnits.CELSIUS);
             double newValue = Objects.requireNonNull(valueCelscius).doubleValue();

@@ -14,6 +14,7 @@ package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
 import java.util.Optional;
 
+import javax.measure.Unit;
 import javax.measure.quantity.Dimensionless;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -27,21 +28,60 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * API element representing an integer in range of allowed values
+ *
+ * @implNote Since ECO power limit is the only value this is used for now, the {@link #UNIT} is hard-coded to percent
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class RangeParam extends ArgoApiElementBase {
+    private static final Unit<Dimensionless> UNIT = Units.PERCENT;
     private static final Logger logger = LoggerFactory.getLogger(RangeParam.class);
+    private final double minValue;
+    private final double maxValue;
     private Optional<Number> currentValue = Optional.empty();
 
-    private double minValue;
-    private double maxValue;
-
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     * @param min Minimum settable value
+     * @param max Maximum settable value
+     */
     public RangeParam(IArgoSettingProvider settingsProvider, double min, double max) {
         super(settingsProvider);
         this.minValue = min;
         this.maxValue = max;
+    }
+
+    private static State valueToState(Optional<Number> value) {
+        if (value.isEmpty()) {
+            return UnDefType.UNDEF;
+        }
+        return new QuantityType<Dimensionless>(value.get(), UNIT);
+    }
+
+    /**
+     * Normalize value to be in range of MIN..MAX
+     *
+     * @implNote Even though min-max ranges are floating-point, this is operating on integers, as currently there's no
+     *           use of this class which goes beyond integers
+     * @param newValue The value to normalize (as int)
+     * @return Normalized value
+     */
+    private int normalizeValue(int newValue) {
+        if (newValue < minValue) {
+            logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
+                    (int) minValue);
+            return (int) minValue;
+        }
+        if (newValue > maxValue) {
+            logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
+                    (int) maxValue);
+            return (int) maxValue;
+        }
+        return newValue;
     }
 
     @Override
@@ -49,13 +89,11 @@ public class RangeParam extends ArgoApiElementBase {
         strToInt(responseValue).ifPresent(raw -> {
             currentValue = Optional.of(raw);
         });
+    }
 
-        // TODO: if double then ?
-
-        // if (this.minValue.compareTo(minValue) > 1) {
-        //
-        // }
-        // TODO Auto-generated method stub
+    @Override
+    public State toState() {
+        return valueToState(currentValue);
     }
 
     @Override
@@ -66,41 +104,18 @@ public class RangeParam extends ArgoApiElementBase {
         return currentValue.get().toString();
     }
 
-    private static State valueToState(Optional<Number> value) {
-        if (value.isEmpty()) {
-            return UnDefType.UNDEF;
-        }
-
-        return new QuantityType<Dimensionless>(value.get(), Units.PERCENT);
-    }
-
-    @Override
-    public State toState() {
-        return valueToState(currentValue);
-    }
-
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        if (command instanceof QuantityType<?>) {
-            int newValue = ((QuantityType<?>) command).intValue();
-            if (this.currentValue.isEmpty() || this.currentValue.get().intValue() != newValue) {
-                if (newValue < minValue) {
-                    logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
-                            (int) minValue);
-                    newValue = (int) minValue;
-                }
-                if (newValue > maxValue) {
-                    logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
-                            (int) maxValue);
-                    newValue = (int) maxValue;
-                }
-                var targetValue = Optional.<Number>of(newValue);
-                this.currentValue = targetValue;
-                return HandleCommandResult.accepted(Integer.toString(targetValue.get().intValue()),
-                        valueToState(targetValue));
-            }
-            // return Integer.toString(this.currentValue.get().intValue());
+        if (!(command instanceof Number)) {
+            return HandleCommandResult.rejected();
         }
-        return HandleCommandResult.rejected();
+
+        final int newValue = normalizeValue(((Number) command).intValue());
+
+        if (currentValue.map(cv -> (cv.intValue() == newValue)).orElse(false)) {
+            return HandleCommandResult.rejected(); // Current value is the same as requested - nothing to do
+        }
+        this.currentValue = Optional.of(newValue);
+        return HandleCommandResult.accepted(Integer.toString(newValue), valueToState(this.currentValue));
     }
 }

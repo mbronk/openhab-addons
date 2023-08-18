@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
+import java.security.InvalidParameterException;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -23,20 +24,28 @@ import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
 
 /**
+ * The API element representing ON/OFF knob
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class OnOffParam extends ArgoApiElementBase {
-
     private Optional<Boolean> currentValue = Optional.empty();
+    private static final String VALUE_ON = "1";
+    private static final String VALUE_OFF = "0";
 
+    /**
+     * C-tor
+     *
+     * @param settingsProvider the settings provider (getting device state as well as schedule configuration)
+     */
     public OnOffParam(IArgoSettingProvider settingsProvider) {
         super(settingsProvider);
     }
 
-    private static final String VALUE_ON = "1";
-    private static final String VALUE_OFF = "0";
+    private static State valueToState(Optional<Boolean> value) {
+        return value.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
+    }
 
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
@@ -47,14 +56,13 @@ public class OnOffParam extends ArgoApiElementBase {
         } else if (ArgoDeviceStatus.NO_VALUE.equals(responseValue)) {
             this.currentValue = Optional.empty();
         } else {
-            throw new RuntimeException(String.format("Invalid value of parameter: {}", responseValue)); // TODO: check
-                                                                                                        // format string
+            throw new InvalidParameterException(String.format("Invalid value of parameter: {}", responseValue));
         }
-        // TODO Auto-generated method stub
     }
 
-    private static State valueToState(Optional<Boolean> value) {
-        return value.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
+    @Override
+    public State toState() {
+        return valueToState(currentValue);
     }
 
     @Override
@@ -63,12 +71,6 @@ public class OnOffParam extends ArgoApiElementBase {
             return "???";
         }
         return currentValue.get() ? "ON" : "OFF";
-        // return currentValue.toString();
-    }
-
-    @Override
-    public State toState() {
-        return valueToState(currentValue);
     }
 
     @Override
