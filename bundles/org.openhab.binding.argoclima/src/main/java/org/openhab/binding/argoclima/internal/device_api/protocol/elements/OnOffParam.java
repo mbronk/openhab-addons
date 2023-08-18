@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.core.library.types.OnOffType;
 import org.openhab.core.types.Command;
@@ -43,7 +44,7 @@ public class OnOffParam extends ArgoApiElementBase {
             this.currentValue = Optional.of(true);
         } else if (OnOffParam.VALUE_OFF.equals(responseValue)) {
             this.currentValue = Optional.of(false);
-        } else if (ArgoApiElementBase.NO_VALUE.equals(responseValue)) {
+        } else if (ArgoDeviceStatus.NO_VALUE.equals(responseValue)) {
             this.currentValue = Optional.empty();
         } else {
             throw new RuntimeException(String.format("Invalid value of parameter: {}", responseValue)); // TODO: check
@@ -53,7 +54,7 @@ public class OnOffParam extends ArgoApiElementBase {
     }
 
     private static State valueToState(Optional<Boolean> value) {
-        return value.<State> map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
+        return value.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
     }
 
     @Override
@@ -66,7 +67,7 @@ public class OnOffParam extends ArgoApiElementBase {
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return valueToState(currentValue);
     }
 
@@ -76,13 +77,13 @@ public class OnOffParam extends ArgoApiElementBase {
             if (((OnOffType) command).equals(OnOffType.ON)) {
                 var targetValue = Optional.of(true);
                 currentValue = targetValue;
-                return new HandleCommandResult(VALUE_ON, valueToState(targetValue));
+                return HandleCommandResult.accepted(VALUE_ON, valueToState(targetValue));
             } else if (((OnOffType) command).equals(OnOffType.OFF)) {
                 var targetValue = Optional.of(false);
                 currentValue = targetValue;
-                return new HandleCommandResult(VALUE_OFF, valueToState(targetValue));
+                return HandleCommandResult.accepted(VALUE_OFF, valueToState(targetValue));
             }
         }
-        return new HandleCommandResult(false);
+        return HandleCommandResult.rejected();
     }
 }

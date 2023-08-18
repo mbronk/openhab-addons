@@ -55,12 +55,12 @@ public class FwVersionParam extends ArgoApiElementBase {
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return valueToState(currentValue);
     }
 
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        return new HandleCommandResult(false);
+        return HandleCommandResult.rejected();
     }
 }

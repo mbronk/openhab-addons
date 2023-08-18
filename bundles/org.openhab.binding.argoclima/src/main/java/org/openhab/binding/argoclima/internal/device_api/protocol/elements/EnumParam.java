@@ -79,7 +79,7 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return valueToState(currentValue);
     }
 
@@ -113,12 +113,12 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
                 var newRawValue = Optional.of(val);
 
                 this.currentValue = newRawValue;
-                return new HandleCommandResult(Integer.toString(newRawValue.get().getIntValue()),
+                return HandleCommandResult.accepted(Integer.toString(newRawValue.get().getIntValue()),
                         valueToState(newRawValue));
             }
         }
 
-        return new HandleCommandResult(false);
+        return HandleCommandResult.rejected();
     }
 
     // protected @Nullable String handleCommandInternal(Command command) {

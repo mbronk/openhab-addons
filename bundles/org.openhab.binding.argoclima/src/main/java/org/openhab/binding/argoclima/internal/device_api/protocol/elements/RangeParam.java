@@ -71,7 +71,7 @@ public class RangeParam extends ArgoApiElementBase {
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return valueToState(currentValue);
     }
 
@@ -90,13 +90,13 @@ public class RangeParam extends ArgoApiElementBase {
                             (int) maxValue);
                     newValue = (int) maxValue;
                 }
-                var targetValue = Optional.<Number> of(newValue);
+                var targetValue = Optional.<Number>of(newValue);
                 this.currentValue = targetValue;
-                return new HandleCommandResult(Integer.toString(targetValue.get().intValue()),
+                return HandleCommandResult.accepted(Integer.toString(targetValue.get().intValue()),
                         valueToState(targetValue));
             }
             // return Integer.toString(this.currentValue.get().intValue());
         }
-        return new HandleCommandResult(false);
+        return HandleCommandResult.rejected();
     }
 }

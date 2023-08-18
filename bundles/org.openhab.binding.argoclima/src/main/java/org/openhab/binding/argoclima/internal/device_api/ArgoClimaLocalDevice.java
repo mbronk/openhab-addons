@@ -151,7 +151,8 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         // empty... perhaps a response to this can provide iFeel temperatures?)
         // There are some similarities -> ex. target/actual temperatures are at offset 112 & 113 of the array,
         // so at the very least, could get the known values (but not as trivial as:
-        // # fromDevice.dataParam.split(",").Arrays.stream(paramArray).skip(111).limit(39).toList()
+        // # fromDevice.dataParam.split(ArgoDeviceStatus.HMI_ELEMENT_SEPARATOR).Arrays.stream(paramArray).skip(111)
+        // # .limit(ArgoDeviceStatus.HMI_UPDATE_ELEMENT_COUNT).toList()
         // Overall, this needs more reverse-engineering (but works w/o this information, so not implementing for now)
     }
 

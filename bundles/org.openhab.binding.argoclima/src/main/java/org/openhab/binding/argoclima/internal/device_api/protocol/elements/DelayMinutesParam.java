@@ -90,7 +90,7 @@ public class DelayMinutesParam extends ArgoApiElementBase {
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return valueToState(currentValue);
     }
 
@@ -117,14 +117,14 @@ public class DelayMinutesParam extends ArgoApiElementBase {
             int newValue = ((QuantityType<?>) command).intValue();
             if (this.currentValue.isEmpty() || this.currentValue.get().intValue() != newValue) { // TODO: if the same,
                                                                                                  // does not send?!
-                var targetValue = Optional.<Integer> of(adjustRange(newValue));
+                var targetValue = Optional.<Integer>of(adjustRange(newValue));
                 this.currentValue = targetValue;
 
                 // DO *not* send this value back to device, will only happen on schedule param
                 // TODO: if DelayTimer is active -> do it
                 // return new HandleCommandResult(false);
 
-                var result = new HandleCommandResult(Integer.toString(targetValue.get().intValue()),
+                var result = HandleCommandResult.accepted(Integer.toString(targetValue.get().intValue()),
                         valueToState(targetValue));
 
                 var currentTimer = EnumParam.fromType(
@@ -140,6 +140,6 @@ public class DelayMinutesParam extends ArgoApiElementBase {
             }
             // return Integer.toString(this.currentValue.get().intValue());
         }
-        return new HandleCommandResult(false);
+        return HandleCommandResult.rejected();
     }
 }

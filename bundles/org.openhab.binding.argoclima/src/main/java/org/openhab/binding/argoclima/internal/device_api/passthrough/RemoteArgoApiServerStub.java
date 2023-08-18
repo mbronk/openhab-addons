@@ -254,8 +254,9 @@ public class RemoteArgoApiServerStub {
      */
     public synchronized void start() {
         // High log level is deliberate (it's no small feat to open a new HTTP socket!)
-        logger.info("[{}] Starting Argo API Stub listening at: {}", this.id, this.listenIpAddresses.stream()
-                .map(x -> String.format("%s:%s", x.toString(), this.listenPort)).collect(Collectors.joining(",")));
+        logger.info("[{}] Starting Argo API Stub listening at: {}", this.id,
+                this.listenIpAddresses.stream().map(x -> String.format("%s:%s", x.toString(), this.listenPort))
+                        .collect(Collectors.joining(", ", "[", "]")));
 
         try {
             startJettyServer();

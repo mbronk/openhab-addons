@@ -17,6 +17,7 @@ import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
+import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.core.library.types.DecimalType;
 import org.openhab.core.library.types.StringType;
@@ -104,7 +105,7 @@ public class WeekdayParam extends ArgoApiElementBase {
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return valueToState(currentValue);
     }
 
@@ -117,7 +118,7 @@ public class WeekdayParam extends ArgoApiElementBase {
     @Override
     public String getDeviceApiValue() {
         var defaultresult = super.getDeviceApiValue();
-        if (defaultresult == NO_VALUE && isScheduleTimerEnabled()) {
+        if (defaultresult == ArgoDeviceStatus.NO_VALUE && isScheduleTimerEnabled()) {
             // TODO: only send when scheduleTimer is RAW/NON-CONFIRMED
             if (currentValue.isPresent()) {
                 return Integer.toString(toRawValue(currentValue.get())); // TODO: only send it as long as TimerType is
@@ -144,13 +145,13 @@ public class WeekdayParam extends ArgoApiElementBase {
 
             this.currentValue = Optional.of(newValue);
 
-            var result = new HandleCommandResult(Integer.toString(rawCommand.intValue()),
+            var result = HandleCommandResult.accepted(Integer.toString(rawCommand.intValue()),
                     valueToState(Optional.of(newValue)));
             result.setDeferred(!isScheduleTimerEnabled());
             return result;
         }
 
-        return new HandleCommandResult(false); // This value is NOT send to the device, unless a DelayTimer0 is
+        return HandleCommandResult.rejected(); // This value is NOT send to the device, unless a DelayTimer0 is
                                                // activaterd
     }
 }

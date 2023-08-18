@@ -115,14 +115,13 @@ public class RemoteGetUiFlgResponseDTO {
      * @author Mateusz Bronk - Initial contribution
      */
     public final static class UiFlgResponseCommmands {
-        final static int COMMANDS_LENGTH = 36;
-        final String[] commands = new String[COMMANDS_LENGTH];
+        final String[] commands = new String[ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT];
 
         /**
          * Default C-tor (empty, if constructed vanilla)
          */
         public UiFlgResponseCommmands() {
-            Arrays.fill(this.commands, "N");
+            Arrays.fill(this.commands, ArgoDeviceStatus.NO_VALUE);
         }
 
         /**
@@ -131,10 +130,10 @@ public class RemoteGetUiFlgResponseDTO {
          * @param commands The device commands to execute (HMI-like syntax)
          */
         private UiFlgResponseCommmands(String[] commands) {
-            if (commands.length != COMMANDS_LENGTH) {
+            if (commands.length != ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT) {
                 throw new IllegalArgumentException("commands");
             }
-            System.arraycopy(commands, 0, this.commands, 0, COMMANDS_LENGTH);
+            System.arraycopy(commands, 0, this.commands, 0, ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT);
         }
 
         /**
@@ -144,8 +143,8 @@ public class RemoteGetUiFlgResponseDTO {
          * @return This DTO
          */
         public static UiFlgResponseCommmands fromResponseString(String commandString) {
-            String[] values = commandString.split(",");
-            if (values.length != COMMANDS_LENGTH) {
+            String[] values = commandString.split(ArgoDeviceStatus.HMI_ELEMENT_SEPARATOR);
+            if (values.length != ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT) {
                 throw new IllegalArgumentException("commandString");
             }
             return new UiFlgResponseCommmands(values);
@@ -157,7 +156,7 @@ public class RemoteGetUiFlgResponseDTO {
          * @return Commands in proto-friendly format
          */
         public String toResponseString() {
-            return String.join(",", commands);
+            return String.join(ArgoDeviceStatus.HMI_ELEMENT_SEPARATOR, commands);
         }
     }
 

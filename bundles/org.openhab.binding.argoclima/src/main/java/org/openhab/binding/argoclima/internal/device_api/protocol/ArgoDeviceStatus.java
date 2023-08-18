@@ -55,6 +55,23 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
     private final IScheduleConfigurationProvider scheduleSettingsProvider;
 
     /**
+     * A placeholder value in the protocol indicating no value/null (or no command) carried instead of an actual data
+     * element. Useful for allowing to change only a few settings, not the entire state at once
+     */
+    public static final String NO_VALUE = "N";
+    /**
+     * Number of data elements carried in a device-side "HMI" update - FROM the device
+     *
+     * @implNote Not sure what HMI stands for, but is used by Argo for a name for a query param, so adopting this name
+     */
+    public static final int HMI_UPDATE_ELEMENT_COUNT = 39;
+    /**
+     * Number of data elements carried in a remote-side status/"HMI" command sent TO the device
+     */
+    public static final int HMI_COMMAND_ELEMENT_COUNT = 36;
+    public static final String HMI_ELEMENT_SEPARATOR = ",";
+
+    /**
      * The actual protocol elements, by their kind, type and read/write indexes in the response
      *
      * @implNote In the future consider applying builder pattern to make it more readable w/o IDE
@@ -156,8 +173,8 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      * @param deviceOutput The device-side 'HMI' update
      */
     public void fromDeviceString(String deviceOutput) {
-        String[] values = deviceOutput.split(",");
-        if (values.length != 39) {
+        String[] values = deviceOutput.split(HMI_ELEMENT_SEPARATOR);
+        if (values.length != HMI_UPDATE_ELEMENT_COUNT) {
             throw new RuntimeException("Invalid device API response: " + deviceOutput); // TODO: consider changing
                                                                                         // exception type here
         }
@@ -178,8 +195,8 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      * @return The command ready to be sent to the device, effecting *this* state (its withstanding/pending part)
      */
     public String getDeviceCommandStatus() {
-        String[] commands = new String[36];
-        Arrays.fill(commands, "N");
+        String[] commands = new String[HMI_COMMAND_ELEMENT_COUNT];
+        Arrays.fill(commands, NO_VALUE);
 
         var itemsToSend = dataElements.entrySet().stream().filter(x -> x.getValue().shouldBeSentToDevice()).toList();
         logger.info("Sending {} updates to device {}", itemsToSend.size(),
@@ -194,7 +211,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
             commands[p.orElseThrow().getLeft()] = p.orElseThrow().getRight();
         });
 
-        return String.join(",", commands);
+        return String.join(HMI_ELEMENT_SEPARATOR, commands);
     }
 
     /**

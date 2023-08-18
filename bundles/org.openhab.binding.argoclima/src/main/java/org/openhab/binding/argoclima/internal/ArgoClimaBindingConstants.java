@@ -12,6 +12,8 @@
  */
 package org.openhab.binding.argoclima.internal;
 
+import java.time.Duration;
+
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.core.thing.ThingTypeUID;
 
@@ -26,11 +28,15 @@ public class ArgoClimaBindingConstants {
 
     public static final String BINDING_ID = "argoclima";
 
+    /////////////
     // List of all Thing Type UIDs
+    /////////////
     public static final ThingTypeUID THING_TYPE_ARGOCLIMA_LOCAL = new ThingTypeUID(BINDING_ID, "argoclima-local");
     public static final ThingTypeUID THING_TYPE_ARGOCLIMA_REMOTE = new ThingTypeUID(BINDING_ID, "argoclima-remote");
 
+    /////////////
     // Thing configuration parameters
+    /////////////
     public static final String PARAMETER_HOSTNAME = "hostname"; // not used
     public static final String PARAMETER_LOCAL_DEVICE_IP = "localDeviceIP";
     public static final String PARAMETER_LOCAL_DEVICE_PORT = "localDevicePort"; // not used
@@ -56,7 +62,9 @@ public class ArgoClimaBindingConstants {
     public static final String PARAMETER_ACTIONS_GROUP_NAME = "actions";
     public static final String PARAMETER_RESET_TO_FACTORY_DEFAULTS = "resetToFactoryDefaults";
 
+    /////////////
     // Thing configuration properties
+    /////////////
     public static final String PROPERTY_CPU_ID = "cpuId";
     public static final String PROPERTY_LOCAL_IP_ADDRESS = "localIpAddress";
     public static final String PROPERTY_UNIT_FW = "unitFirmwareVersion";
@@ -69,7 +77,9 @@ public class ArgoClimaBindingConstants {
     public static final String PROPERTY_WIFI_PASSWORD = "wifiPassword";
     public static final String PROPERTY_LOCAL_TIME = "localTime";
 
+    /////////////
     // List of all Channel IDs
+    /////////////
     public static final String CHANNEL_POWER = "acControls#power";
     public static final String CHANNEL_MODE = "acControls#mode";
     public static final String CHANNEL_SET_TEMPERATURE = "acControls#setTemperature";
@@ -80,7 +90,7 @@ public class ArgoClimaBindingConstants {
     public static final String CHANNEL_NIGHT_MODE = "modes#nightMode";
     public static final String CHANNEL_ACTIVE_TIMER = "timers#activeTimer";
     public static final String CHANNEL_DELAY_TIMER = "timers#delayTimer";
-    // Note: schedule timers not currently supported (YAGNI)
+    // Note: schedule timers day of week/time setting not currently supported as channels (YAGNI), and moved to config
     public static final String CHANNEL_MODE_EX = "unsupported#modeEx";
     public static final String CHANNEL_SWING_MODE = "unsupported#swingMode";
     public static final String CHANNEL_FILTER_MODE = "unsupported#filterMode";
@@ -91,6 +101,20 @@ public class ArgoClimaBindingConstants {
     public static final String CHANNEL_TEMPERATURE_DISPLAY_UNIT = "settings#temperatureDisplayUnit";
     public static final String CHANNEL_ECO_POWER_LIMIT = "settings#ecoPowerLimit";
 
+    /////////////
+    // Binding's hard-coded configuration (not parameterized)
+    /////////////
     public static final int REFRESH_INTERVAL_SEC = 5;
     public static final int MAX_API_RETRIES = 3;
+
+    /**
+     * Time to wait for (confirmable) command to be reported back by the device (by changing its state to the requested
+     * value). If this period elapses w/o the device confirming, the command is considered not handled and REJECTED
+     * (would not be retried any more, and the reported device's state will be the actual one device sent, not the
+     * "in-flight" desired one)
+     */
+    public static final Duration PENDING_COMMAND_EXPIRE_TIME = Duration.ofSeconds(120); // TODO: THIS SHOULD MATCH MAX
+                                                                                        // TRY TIME
+    // ArgoClimaHandlerRemote:: 60s (or not)
+
 }

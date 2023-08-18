@@ -44,14 +44,14 @@ public class CurrentTimeParam extends ArgoApiElementBase {
     }
 
     @Override
-    protected State getAsState() {
+    public State toState() {
         return new org.openhab.core.library.types.DateTimeType(utcNow());
     }
 
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
         logger.warn("Got command for a parameter that doesn't support it!");
-        return new HandleCommandResult(false); // Does not handle any commands
+        return HandleCommandResult.rejected(); // Does not handle any commands
     }
 
     @Override
