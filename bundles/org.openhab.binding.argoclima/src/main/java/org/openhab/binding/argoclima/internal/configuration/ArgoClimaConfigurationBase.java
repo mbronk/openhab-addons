@@ -107,15 +107,15 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     private int oemServerPort = -1;
     private String oemServerAddress = "";
 
-    private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS; // EnumSet.noneOf(Weekday.class);
-    private String schedule1OnTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_START_TIME;
-    private String schedule1OffTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_END_TIME;
-    private Set<Weekday> schedule2DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
-    private String schedule2OnTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_START_TIME;
-    private String schedule2OffTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_END_TIME;
-    private Set<Weekday> schedule3DayOfWeek = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKEND;
-    private String schedule3OnTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_START_TIME;
-    private String schedule3OffTime = ArgoClimaConfigProvider.DEFAULT_SCHEDULE_END_TIME;
+    private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(1).weekdays();
+    private String schedule1OnTime = ArgoClimaConfigProvider.getScheduleDefaults(1).startTime();
+    private String schedule1OffTime = ArgoClimaConfigProvider.getScheduleDefaults(1).endTime();
+    private Set<Weekday> schedule2DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(2).weekdays();
+    private String schedule2OnTime = ArgoClimaConfigProvider.getScheduleDefaults(2).startTime();
+    private String schedule2OffTime = ArgoClimaConfigProvider.getScheduleDefaults(2).endTime();
+    private Set<Weekday> schedule3DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(3).weekdays();
+    private String schedule3OnTime = ArgoClimaConfigProvider.getScheduleDefaults(3).startTime();
+    private String schedule3OffTime = ArgoClimaConfigProvider.getScheduleDefaults(3).endTime();
 
     public boolean resetToFactoryDefaults = false;
 
@@ -200,7 +200,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     @Override
     public EnumSet<Weekday> getSchedule1DayOfWeek() throws ArgoConfigurationException {
         if (schedule1DayOfWeek.isEmpty()) {
-            return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+            return ArgoClimaConfigProvider.getScheduleDefaults(1).weekdays();
         }
         return canonizeWeekdaysAfterDeserialization(schedule1DayOfWeek, "schedule1DayOfWeek");
     }
@@ -226,7 +226,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     @Override
     public EnumSet<Weekday> getSchedule2DayOfWeek() throws ArgoConfigurationException {
         if (schedule2DayOfWeek.isEmpty()) {
-            return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+            return ArgoClimaConfigProvider.getScheduleDefaults(2).weekdays();
         }
         return canonizeWeekdaysAfterDeserialization(schedule2DayOfWeek, "schedule2DayOfWeek");
     }
@@ -252,7 +252,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     @Override
     public EnumSet<Weekday> getSchedule3DayOfWeek() throws ArgoConfigurationException {
         if (schedule3DayOfWeek.isEmpty()) {
-            return ArgoClimaConfigProvider.DEFAULT_SCHEDULE_WEEKDAYS;
+            return ArgoClimaConfigProvider.getScheduleDefaults(3).weekdays();
         }
         return canonizeWeekdaysAfterDeserialization(schedule3DayOfWeek, "schedule3DayOfWeek");
     }
