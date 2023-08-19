@@ -207,7 +207,6 @@ public class TimeParam extends ArgoApiElementBase {
                     e.getMessage());
             return defaultResult;
         }
-
     }
 
     /**

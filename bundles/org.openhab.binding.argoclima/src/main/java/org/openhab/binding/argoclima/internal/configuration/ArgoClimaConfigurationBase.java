@@ -138,7 +138,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
      * @return The configured CPUID (if provided by the user = not blank)
      */
     public Optional<String> getDeviceCpuId() {
-        return this.deviceCpuId.isBlank() ? Optional.<String>empty() : Optional.of(this.deviceCpuId);
+        return this.deviceCpuId.isBlank() ? Optional.<String> empty() : Optional.of(this.deviceCpuId);
     }
 
     /**

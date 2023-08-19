@@ -77,7 +77,7 @@ public class ArgoClimaConfigurationLocal extends ArgoClimaConfigurationBase {
     public Optional<InetAddress> getLocalDeviceIP() throws ArgoConfigurationException {
         try {
             if (this.localDeviceIP.isBlank()) {
-                return Optional.<InetAddress>empty();
+                return Optional.<InetAddress> empty();
             }
             return Optional.of(InetAddress.getByName(localDeviceIP));
         } catch (UnknownHostException e) {

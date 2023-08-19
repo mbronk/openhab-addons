@@ -135,7 +135,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
 
         var parameters = new ArrayList<ConfigDescriptionParameter>();
 
-        var daysOfWeek = List.<@Nullable ParameterOption>of(new ParameterOption(Weekday.MON.toString(), "Monday"),
+        var daysOfWeek = List.<@Nullable ParameterOption> of(new ParameterOption(Weekday.MON.toString(), "Monday"),
                 new ParameterOption(Weekday.TUE.toString(), "Tuesday"),
                 new ParameterOption(Weekday.WED.toString(), "Wednesday"),
                 new ParameterOption(Weekday.THU.toString(), "Thursday"),

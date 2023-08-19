@@ -121,8 +121,8 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
     /**
      * The same elements as in {@link #allElements}, but grouped by kind/type for easier access
      */
-    private final Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = allElements
-            .stream().collect(Collectors.toMap(k -> k.settingType, Function.identity()));
+    private final Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = allElements.stream()
+            .collect(Collectors.toMap(k -> k.settingType, Function.identity()));
 
     /**
      * C-tor

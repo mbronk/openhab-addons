@@ -45,14 +45,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link ArgoClimaHandler} is responsible for handling commands, which are
- * sent to one of the channels.
+ * The {@code ArgoClimaHandlerBase} is an abstract base class for common logic (across local and remote thing
+ * implementations) responsible for handling commands, which are sent to one of the channels.
  *
+ * @see {@link ArgoClimaHandlerLocal}
+ * @see {@link ArgoClimaHandlerRemote}
+ *
+ * @param <ConfigT> Type of configuration class used:
+ *            {@link org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal
+ *            ArgoClimaConfigurationLocal} or
+ *            {@link org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote
+ *            ArgoClimaConfigurationRemote}
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfigurationBase> extends BaseThingHandler {
-
     private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerBase.class);
     private Optional<IArgoClimaDeviceAPI> deviceApi = Optional.empty(); // todo
     private Optional<ConfigT> config = Optional.empty();
@@ -156,6 +163,66 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     }
 
     @Override
+    public void dispose() {
+        logger.debug("{}: Thing {} is disposing", getThing().getUID().getId(), thing.getUID());
+        if (this.deviceApi.isPresent()) {
+            // deviceApi.get().close(); //TODO:cancel http requests!
+            deviceApi = Optional.empty();
+        }
+
+        try {
+            stopRefreshTask();
+        } catch (Exception e) {
+            logger.warn("Exception during handler disposal", e);
+        }
+
+        try {
+            if (initializeFuture != null) {
+                initializeFuture.cancel(true);
+            }
+        } catch (Exception e) {
+            logger.warn("Exception during handler disposal", e);
+        }
+
+        try {
+            cancelPendingSettingsUpdateJob();
+        } catch (Exception e) {
+            logger.warn("Exception during handler disposal", e);
+        }
+        logger.debug("{}: Disposed", getThing().getUID().getId());
+        // sendCommandToDeviceFuture.ifPresent(x -> x.cancel(true));
+        // sendCommandToDeviceFuture = Optional.empty();
+    }
+
+    // private boolean updateValue(int attemptNumber) {
+    // try {
+    // if (attemptNumber > 3) {
+    //
+    // return false;
+    // }
+    // // safeguard for multiple REFRESH commands
+    // if (isMinimumRefreshTimeExceeded()) {
+    // if (getThing().getStatus() == ThingStatus.OFFLINE) {
+    // // try to re-initialize thing access
+    // logger.debug("{}: Re-initialize device", getThing().getUID().getId());
+    // initializeThing();
+    // return true;
+    // }
+    //
+    // Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().updateStateFromDevice();
+    // logger.info(newState.toString());
+    // updateChannelsFromDevice(newState);
+    //
+    // }
+    // } catch (RuntimeException e) {
+    // String message = "Runtime exception on update";
+    // logger.warn("{}: {}", getThing().getUID().getId(), message, e);
+    // return false;
+    // }
+    // return forceRefresh;
+    // }
+
+    @Override
     public final void handleCommand(ChannelUID channelUID, Command command) {
 
         if (command instanceof RefreshType) {
@@ -249,121 +316,9 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         }
     }
 
-    @Override
-    public void dispose() {
-        logger.debug("{}: Thing {} is disposing", getThing().getUID().getId(), thing.getUID());
-        if (this.deviceApi.isPresent()) {
-            // deviceApi.get().close(); //TODO:cancel http requests!
-            deviceApi = Optional.empty();
-        }
-
-        try {
-            stopRefreshTask();
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-
-        try {
-            if (initializeFuture != null) {
-                initializeFuture.cancel(true);
-            }
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-
-        try {
-            cancelPendingSettingsUpdateJob();
-        } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
-        }
-        logger.debug("{}: Disposed", getThing().getUID().getId());
-        // sendCommandToDeviceFuture.ifPresent(x -> x.cancel(true));
-        // sendCommandToDeviceFuture = Optional.empty();
-    }
-
-    // private boolean updateValue(int attemptNumber) {
-    // try {
-    // if (attemptNumber > 3) {
-    //
-    // return false;
-    // }
-    // // safeguard for multiple REFRESH commands
-    // if (isMinimumRefreshTimeExceeded()) {
-    // if (getThing().getStatus() == ThingStatus.OFFLINE) {
-    // // try to re-initialize thing access
-    // logger.debug("{}: Re-initialize device", getThing().getUID().getId());
-    // initializeThing();
-    // return true;
-    // }
-    //
-    // Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().updateStateFromDevice();
-    // logger.info(newState.toString());
-    // updateChannelsFromDevice(newState);
-    //
-    // }
-    // } catch (RuntimeException e) {
-    // String message = "Runtime exception on update";
-    // logger.warn("{}: {}", getThing().getUID().getId(), message, e);
-    // return false;
-    // }
-    // return forceRefresh;
-    // }
-
-    private final void startAutomaticRefresh() {
-        Runnable refresher = () -> {
-            try {
-                // safeguard for multiple REFRESH commands
-                if (isMinimumRefreshTimeExceeded()) {
-                    // Get the current status from the Airconditioner
-
-                    if (getThing().getStatus() == ThingStatus.OFFLINE) {
-                        // try to re-initialize thing access
-                        logger.debug("{}: Re-initialize device", getThing().getUID().getId());
-                        initializeThing();
-                        return;
-                    }
-
-                    updateStateFromDevice(false);
-                    // Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().queryDeviceForUpdatedState();
-                    // // logger.info(newState.toString());
-                    // updateChannelsFromDevice(newState);
-                    // updateThingProperties(this.deviceApi.get().getCurrentDeviceProperties());
-                    apiRetries = 0;
-                }
-            }
-
-            catch (RuntimeException | ArgoLocalApiCommunicationException e) {
-                logger.warn("Thing {}. Polling for device-side update for HVAC device failed [{} of {}]. Error=[{}]",
-                        getThing().getUID().getId(), // this.deviceApi.get().getIpAddressForDirectCommunication(),
-                        apiRetries + 1, MAX_API_RETRIES, e.getMessage()); // TODO: lower to debug
-                apiRetries++;
-                if (apiRetries >= MAX_API_RETRIES) {
-                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
-                            "Polling for device-side update failed. Unable to communicate with HVAC device"
-                                    // + this.deviceApi.get().getIpAddressForDirectCommunication().toString() //TODO:
-                                    // restore sth
-                                    + ". Retries exceeded. | " + e.getMessage());
-                    apiRetries = 0;
-                }
-            }
-        };
-
-        if (refreshTask == null) {
-            refreshTask = scheduler.scheduleWithFixedDelay(refresher, 0, config.get().getRefreshInterval(),
-                    TimeUnit.SECONDS);
-            logger.debug("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
-                    config.get().getRefreshInterval());
-            // forceRefresh = true;
-        }
-    }
-
-    // public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {
-    //
-    // }
-
     protected final void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
         for (Entry<ArgoDeviceSettingType, State> entry : deviceState.entrySet()) {
-            var channelNames = Set.<String>of();
+            var channelNames = Set.<String> of();
             switch (entry.getKey()) {
                 case ACTIVE_TIMER:
                     channelNames = Set.of(ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER);
@@ -465,6 +420,58 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         updateThingProperties(this.deviceApi.get().getCurrentDeviceProperties());
     }
 
+    private final void startAutomaticRefresh() {
+        Runnable refresher = () -> {
+            try {
+                // safeguard for multiple REFRESH commands
+                if (isMinimumRefreshTimeExceeded()) {
+                    // Get the current status from the Airconditioner
+
+                    if (getThing().getStatus() == ThingStatus.OFFLINE) {
+                        // try to re-initialize thing access
+                        logger.debug("{}: Re-initialize device", getThing().getUID().getId());
+                        initializeThing();
+                        return;
+                    }
+
+                    updateStateFromDevice(false);
+                    // Map<ArgoDeviceSettingType, State> newState = this.deviceApi.get().queryDeviceForUpdatedState();
+                    // // logger.info(newState.toString());
+                    // updateChannelsFromDevice(newState);
+                    // updateThingProperties(this.deviceApi.get().getCurrentDeviceProperties());
+                    apiRetries = 0;
+                }
+            }
+
+            catch (RuntimeException | ArgoLocalApiCommunicationException e) {
+                logger.warn("Thing {}. Polling for device-side update for HVAC device failed [{} of {}]. Error=[{}]",
+                        getThing().getUID().getId(), // this.deviceApi.get().getIpAddressForDirectCommunication(),
+                        apiRetries + 1, MAX_API_RETRIES, e.getMessage()); // TODO: lower to debug
+                apiRetries++;
+                if (apiRetries >= MAX_API_RETRIES) {
+                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
+                            "Polling for device-side update failed. Unable to communicate with HVAC device"
+                                    // + this.deviceApi.get().getIpAddressForDirectCommunication().toString() //TODO:
+                                    // restore sth
+                                    + ". Retries exceeded. | " + e.getMessage());
+                    apiRetries = 0;
+                }
+            }
+        };
+
+        if (refreshTask == null) {
+            refreshTask = scheduler.scheduleWithFixedDelay(refresher, 0, config.get().getRefreshInterval(),
+                    TimeUnit.SECONDS);
+            logger.debug("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
+                    config.get().getRefreshInterval());
+            // forceRefresh = true;
+        }
+    }
+
+    // public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {
+    //
+    // }
+
     private final boolean isMinimumRefreshTimeExceeded() {
         long currentTime = Instant.now().toEpochMilli();
         long timeSinceLastRefresh = currentTime - lastRefreshTime;
@@ -509,7 +516,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
                         config.get().resetToFactoryDefaults = false;
                         var configUpdated = editConfiguration();
-                        configUpdated.put("resetToFactoryDefaults", false);
+                        configUpdated.put("resetToFactoryDefaults", false); // PARAMETER_RESET_TO_FACTORY_DEFAULTS
                         updateConfiguration(configUpdated); // TODO: if using file-based config, this will fail?
                     }
 

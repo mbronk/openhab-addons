@@ -116,5 +116,4 @@ public class ArgoClimaBindingConstants {
     public static final Duration PENDING_COMMAND_EXPIRE_TIME = Duration.ofSeconds(120); // TODO: THIS SHOULD MATCH MAX
                                                                                         // TRY TIME
     // ArgoClimaHandlerRemote:: 60s (or not)
-
 }

@@ -75,7 +75,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
 
         if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY
                 || config.getConnectionMode() == ConnectionMode.REMOTE_API_STUB) {
-            var passthroughClient = Optional.<PassthroughHttpClient>empty();
+            var passthroughClient = Optional.<PassthroughHttpClient> empty();
             if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY) {
                 passthroughClient = Optional.of(new PassthroughHttpClient(config.getOemServerAddress().getHostAddress(),
                         config.getOemServerPort(), clientFactory));

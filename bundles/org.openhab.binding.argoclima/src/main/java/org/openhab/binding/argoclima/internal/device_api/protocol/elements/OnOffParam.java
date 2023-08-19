@@ -44,7 +44,7 @@ public class OnOffParam extends ArgoApiElementBase {
     }
 
     private static State valueToState(Optional<Boolean> value) {
-        return value.<State>map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
+        return value.<State> map(v -> OnOffType.from(v)).orElse(UnDefType.UNDEF);
     }
 
     @Override
