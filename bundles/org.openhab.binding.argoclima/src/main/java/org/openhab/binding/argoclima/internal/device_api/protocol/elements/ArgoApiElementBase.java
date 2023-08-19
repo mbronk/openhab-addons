@@ -510,7 +510,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
 
         // Value before normalization has moved, but not enough to move a step (and would have been ignored). Let's
         // amplify that effect and add a new step
-        var movementDirection = Integer.signum((int) (newValue.doubleValue() - normalized.doubleValue()));
+        var movementDirection = Math.signum((newValue.doubleValue() - normalized.doubleValue()));
         return normalized.doubleValue() + movementDirection * step.doubleValue();
     }
 }

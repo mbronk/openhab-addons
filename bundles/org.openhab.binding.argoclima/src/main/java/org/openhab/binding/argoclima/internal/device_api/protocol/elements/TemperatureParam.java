@@ -12,7 +12,6 @@
  */
 package org.openhab.binding.argoclima.internal.device_api.protocol.elements;
 
-import java.util.Objects;
 import java.util.Optional;
 
 import javax.measure.quantity.Temperature;
@@ -24,8 +23,6 @@ import org.openhab.core.library.unit.SIUnits;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The element for controlling/receiving temperature
@@ -40,8 +37,6 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class TemperatureParam extends ArgoApiElementBase {
-    private static final Logger logger = LoggerFactory.getLogger(TemperatureParam.class);
-
     private final double minValue;
     private final double maxValue;
     private final double step;
@@ -63,6 +58,12 @@ public class TemperatureParam extends ArgoApiElementBase {
         this.step = step;
     }
 
+    /**
+     * Converts the raw value to framework-compatible {@link State} (always in degrees Celsius
+     *
+     * @param value Value to convert
+     * @return Converted value (or empty, on conversion failure)
+     */
     private static State valueToState(Optional<Double> value) {
         if (value.isEmpty()) {
             return UnDefType.UNDEF;
@@ -70,37 +71,32 @@ public class TemperatureParam extends ArgoApiElementBase {
         return new QuantityType<Temperature>(value.get(), SIUnits.CELSIUS);
     }
 
-    // @Override
-    // public String toApiSetting() {
-    // // TODO Auto-generated method stub
-    // return null;
-    // }
-    // TODO
-    // /**
-    // * @see {@link ArgoApiElementBase#adjustRange}
-    // */
-    // private int adjustRange(int newValue) {
-    // return ArgoApiElementBase.adjustRange(newValue, minValue, maxValue, Optional.of(step), " min").intValue();
-    // }
-    //
-    // /**
-    // * @see {@link ArgoApiElementBase#adjustRangeWithAmplification}
-    // */
-    // private int adjustRangeWithAmplification(int newValue) {
-    // return ArgoApiElementBase.adjustRangeWithAmplification(newValue, currentValue, minValue, maxValue, step, " min")
-    // .intValue();
-    // }
+    /**
+     * @see {@link ArgoApiElementBase#adjustRangeWithAmplification}
+     */
+    private double adjustRangeWithAmplification(double newValue) {
+        var normalized = ArgoApiElementBase
+                .adjustRangeWithAmplification(newValue, currentValue, minValue, maxValue, step, " °C").doubleValue();
+        return Math.round(normalized * 10.0) / 10.0; // single-digit precision
+    }
 
+    /**
+     * {@inheritDoc}
+     *
+     * @implNote The raw API uses integers and degrees Celsius. Temperature is multiplied by 10.
+     * @implNote Deliberately not normalizing incoming value (if the device reported it, let's consider it valid, even
+     *           if it is out of range!)
+     */
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
-        int rawValue = 0;
-        try {
-            rawValue = Integer.parseInt(responseValue);
-        } catch (NumberFormatException e) {
-            throw new RuntimeException(String.format("The value %s is not a valid integer", responseValue), e);
-        }
-        // TODO: check range
-        this.currentValue = Optional.of(rawValue / 10.0);
+        strToInt(responseValue).ifPresent(raw -> {
+            this.currentValue = Optional.of(raw / 10.0);
+        });
+    }
+
+    @Override
+    public State toState() {
+        return valueToState(currentValue);
     }
 
     @Override
@@ -111,37 +107,35 @@ public class TemperatureParam extends ArgoApiElementBase {
         return currentValue.get().toString() + " °C";
     }
 
-    @Override
-    public State toState() {
-        return valueToState(currentValue);
-    }
-
+    /**
+     * {@inheritDoc}
+     *
+     * @implNote The raw API uses integers and degrees Celsius. Temperature is multiplied by 10.
+     */
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        if (command instanceof QuantityType<?>) { // TODO
-            var rawCommand = (QuantityType<?>) command;
-            var valueCelscius = rawCommand.toUnit(SIUnits.CELSIUS);
-            double newValue = Objects.requireNonNull(valueCelscius).doubleValue();
 
-            if (this.currentValue.isEmpty() || this.currentValue.get().doubleValue() != newValue) {
-                if (newValue < minValue) {
-                    logger.warn("Requested value: {} °C would exceed minimum value: {} °C. Setting: {} °C.", newValue,
-                            minValue, minValue);
-                    newValue = minValue;
-                }
-                if (newValue > maxValue) {
-                    logger.warn("Requested value: {} °C would exceed maximum value: {} °C. Setting: {} °C.", newValue,
-                            maxValue, maxValue);
-                    newValue = maxValue;
-                }
+        double newRawValue;
 
-                var targetValue = Optional.<Double>of(newValue);
-                this.currentValue = targetValue;
-                return HandleCommandResult.accepted(Integer.toUnsignedString((int) (targetValue.get() * 10.0)),
-                        valueToState(targetValue));
+        if (command instanceof Number) {
+            newRawValue = ((Number) command).doubleValue(); // Raw value, not unit-aware
+
+            if (command instanceof QuantityType<?>) { // let's try to get it with unit (opportunistically)
+
+                var inCelsius = ((QuantityType<?>) command).toUnit(SIUnits.CELSIUS);
+                if (null != inCelsius) {
+                    newRawValue = inCelsius.doubleValue();
+                }
             }
-            // return Integer.toUnsignedString((int) (this.currentValue.get() * 10.0));
+        } else {
+            return HandleCommandResult.rejected(); // unsupported type of command
         }
-        return HandleCommandResult.rejected();
+
+        newRawValue = adjustRangeWithAmplification(newRawValue);
+
+        this.currentValue = Optional.of(newRawValue);
+        // Accept the command
+        return HandleCommandResult.accepted(Integer.toUnsignedString((int) (newRawValue * 10.0)),
+                valueToState(Optional.of(newRawValue)));
     }
 }
