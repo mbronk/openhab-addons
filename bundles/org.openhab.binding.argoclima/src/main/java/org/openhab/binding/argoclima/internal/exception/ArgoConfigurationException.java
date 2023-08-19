@@ -18,8 +18,10 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
- * @author Mateusz Bronk - Initial contribution
+ * The class {@code ArgoConfigurationException} is thrown in case of any configuration-related issue (ex. invalid value
+ * format)
  *
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class ArgoConfigurationException extends Exception {

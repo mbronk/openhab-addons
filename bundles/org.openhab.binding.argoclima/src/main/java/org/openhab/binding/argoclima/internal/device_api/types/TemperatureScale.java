@@ -15,7 +15,9 @@ package org.openhab.binding.argoclima.internal.device_api.types;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
+ * Type representing Argo HVAC displayed temperature scale (int values are matching device's API)
  *
+ * @implNote This setting does not influence API (always in Celsius)
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault

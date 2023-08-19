@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api.types;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
+ * Type representing Argo HVAC operation mode (int values are matching device's API)
  *
  * @author Mateusz Bronk - Initial contribution
  */
@@ -36,9 +37,4 @@ public enum OperationMode implements IArgoApiEnum {
     public int getIntValue() {
         return this.value;
     }
-
-    // @SuppressWarnings("null") // TODO
-    // public static Optional<OperationMode> fromInt(int value) {
-    // return Arrays.stream(OperationMode.values()).filter(p -> p.ordinal() == value).findFirst();
-    // }
 }

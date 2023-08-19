@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api.types;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
+ * Type representing Argo HVAC Fan levels (int values are matching device's API)
  *
  * @author Mateusz Bronk - Initial contribution
  */

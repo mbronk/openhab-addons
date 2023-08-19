@@ -16,7 +16,12 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.IScheduleConfigurationProvider.ScheduleTimerType;
 
 /**
+ * Type representing Argo currently selected timer. Int values are matching device's API.
+ * <p>
+ * The device supports a "delay" timer + 3 configurable "schedule" timers. All the schedule timers share the same API
+ * fields for configuring days of week when they are active as well as start/stop time
  *
+ * @see {@link ScheduleTimerType} - for schedule-specific enum (used in binding configuration)
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
@@ -38,6 +43,15 @@ public enum TimerType implements IArgoApiEnum {
         return this.value;
     }
 
+    /**
+     * Converts to {@link ScheduleTimerType}
+     *
+     * @implNote This function will throw, if passed a non-schedule-timer type. Not using optional response, given its
+     *           simple usage and extra boilerplate it would do. Needs care when being used though!
+     * @param val Value to convert
+     * @return Converted value
+     * @throws IllegalArgumentException - on passing a timer which is not one of schedule timers
+     */
     public static ScheduleTimerType toScheduleTimerType(TimerType val) {
         switch (val) {
             case SCHEDULE_TIMER_1:
@@ -52,6 +66,13 @@ public enum TimerType implements IArgoApiEnum {
         }
     }
 
+    /**
+     * Converts from {@link ScheduleTimerType}
+     *
+     * @param val Value to convert
+     * @return Converted value
+     * @throws IllegalArgumentException - on passing an out-of-range enum (extremely unlikely!)
+     */
     public static TimerType fromScheduleTimerType(ScheduleTimerType val) {
         switch (val) {
             case SCHEDULE_1:

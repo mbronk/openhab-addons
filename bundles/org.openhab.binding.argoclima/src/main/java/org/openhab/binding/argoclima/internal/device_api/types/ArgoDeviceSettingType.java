@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api.types;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
+ * Type representing the concrete Argo API element knob
  *
  * @author Mateusz Bronk - Initial contribution
  */
@@ -32,7 +33,6 @@ public enum ArgoDeviceSettingType {
     TURBO_MODE,
     NIGHT_MODE,
     LIGHT,
-    // TIMER_TYPE,
     ECO_POWER_LIMIT,
     RESET_TO_FACTORY_SETTINGS,
     UNIT_FIRMWARE_VERSION,

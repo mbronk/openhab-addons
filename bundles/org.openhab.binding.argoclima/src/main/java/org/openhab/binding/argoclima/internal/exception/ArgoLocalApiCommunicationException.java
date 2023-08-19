@@ -18,6 +18,8 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
+ * The class {@code ArgoLocalApiCommunicationException} is thrown in case of any issues when communicating with the Argo
+ * HVAC device
  *
  * @author Mateusz Bronk - Initial contribution
  */

@@ -15,8 +15,12 @@ package org.openhab.binding.argoclima.internal.exception;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
- * @author Mateusz Bronk - Initial contribution
+ * The class {@code ArgoRemoteServerStubStartupException} is thrown in case of any issues when starting the stub Argo
+ * server (for intercepting mode)
  *
+ * @see {@link org.openhab.binding.argoclima.internal.device_api.passthrough.RemoteArgoApiServerStub
+ *      RemoteArgoApiServerStub}
+ * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class ArgoRemoteServerStubStartupException extends Exception {

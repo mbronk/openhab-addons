@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.device_api.types;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
+ * Enum extension interface, providing raw integer value which is value's representation in the Argo protocol
  *
  * @author Mateusz Bronk - Initial contribution
  */

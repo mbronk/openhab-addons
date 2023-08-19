@@ -15,6 +15,9 @@ package org.openhab.binding.argoclima.internal.device_api.types;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 
 /**
+ * Type representing Argo devices flap setting (swing). Int values are matching device's API.
+ * <p>
+ * Note: While this is supported by Argo remote protocol, the Ulisse device doesn't react to these settings
  *
  * @author Mateusz Bronk - Initial contribution
  */
