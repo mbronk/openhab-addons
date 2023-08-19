@@ -37,8 +37,8 @@ public class RemoteGetUiFlgResponseDTO {
      * @implNote Example: {@code |1|0|1|0|0|0|}
      * @author Mateusz Bronk - Initial contribution
      */
-    public final static class UiFlgResponsePreamble {
-        final static Pattern preambleRx = Pattern.compile("^[|](\\d[|]){6}$");
+    public static final class UiFlgResponsePreamble {
+        static final Pattern preambleRx = Pattern.compile("^[|](\\d[|]){6}$");
 
         /** Request the HVAC to send an immediate update via POST (used on cloud-side updates) */
         public int Flag_0_Request_POST_UI_RT = 0;
@@ -114,7 +114,7 @@ public class RemoteGetUiFlgResponseDTO {
      * @implNote Example: {@code N,N,N,2,0,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N,N}
      * @author Mateusz Bronk - Initial contribution
      */
-    public final static class UiFlgResponseCommmands {
+    public static final class UiFlgResponseCommmands {
         final String[] commands = new String[ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT];
 
         /**
@@ -166,8 +166,8 @@ public class RemoteGetUiFlgResponseDTO {
      * @implNote Example: {@code [|0|||]}
      * @author Mateusz Bronk - Initial contribution
      */
-    public final static class UiFlgResponseUpd {
-        final static String CANNED_RESPONSE = "[|0|||]";
+    public static final class UiFlgResponseUpd {
+        static final String CANNED_RESPONSE = "[|0|||]";
         final String contents;
 
         /**
@@ -213,8 +213,8 @@ public class RemoteGetUiFlgResponseDTO {
      * @implNote Example: {@code ACN_FREE <br>\t\t}
      * @author Mateusz Bronk - Initial contribution
      */
-    public final static class UiFlgResponseACN {
-        final static String CANNED_RESPONSE = "ACN_FREE <br>\t\t";
+    public static final class UiFlgResponseACN {
+        static final String CANNED_RESPONSE = "ACN_FREE <br>\t\t";
         final String contents;
 
         /**
@@ -256,10 +256,10 @@ public class RemoteGetUiFlgResponseDTO {
     /////////////
     // FIELDS
     /////////////
-    final static Pattern GET_UI_FLG_RESPONSE_PATTERN = Pattern.compile(
+    static final Pattern GET_UI_FLG_RESPONSE_PATTERN = Pattern.compile(
             "^[\\{](?<preamble>([|]\\d)+[|])(?<commands>[^|]+)[|][\\}](?<updsuffix>\\[[^\\]]+\\])(?<acn>.*$)",
             Pattern.CASE_INSENSITIVE);
-    final static String RESPONSE_FORMAT = "{%s%s|}%s%s";
+    static final String RESPONSE_FORMAT = "{%s%s|}%s%s";
 
     public UiFlgResponsePreamble preamble;
     public UiFlgResponseCommmands commands;

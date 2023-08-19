@@ -50,9 +50,9 @@ public class TimeParam extends ArgoApiElementBase {
         OFF
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(TimeParam.class);
-    private final static int MIN_VALUE = 0; // 0:00
-    private final static int MAX_VALUE = 23 * 60 + 59; // 23:59
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimeParam.class);
+    private static final int MIN_VALUE = 0; // 0:00
+    private static final int MAX_VALUE = 23 * 60 + 59; // 23:59
     private final TimeParamType paramType;
     private Optional<Integer> currentValue = Optional.empty();
 
@@ -110,12 +110,12 @@ public class TimeParam extends ArgoApiElementBase {
 
     private static int normalizeTime(int newValue) {
         if (newValue < MIN_VALUE) {
-            logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, MIN_VALUE,
+            LOGGER.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, MIN_VALUE,
                     MIN_VALUE);
             return MIN_VALUE;
         }
         if (newValue > MAX_VALUE) {
-            logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, MAX_VALUE,
+            LOGGER.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, MAX_VALUE,
                     MAX_VALUE);
             return MAX_VALUE;
         }
@@ -203,7 +203,7 @@ public class TimeParam extends ArgoApiElementBase {
             currentValue = Optional.of(fromHhMm(configuredValue.getHour(), configuredValue.getMinute()));
             return Integer.toString(currentValue.orElseThrow());
         } catch (ArgoConfigurationException e) {
-            logger.warn("Retrieving default configured value for {} timer failed. Error: {}", paramType,
+            LOGGER.warn("Retrieving default configured value for {} timer failed. Error: {}", paramType,
                     e.getMessage());
             return defaultResult;
         }

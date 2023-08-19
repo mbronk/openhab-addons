@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class RangeParam extends ArgoApiElementBase {
     private static final Unit<Dimensionless> UNIT = Units.PERCENT;
-    private static final Logger logger = LoggerFactory.getLogger(RangeParam.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final double minValue;
     private final double maxValue;
     private Optional<Number> currentValue = Optional.empty();

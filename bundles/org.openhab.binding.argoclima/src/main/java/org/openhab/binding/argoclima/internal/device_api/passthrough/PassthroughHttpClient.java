@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class PassthroughHttpClient {
-    private static final Logger logger = LoggerFactory.getLogger(PassthroughHttpClient.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(PassthroughHttpClient.class);
     private static final String RPC_POOL_NAME = BINDING_ID + "_apiProxy";
     private static final List<String> HEADERS_TO_IGNORE = List.of("content-length", "content-type", "content-encoding",
             "host", "accept-encoding");
@@ -89,7 +89,7 @@ public class PassthroughHttpClient {
      * @throws Exception In case of startup failure
      */
     public synchronized void start() throws Exception {
-        logger.trace("Starting passthrough http client...");
+        LOGGER.trace("Starting passthrough http client...");
         if (this.isStarted) {
             stop();
         }
@@ -97,7 +97,7 @@ public class PassthroughHttpClient {
         this.rawHttpClient.getContentDecoderFactories().clear(); // Prevent decoding gzip (device doesn't support it).
                                                                  // Stops sending Accept header
         this.isStarted = true;
-        logger.trace("Passthrough http client started");
+        LOGGER.trace("Passthrough http client started");
     }
 
     /**
@@ -136,7 +136,7 @@ public class PassthroughHttpClient {
             }
         }
 
-        logger.info("Pass-through: DEVICE --> UPSTREAM_API: [{} {}], body=[{}]", request.getMethod(), request.getURI(),
+        LOGGER.info("Pass-through: DEVICE --> UPSTREAM_API: [{} {}], body=[{}]", request.getMethod(), request.getURI(),
                 downstreamHttpRequestBody);
 
         return request.send();
@@ -173,7 +173,7 @@ public class PassthroughHttpClient {
         String responseBodyToReturn = overrideBodyToReturn.orElse(response.getContentAsString());
         targetResponse.getWriter().write(responseBodyToReturn);
         targetResponse.setStatus(response.getStatus());
-        logger.info("  [response]: DEVICE <-- UPSTREAM_API: [{} {} {} - {} bytes], body=[{}]", response.getVersion(),
+        LOGGER.info("  [response]: DEVICE <-- UPSTREAM_API: [{} {} {} - {} bytes], body=[{}]", response.getVersion(),
                 response.getStatus(), response.getReason(), response.getContent().length, responseBodyToReturn);
     }
 }

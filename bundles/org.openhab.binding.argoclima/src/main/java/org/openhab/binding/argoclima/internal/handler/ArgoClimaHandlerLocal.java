@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigurationLocal> {
 
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerLocal.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final HttpClient client;
     private final HttpClientFactory clientFactory;

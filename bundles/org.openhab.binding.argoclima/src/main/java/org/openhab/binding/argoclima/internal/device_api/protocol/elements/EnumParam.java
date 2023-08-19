@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementBase {
-    private static final Logger logger = LoggerFactory.getLogger(EnumParam.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(EnumParam.class);
     private Optional<E> currentValue;
     private final Class<E> cls;
 
@@ -70,7 +70,7 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
             try {
                 return Optional.of(Enum.valueOf(cls, newValue));
             } catch (IllegalArgumentException ex) {
-                logger.warn("Failed to convert value: {} to enum. {}", value, ex.getMessage());
+                LOGGER.warn("Failed to convert value: {} to enum. {}", value, ex.getMessage());
                 return Optional.empty();
             }
         }

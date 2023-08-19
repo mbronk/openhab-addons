@@ -214,7 +214,7 @@ public class RemoteArgoApiServerStub {
                                                                                           // threadpool
     private static final String REMOTE_SERVER_PATH = "/UI/UI.php";
 
-    private final Logger logger = LoggerFactory.getLogger(RemoteArgoApiServerStub.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final Set<InetAddress> listenIpAddresses;
     private final int listenPort;
     private final String id;

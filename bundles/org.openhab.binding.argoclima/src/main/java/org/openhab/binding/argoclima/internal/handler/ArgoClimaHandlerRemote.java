@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfigurationRemote> {
 
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerRemote.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final HttpClient client;
     private final TimeZoneProvider timeZoneProvider;
 

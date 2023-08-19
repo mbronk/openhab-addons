@@ -176,7 +176,7 @@ public class DeviceSideUpdateDTO {
     /////////////
     // FIELDS
     /////////////
-    private static final Logger logger = LoggerFactory.getLogger(DeviceSideUpdateDTO.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     /** The {@code CM} part of the request. Seems to be fixed to {@code UI_FLG} for this format */
     public final String command;

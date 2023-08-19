@@ -52,13 +52,13 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
-    private static final Logger logger = LoggerFactory.getLogger(ArgoClimaRemoteDevice.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final InetAddress oemServerHostname;
     private final int oemServerPort;
     private final String username;
     private final String passwordMD5Hash;
-    private final static Pattern REMOTE_API_RESPONSE_EXPECTED = Pattern.compile(
+    private static final Pattern REMOTE_API_RESPONSE_EXPECTED = Pattern.compile(
             "^[\\\\{][|](?<commands>[^|]+)[|](?<localIP>[^|]+)[|](?<lastSeen>[^|]+)[|][\\\\}]\\s*$",
             Pattern.CASE_INSENSITIVE); // Capture group names are used in code!
 

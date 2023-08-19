@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
 @NonNullByDefault
 @Component(service = { ConfigDescriptionProvider.class })
 public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaConfigProvider.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ThingRegistry thingRegistry;
     private static final int SCHEDULE_TIMERS_COUNT = 3;
 

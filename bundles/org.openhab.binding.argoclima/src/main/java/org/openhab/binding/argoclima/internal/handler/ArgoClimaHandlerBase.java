@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfigurationBase> extends BaseThingHandler {
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaHandlerBase.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private Optional<IArgoClimaDeviceAPI> deviceApi = Optional.empty(); // todo
     private Optional<ConfigT> config = Optional.empty();
 
@@ -318,7 +318,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
     protected final void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
         for (Entry<ArgoDeviceSettingType, State> entry : deviceState.entrySet()) {
-            var channelNames = Set.<String>of();
+            var channelNames = Set.<String> of();
             switch (entry.getKey()) {
                 case ACTIVE_TIMER:
                     channelNames = Set.of(ArgoClimaBindingConstants.CHANNEL_ACTIVE_TIMER);

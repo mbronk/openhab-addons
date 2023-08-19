@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class ActiveTimerModeParam extends EnumParam<TimerType> {
-    private static final Logger logger = LoggerFactory.getLogger(ActiveTimerModeParam.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
      * C-tor

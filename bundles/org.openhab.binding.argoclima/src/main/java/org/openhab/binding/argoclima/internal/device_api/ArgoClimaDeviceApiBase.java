@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaDeviceApiBase.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final HttpClient client;
     protected final TimeZoneProvider timeZoneProvider;
     protected final ArgoDeviceStatus deviceStatus;
@@ -125,7 +125,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
      *
      * @return Converted URL
      */
-    protected final static URL newUrl(String server, int port, String path, String query) {
+    protected static final URL newUrl(String server, int port, String path, String query) {
         var uriStr = URIUtil.newURI("http", server, port, path, query);
         try {
             return new URL(uriStr);

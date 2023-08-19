@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class WeekdayParam extends ArgoApiElementBase {
-    private static final Logger logger = LoggerFactory.getLogger(WeekdayParam.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private Optional<EnumSet<Weekday>> currentValue = Optional.empty();
 
     /**

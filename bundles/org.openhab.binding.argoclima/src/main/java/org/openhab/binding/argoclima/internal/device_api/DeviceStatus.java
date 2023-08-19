@@ -52,7 +52,7 @@ class DeviceStatus {
      * @author Mateusz Bronk - Initial contribution
      */
     static class DeviceProperties {
-        private static final Logger logger = LoggerFactory.getLogger(DeviceProperties.class);
+        private static final Logger LOGGER = LoggerFactory.getLogger(DeviceProperties.class);
         private final Optional<String> localIP;
         private final Optional<OffsetDateTime> lastSeen;
         private final Optional<URL> vendorUiUrl;
@@ -118,7 +118,7 @@ class DeviceStatus {
                 return Optional.of(OffsetDateTime.from(DateTimeFormatter.ISO_DATE_TIME.parse(isoDateTime)));
             } catch (DateTimeException ex) {
                 // Swallowing exception (no need to handle - proceed as if the date was never provided)
-                logger.debug("Failed to parse [{}] timestamp: {}. Exception: {}", contextualName, isoDateTime,
+                LOGGER.debug("Failed to parse [{}] timestamp: {}. Exception: {}", contextualName, isoDateTime,
                         ex.getMessage());
                 return Optional.empty();
             }

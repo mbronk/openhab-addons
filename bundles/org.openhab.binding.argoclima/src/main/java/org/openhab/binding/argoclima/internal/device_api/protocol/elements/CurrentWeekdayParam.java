@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class CurrentWeekdayParam extends ArgoApiElementBase {
-    private static final Logger logger = LoggerFactory.getLogger(CurrentWeekdayParam.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
      * C-tor

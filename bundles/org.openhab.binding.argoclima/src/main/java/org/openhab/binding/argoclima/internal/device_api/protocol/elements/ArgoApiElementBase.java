@@ -185,7 +185,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     ///////////
     // FIELDS
     ///////////
-    private static final Logger logger = LoggerFactory.getLogger(ArgoApiElementBase.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ArgoApiElementBase.class);
     protected final IArgoSettingProvider settingsProvider;
 
     /**
@@ -258,7 +258,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         } else if (this.inFlightCommand.map(x -> x.hasExpired()).orElse(false)) {
             confirmPendingCommand(CommandFinalizationReason.EXPIRED);
         } else {
-            logger.warn("Update made, but values mismatch... {} (device) != {} (command)", responseValue,
+            LOGGER.warn("Update made, but values mismatch... {} (device) != {} (command)", responseValue,
                     expectedStateValue);
         }
         return this.toState(); // Return previous state (of the pending command, not the one device just reported)
@@ -384,16 +384,16 @@ public abstract class ArgoApiElementBase implements IArgoElement {
                 .orElse("Unknown");
         switch (reason) {
             case CONFIRMED_APPLIED:
-                logger.info("[{}] Update confirmed!", commandName);
+                LOGGER.info("[{}] Update confirmed!", commandName);
                 break;
             case ABORTED:
-                logger.info("[{}] Command aborted!", commandName);
+                LOGGER.info("[{}] Command aborted!", commandName);
                 break;
             case EXPIRED:
-                logger.info("[{}] Long-pending update found. Cancelling...!", commandName);
+                LOGGER.info("[{}] Long-pending update found. Cancelling...!", commandName);
                 break;
             case SENT_NON_CONFIRMABLE:
-                logger.info("[{}] Update confirmed (in good faith)!", commandName);
+                LOGGER.info("[{}] Update confirmed (in good faith)!", commandName);
                 break;
         }
         synchronized (this) {
@@ -431,7 +431,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         try {
             return Optional.of(Integer.parseInt(value));
         } catch (NumberFormatException e) {
-            logger.warn("The value {} is not a valid integer. Error: {}", value, e.getMessage());
+            LOGGER.warn("The value {} is not a valid integer. Error: {}", value, e.getMessage());
             return Optional.empty();
         }
     }
@@ -452,7 +452,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
     protected static <T extends Number & Comparable<T>> Number adjustRange(T newValue, final T minValue,
             final T maxValue, final Optional<T> step, final String unitDescription) {
         if (newValue.compareTo(minValue) < 0) {
-            logger.warn("Requested value: [{}{}] would exceed minimum value: [{}{}]. Setting: {}{}.", newValue,
+            LOGGER.warn("Requested value: [{}{}] would exceed minimum value: [{}{}]. Setting: {}{}.", newValue,
                     unitDescription, minValue, unitDescription, minValue, unitDescription); // The over-repetition is
                                                                                             // due to SLF4J formatter
                                                                                             // not supporting numbered
@@ -463,7 +463,7 @@ public abstract class ArgoApiElementBase implements IArgoElement {
             return minValue;
         }
         if (newValue.compareTo(maxValue) > 0) {
-            logger.warn("Requested value: [{}{}] would exceed maximum value: [{}{}]. Setting: {}{}.", newValue,
+            LOGGER.warn("Requested value: [{}{}] would exceed maximum value: [{}{}]. Setting: {}{}.", newValue,
                     unitDescription, maxValue, unitDescription, maxValue, unitDescription); // See comment above
             return maxValue;
         }

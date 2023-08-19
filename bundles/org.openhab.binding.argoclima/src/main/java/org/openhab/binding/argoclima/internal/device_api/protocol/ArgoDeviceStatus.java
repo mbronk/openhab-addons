@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class ArgoDeviceStatus implements IArgoSettingProvider {
-    private final Logger logger = LoggerFactory.getLogger(ArgoDeviceStatus.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final IScheduleConfigurationProvider scheduleSettingsProvider;
 
     /**

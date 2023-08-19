@@ -47,7 +47,7 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
-    private final Logger logger = LoggerFactory.getLogger(ArgoClimaLocalDevice.class);
+    private final Logger logger = LoggerFactory.getLogger(getClass());
     private final InetAddress ipAddress; // The direct IP address
     private final Optional<InetAddress> localIpAddress; // The indirect IP address (local subnet) - possibly not
                                                         // reachable if behind NAT (optional)
