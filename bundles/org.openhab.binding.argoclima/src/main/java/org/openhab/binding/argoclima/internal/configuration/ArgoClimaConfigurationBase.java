@@ -26,7 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
-import org.openhab.binding.argoclima.internal.device_api.types.IArgoApiEnum;
+import org.openhab.binding.argoclima.internal.device.api.types.IArgoApiEnum;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**
@@ -45,7 +45,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
      * EnumSet (flags-like)
      *
      * @implNote Ordering is important! The ordinal values start from 0 (0-SUN, 1-MON, ...) and are also used - for
-     *           {@link org.openhab.binding.argoclima.internal.device_api.protocol.elements.CurrentWeekdayParam}
+     *           {@link org.openhab.binding.argoclima.internal.device.api.protocol.elements.CurrentWeekdayParam}
      *
      * @author Mateusz Bronk - Initial contribution
      */
