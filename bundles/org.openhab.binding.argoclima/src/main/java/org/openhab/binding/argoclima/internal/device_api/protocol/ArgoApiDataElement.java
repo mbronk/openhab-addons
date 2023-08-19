@@ -212,6 +212,13 @@ public class ArgoApiDataElement<T extends IArgoElement> {
     }
 
     /**
+     * @see {@link IArgoElement#hasInFlightCommand()}
+     */
+    public final boolean hasInFlightCommand() {
+        return this.rawValue.hasInFlightCommand();
+    }
+
+    /**
      * Check if this element should be sent to device (either has withstanding command or is always sent)
      *
      * @return True if the element needs sending to the device. False - otherwise

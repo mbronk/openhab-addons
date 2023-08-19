@@ -400,7 +400,8 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         }
     }
 
-    private final boolean hasInFlightCommand() {
+    @Override
+    public final boolean hasInFlightCommand() {
         if (inFlightCommand.isEmpty()) {
             return false; // no withstanding command
         }

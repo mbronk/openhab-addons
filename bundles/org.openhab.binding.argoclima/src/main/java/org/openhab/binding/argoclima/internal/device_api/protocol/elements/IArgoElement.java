@@ -79,10 +79,24 @@ public interface IArgoElement {
     public void abortPendingCommand();
 
     /**
-     * Checks if there's any command to be sent to the device (pending = not yet sent or not confirmed by the device
-     * yet)
+     * Checks if there's any command in flight (pending to be sent to the device, or sent and awaiting confirmation - if
+     * confirmable)
+     * <p>
+     * This method is similar to {@link #isUpdatePending()}, but doesn't consider device's current state, only the
+     * existence of non-finalized command
      *
      * @return True if command pending, False otherwise
+     */
+    public boolean hasInFlightCommand();
+
+    /**
+     * Checks if there's any update withstanding to be sent to the device (pending = not yet sent or not confirmed by
+     * the device yet)
+     * <p>
+     * This method is similar to {@link #hasInFlightCommand()}, but also considers device's current state (if the device
+     * reports the desired/commanded state already, it's considered not to have any update pending)
+     *
+     * @return True if update pending, False otherwise
      */
     public boolean isUpdatePending();
 
