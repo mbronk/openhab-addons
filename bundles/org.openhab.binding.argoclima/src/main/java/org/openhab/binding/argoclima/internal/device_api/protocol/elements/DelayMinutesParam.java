@@ -27,8 +27,6 @@ import org.openhab.core.library.unit.Units;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.openhab.core.types.UnDefType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Delay timer element (accepting values in minutes and constrained in both range and precision)
@@ -37,8 +35,6 @@ import org.slf4j.LoggerFactory;
  */
 @NonNullByDefault
 public class DelayMinutesParam extends ArgoApiElementBase {
-
-    private static final Logger logger = LoggerFactory.getLogger(DelayMinutesParam.class);
     private final int minValue;
     private final int maxValue;
     private final int step;
@@ -78,49 +74,19 @@ public class DelayMinutesParam extends ArgoApiElementBase {
         return new QuantityType<Time>(value.get(), Units.MINUTE);
     }
 
+    /**
+     * @see {@link ArgoApiElementBase#adjustRange}
+     */
     private int adjustRange(int newValue) {
-        if (newValue < minValue) {
-            logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
-                    minValue);
-            return minValue;
-        }
-        if (newValue > maxValue) {
-            logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
-                    maxValue);
-            return maxValue;
-        }
-
-        // round to nearest step
-        return (int) Math.round((double) newValue / step) * step;
+        return ArgoApiElementBase.adjustRange(newValue, minValue, maxValue, Optional.of(step), " min").intValue();
     }
 
     /**
-     * Normalizes the incoming value (respecting steps), with amplification of movement
-     * <p>
-     * Ex. if the step is 10, current value is 50 and the new value is 51... while 50 is still a closest, we're moving
-     * to a full next step (60), not to ignore user's intent to change something
-     *
-     * @param newValue the raw value to update
-     * @return Sanitized value (with amplified movement)
+     * @see {@link ArgoApiElementBase#adjustRangeWithAmplification}
      */
     private int adjustRangeWithAmplification(int newValue) {
-        int normalized = adjustRange(newValue);
-
-        if (currentValue.isEmpty() || normalized == newValue || normalized <= minValue || normalized >= maxValue) {
-            return normalized; // there was no previous value or normalization didn't remove any precision or reached a
-                               // boundary -> new normalized value wins
-        }
-
-        final int thisValue = currentValue.orElseThrow();
-
-        if (normalized != thisValue) {
-            return normalized; // the normalized value changed enough to be meaningful -> use it
-        }
-
-        // Value before normalization has moved, but not enough to move a step (and would have been ignored). Let's
-        // amplify that effect and add a new step
-        var movementDirection = Integer.signum(newValue - normalized);
-        return normalized + movementDirection * step;
+        return ArgoApiElementBase.adjustRangeWithAmplification(newValue, currentValue, minValue, maxValue, step, " min")
+                .intValue();
     }
 
     /**

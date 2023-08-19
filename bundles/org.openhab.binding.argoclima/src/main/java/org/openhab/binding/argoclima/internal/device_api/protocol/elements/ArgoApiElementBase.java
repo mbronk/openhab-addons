@@ -418,6 +418,9 @@ public abstract class ArgoApiElementBase implements IArgoElement {
         return inFlightCommand.map(c -> c.deviceCommandToSend.orElse(DEFAULT)).orElse(DEFAULT);
     }
 
+    /////////////
+    // HELPERS
+    /////////////
     /**
      * Utility function trying to convert from String to int
      *
@@ -431,5 +434,83 @@ public abstract class ArgoApiElementBase implements IArgoElement {
             logger.warn("The value {} is not a valid integer. Error: {}", value, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Normalize the value to be within range (and multiple of step, if any)
+     *
+     * @param <T> The number type
+     * @param newValue Value to convert
+     * @param minValue Lower bound
+     * @param maxValue Upper bound
+     * @param step Optional step for the value (result will be rounded to nearest step)
+     * @param unitDescription Unit description (for logging)
+     * @return Range within MIN..MAX bounds (which is a multiple of step). Returned as a {@code Number} for the caller
+     *         to convert back to the desired type. Note we're not casting back to {@code T} as it would need to be an
+     *         unchecked cast
+     */
+    protected static <T extends Number & Comparable<T>> Number adjustRange(T newValue, final T minValue,
+            final T maxValue, final Optional<T> step, final String unitDescription) {
+        if (newValue.compareTo(minValue) < 0) {
+            logger.warn("Requested value: [{}{}] would exceed minimum value: [{}{}]. Setting: {}{}.", newValue,
+                    unitDescription, minValue, unitDescription, minValue, unitDescription); // The over-repetition is
+                                                                                            // due to SLF4J formatter
+                                                                                            // not supporting numbered
+                                                                                            // params, and using full
+                                                                                            // MessageFormat is not only
+                                                                                            // an overkill but also
+                                                                                            // SLOWER
+            return minValue;
+        }
+        if (newValue.compareTo(maxValue) > 0) {
+            logger.warn("Requested value: [{}{}] would exceed maximum value: [{}{}]. Setting: {}{}.", newValue,
+                    unitDescription, maxValue, unitDescription, maxValue, unitDescription); // See comment above
+            return maxValue;
+        }
+
+        if (step.isEmpty()) {
+            return newValue; // No rounding to step value
+        }
+
+        return Math.round(newValue.doubleValue() / step.orElseThrow().doubleValue()) * step.orElseThrow().doubleValue();
+    }
+
+    /**
+     * Normalizes the incoming value (respecting steps), with amplification of movement
+     * <p>
+     * Ex. if the step is 10, current value is 50 and the new value is 51... while 50 is still a closest, we're moving
+     * to a full next step (60), not to ignore user's intent to change something
+     *
+     * @param newValue Value to convert
+     * @param currentValue The current value to amplify (in case normalization wouldn't otherwise change anything). If
+     *            empty, this method doesn't amplify anything
+     * @param minValue Lower bound
+     * @param maxValue Upper bound
+     * @param step Optional step for the value (result will be rounded to nearest step)
+     * @param unitDescription Unit description (for logging)
+     * @return Sanitized value (with amplified movement). Returned as a {@code Number} for the caller
+     *         to convert back to the desired type. Note we're not casting back to {@code T} as it would need to be an
+     *         unchecked cast
+     */
+    protected static <T extends Number & Comparable<T>> Number adjustRangeWithAmplification(T newValue,
+            Optional<T> currentValue, final T minValue, final T maxValue, final T step, final String unitDescription) {
+
+        Number normalized = adjustRange(newValue, minValue, maxValue, Optional.of(step), unitDescription);
+
+        if (currentValue.isEmpty() || normalized.doubleValue() == newValue.doubleValue()
+                || newValue.compareTo(minValue) < 0 || newValue.compareTo(maxValue) > 0) {
+            return normalized; // there was no previous value or normalization didn't remove any precision or reached a
+                               // boundary -> new normalized value wins
+        }
+
+        final Number thisValue = currentValue.orElseThrow();
+        if (normalized.doubleValue() != thisValue.doubleValue()) {
+            return normalized; // the normalized value changed enough to be meaningful on its own-> use it
+        }
+
+        // Value before normalization has moved, but not enough to move a step (and would have been ignored). Let's
+        // amplify that effect and add a new step
+        var movementDirection = Integer.signum((int) (newValue.doubleValue() - normalized.doubleValue()));
+        return normalized.doubleValue() + movementDirection * step.doubleValue();
     }
 }
