@@ -153,7 +153,7 @@ public class WeekdayParam extends ArgoApiElementBase {
         var defaultResult = super.getDeviceApiValue();
         var activeScheduleTimer = isScheduleTimerEnabled();
 
-        if (defaultResult != ArgoDeviceStatus.NO_VALUE || activeScheduleTimer.isEmpty()) {
+        if (!ArgoDeviceStatus.NO_VALUE.equals(defaultResult) || activeScheduleTimer.isEmpty()) {
             return defaultResult; // There's already a pending command recognized by binding, or schedule timer is off -
                                   // we're good to go with the default
         }

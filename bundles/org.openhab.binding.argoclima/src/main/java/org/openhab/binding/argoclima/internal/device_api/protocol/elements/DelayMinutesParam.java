@@ -136,7 +136,8 @@ public class DelayMinutesParam extends ArgoApiElementBase {
     public String getDeviceApiValue() {
         var defaultResult = super.getDeviceApiValue();
 
-        if (defaultResult != ArgoDeviceStatus.NO_VALUE || currentValue.isEmpty() || !isDelayTimerBeingActivated()) {
+        if (!ArgoDeviceStatus.NO_VALUE.equals(defaultResult) || currentValue.isEmpty()
+                || !isDelayTimerBeingActivated()) {
             return defaultResult; // There's already a pending command recognized by binding, or delay timer is has no
                                   // pending command -
                                   // we're good to go with the default
