@@ -28,7 +28,7 @@ import org.openhab.binding.argoclima.internal.device_api.protocol.elements.Curre
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.DelayMinutesParam;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.EnumParam;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.FwVersionParam;
-import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoCommandableElement.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.OnOffParam;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.RangeParam;
 import org.openhab.binding.argoclima.internal.device_api.protocol.elements.TemperatureParam;
@@ -121,8 +121,8 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
     /**
      * The same elements as in {@link #allElements}, but grouped by kind/type for easier access
      */
-    private final Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = allElements.stream()
-            .collect(Collectors.toMap(k -> k.settingType, Function.identity()));
+    private final Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = allElements
+            .stream().collect(Collectors.toMap(k -> k.settingType, Function.identity()));
 
     /**
      * C-tor

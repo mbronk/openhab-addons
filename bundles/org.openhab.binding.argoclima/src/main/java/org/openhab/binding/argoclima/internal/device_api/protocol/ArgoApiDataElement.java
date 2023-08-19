@@ -16,7 +16,8 @@ import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoCommandableElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoCommandableElement.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -37,7 +38,7 @@ import org.openhab.core.types.UnDefType;
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public class ArgoApiDataElement<T extends IArgoElement> {
+public class ArgoApiDataElement<T extends IArgoElement> implements IArgoCommandableElement {
     /**
      * Type of the data element
      *
@@ -120,6 +121,26 @@ public class ArgoApiDataElement<T extends IArgoElement> {
     }
 
     @Override
+    public void abortPendingCommand() {
+        this.rawValue.abortPendingCommand();
+    }
+
+    @Override
+    public boolean isUpdatePending() {
+        return this.rawValue.isUpdatePending();
+    }
+
+    @Override
+    public final boolean hasInFlightCommand() {
+        return this.rawValue.hasInFlightCommand();
+    }
+
+    @Override
+    public void notifyCommandSent() {
+        this.rawValue.notifyCommandSent();
+    }
+
+    @Override
     public String toString() {
         return toString(true);
     }
@@ -136,13 +157,6 @@ public class ArgoApiDataElement<T extends IArgoElement> {
             prefix = this.settingType.toString() + "=";
         }
         return prefix + rawValue.toString();
-    }
-
-    /**
-     * Abort pending command targeting this knob (do not send it anymore, consider current device-side state as stable)
-     */
-    public void abortPendingCommand() {
-        this.rawValue.abortPendingCommand();
     }
 
     /**
@@ -203,36 +217,12 @@ public class ArgoApiDataElement<T extends IArgoElement> {
     }
 
     /**
-     * Check if this element has any withstanding updates (commands not yet confirmed by the device)
-     *
-     * @return True if the element has any updates pending. False - otherwise
-     */
-    public boolean isUpdatePending() {
-        return this.rawValue.isUpdatePending();
-    }
-
-    /**
-     * @see {@link IArgoElement#hasInFlightCommand()}
-     */
-    public final boolean hasInFlightCommand() {
-        return this.rawValue.hasInFlightCommand();
-    }
-
-    /**
      * Check if this element should be sent to device (either has withstanding command or is always sent)
      *
      * @return True if the element needs sending to the device. False - otherwise
      */
     public boolean shouldBeSentToDevice() {
         return this.rawValue.isUpdatePending() || this.rawValue.isAlwaysSent();
-    }
-
-    /**
-     * Notify that the withstanding command has just been sent to the device (and is now pending device-side
-     * confirmation)
-     */
-    public void notifyCommandSent() {
-        this.rawValue.notifyCommandSent();
     }
 
     /**

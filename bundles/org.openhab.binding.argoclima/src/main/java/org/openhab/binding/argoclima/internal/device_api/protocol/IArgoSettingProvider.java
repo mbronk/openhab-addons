@@ -14,7 +14,7 @@ package org.openhab.binding.argoclima.internal.device_api.protocol;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.IScheduleConfigurationProvider;
-import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoCommandableElement.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 
 /**

@@ -422,13 +422,13 @@
 	</channel-type>
 
 	<channel-type id="delayTimer-channel" advanced="true">
-		<item-type>Number</item-type> <!-- Number:Time -->
+		<item-type>Number:Time</item-type> <!-- Number:Time -->
 		<label>Delay timer value</label>
-		<category>Time</category>
-
-		<!-- remote: min: 0:10 <> max 19:50h -->
-		<!-- TODO: nice HH:MM display format -->
-		<state readOnly="false" min="10" max="1190" step="10.0"/>
+		<category>Time</category>		
+		<!-- Argo remote supports a delay param in range of 0:10...19:50 (in 10-minute increments)
+		Note we're not using %unit% here, as default time unit is seconds... which won't be too readable here
+		 -->
+		<state readOnly="false" min="10" max="1190" step="10.0" pattern="%.0f min"/>
 	</channel-type>
 
 

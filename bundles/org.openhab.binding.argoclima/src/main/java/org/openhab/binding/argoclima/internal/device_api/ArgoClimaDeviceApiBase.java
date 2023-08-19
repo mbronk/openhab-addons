@@ -34,7 +34,7 @@ import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoApiDataElement;
 import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStatus;
-import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoElement;
+import org.openhab.binding.argoclima.internal.device_api.protocol.elements.IArgoCommandableElement.IArgoElement;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;

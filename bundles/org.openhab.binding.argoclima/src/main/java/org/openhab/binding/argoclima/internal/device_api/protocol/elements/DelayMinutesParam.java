@@ -21,6 +21,7 @@ import org.openhab.binding.argoclima.internal.device_api.protocol.ArgoDeviceStat
 import org.openhab.binding.argoclima.internal.device_api.protocol.IArgoSettingProvider;
 import org.openhab.binding.argoclima.internal.device_api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.device_api.types.TimerType;
+import org.openhab.core.library.types.IncreaseDecreaseType;
 import org.openhab.core.library.types.QuantityType;
 import org.openhab.core.library.unit.Units;
 import org.openhab.core.types.Command;
@@ -151,15 +152,12 @@ public class DelayMinutesParam extends ArgoApiElementBase {
     /**
      * {@inheritDoc}
      * <p>
-     * Timer delay value is NOT always sent to the device together with other values as long as Delay timer is
-     * available, as it would prolong its value indefinitely (on any other update)
-     *
-     * @implNote This method is not doing anything custom, and has been overridden only to mark that Delay timer differs
-     *           from Schedule timer in this aspect, and the generic logic used here is deliberate
+     * Timer delay value is always sent to the device together with Timer=Delay command
+     * (so that the clock resets)
      */
     @Override
     public boolean isAlwaysSent() {
-        return super.isAlwaysSent(); // ...which yields false
+        return isDelayTimerBeingActivated();
     }
 
     /**
@@ -197,43 +195,61 @@ public class DelayMinutesParam extends ArgoApiElementBase {
     }
 
     /**
+     * Checks if Delay timer is active already (or being commanded to do so)
+     * <p>
+     * Used to defer timer value updates in case there's no timer action ongoing (no need to send the timer value to the
+     * device)
+     *
+     * @return True, if delay timer is currently active on the device, False otherwise
+     */
+    private final boolean isDelayTimerCurrentlyActive() {
+        var currentTimer = EnumParam
+                .fromType(settingsProvider.getSetting(ArgoDeviceSettingType.ACTIVE_TIMER).getState(), TimerType.class);
+
+        return currentTimer.map(t -> t.equals(TimerType.DELAY_TIMER)).orElse(false);
+    }
+
+    /**
      * {@inheritDoc}
      *
      * @implNote Since this method rounds to next step and some updates may be missed, we're forcing any direction
-     *           movements to move a full step. Ex. if the step is 10, current value is 50 and the new value is 51...
-     *           while 50 is still a closest, we're moving to a full next step (60), not to ignore user's intent to
-     *           change something
+     *           movements to move a full step through {@link #adjustRangeWithAmplification(int)}
      */
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        // TODO: SEND IMMEDIATELY?!
-        if (command instanceof QuantityType<?>) {
-            int newValue = ((QuantityType<?>) command).intValue();
-            if (this.currentValue.isEmpty() || this.currentValue.get().intValue() != newValue) { // TODO: if the same,
-                                                                                                 // does not send?!
-                var targetValue = Optional.<Integer>of(adjustRange(newValue));
-                this.currentValue = targetValue;
 
-                // DO *not* send this value back to device, will only happen on schedule param
-                // TODO: if DelayTimer is active -> do it
-                // return new HandleCommandResult(false);
+        int newRawValue;
 
-                var result = HandleCommandResult.accepted(Integer.toString(targetValue.get().intValue()),
-                        valueToState(targetValue));
+        if (command instanceof Number) {
+            newRawValue = ((Number) command).intValue(); // Raw value, not unit-aware
 
-                var currentTimer = EnumParam.fromType(
-                        settingsProvider.getSetting(ArgoDeviceSettingType.ACTIVE_TIMER).getState(), TimerType.class);
+            if (command instanceof QuantityType<?>) { // let's try to get it with unit (opportunistically)
 
-                result.setDeferred(currentTimer.isPresent() && currentTimer.get() != TimerType.DELAY_TIMER); // TODO: if
-                                                                                                             // current
-                                                                                                             // timer is
-                                                                                                             // != delay
-                                                                                                             // -> make
-                // it deferred
-                return result;
+                var inMinutes = ((QuantityType<?>) command).toUnit(Units.MINUTE);
+                if (null != inMinutes) {
+                    newRawValue = inMinutes.intValue();
+                }
             }
-            // return Integer.toString(this.currentValue.get().intValue());
+        } else if (command instanceof IncreaseDecreaseType) {
+            var asCommand = (IncreaseDecreaseType) command;
+            var base = this.currentValue.orElse(adjustRange((this.minValue + this.maxValue) / 2));
+            if (asCommand.equals(IncreaseDecreaseType.INCREASE)) {
+                base += step;
+            } else if (asCommand.equals(IncreaseDecreaseType.DECREASE)) {
+                base -= step;
+            }
+            newRawValue = base;
+        } else {
+            return HandleCommandResult.rejected(); // unsupported type of command
         }
-        return HandleCommandResult.rejected();
+
+        newRawValue = adjustRangeWithAmplification(newRawValue);
+
+        // Not checking if current value is the same as requested (delay timer set resets the clock)
+        this.currentValue = Optional.of(newRawValue);
+
+        // Accept the command (and if it was sent when no timer was active, make it deferred)
+        return HandleCommandResult.accepted(Integer.toString(newRawValue), valueToState(Optional.of(newRawValue)))
+                .setDeferred(!isDelayTimerCurrentlyActive());
     }
 }
