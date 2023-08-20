@@ -18,6 +18,7 @@ import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -110,8 +111,8 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
     private String oemServerAddress = "";
 
     // Note this boilerplate is actually necessary as these values are injected by framework!
-    private Set<Weekday> schedule1DayOfWeek = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1)
-            .weekdays();
+    private Set<Weekday> schedule1DayOfWeek = Objects
+            .requireNonNull(ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1).weekdays());
     private String schedule1OnTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1)
             .startTime();
     private String schedule1OffTime = ArgoClimaConfigProvider.getScheduleDefaults(ScheduleTimerType.SCHEDULE_1)
@@ -157,7 +158,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
      */
     public InetAddress getOemServerAddress() throws ArgoConfigurationException {
         try {
-            return InetAddress.getByName(oemServerAddress);
+            return Objects.requireNonNull(InetAddress.getByName(oemServerAddress));
         } catch (UnknownHostException e) {
             throw new ArgoConfigurationException("Invalid oemServerAddress configuration", oemServerAddress, e);
         }

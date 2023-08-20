@@ -13,6 +13,7 @@
 package org.openhab.binding.argoclima.internal.device.api.protocol.elements;
 
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -127,7 +128,7 @@ public class WeekdayParam extends ArgoApiElementBase {
         if (currentValue.isEmpty()) {
             return "???";
         }
-        return currentValue.orElseThrow().toString();
+        return Objects.requireNonNull(currentValue.orElseThrow().toString());
     }
 
     /**

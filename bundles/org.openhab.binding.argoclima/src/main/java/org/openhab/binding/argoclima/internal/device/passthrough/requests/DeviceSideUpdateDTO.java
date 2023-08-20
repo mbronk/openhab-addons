@@ -17,7 +17,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.xml.bind.DatatypeConverter;
@@ -110,8 +110,8 @@ public class DeviceSideUpdateDTO {
         public UiFlgSetupParam(String rawString, boolean showCleartextPasswords) {
             this.rawString = rawString;
             try {
-                this.bytes = Optional.of(DatatypeConverter.parseHexBinary(rawString));
-                var bb = ByteBuffer.wrap(this.bytes.get());
+                this.bytes = Optional.ofNullable(DatatypeConverter.parseHexBinary(rawString));
+                var bb = ByteBuffer.wrap(this.bytes.orElseThrow());
 
                 // helper structures to parse with
                 var byte32arr = new byte[32];
@@ -245,7 +245,10 @@ public class DeviceSideUpdateDTO {
      */
     public static DeviceSideUpdateDTO fromDeviceRequest(HttpServletRequest request, boolean showCleartextPasswords) {
         Map<String, String> flattenedParams = request.getParameterMap().entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, x -> (x.getValue().length < 1) ? "" : x.getValue()[0]));
+                .collect(TreeMap::new,
+                        (m, v) -> m.put(Objects.requireNonNull(v.getKey()),
+                                (v.getValue().length < 1) ? "" : Objects.requireNonNull(v.getValue()[0])),
+                        TreeMap::putAll);
         return new DeviceSideUpdateDTO(flattenedParams, showCleartextPasswords);
     }
 

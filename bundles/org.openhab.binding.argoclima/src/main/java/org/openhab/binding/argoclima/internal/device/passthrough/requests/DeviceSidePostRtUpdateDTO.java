@@ -15,7 +15,7 @@ package org.openhab.binding.argoclima.internal.device.passthrough.requests;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.TreeMap;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
@@ -86,8 +86,10 @@ public class DeviceSidePostRtUpdateDTO {
         var paramsParsed = new MultiMap<@Nullable String>(); // @Nullable here due to UrlEncoded API
         UrlEncoded.decodeTo(requestBody, paramsParsed, StandardCharsets.US_ASCII);
 
-        Map<String, String> flattenedParams = paramsParsed.keySet().stream()
-                .collect(Collectors.toMap(Objects::requireNonNull, paramsParsed::getString));
+        Map<String, String> flattenedParams = paramsParsed.keySet().stream().collect(TreeMap::new,
+                (m, v) -> m.put(Objects.requireNonNull(v), Objects.requireNonNull(paramsParsed.getString(v))),
+                TreeMap::putAll);
+
         return new DeviceSidePostRtUpdateDTO(flattenedParams);
     }
 

@@ -28,11 +28,11 @@ public class ArgoLocalApiCommunicationException extends Exception {
 
     private static final long serialVersionUID = 7770599701572999260L;
 
-    public ArgoLocalApiCommunicationException(String message) {
+    public ArgoLocalApiCommunicationException(@Nullable String message) {
         super(message);
     }
 
-    public ArgoLocalApiCommunicationException(String message, @Nullable Throwable cause) {
+    public ArgoLocalApiCommunicationException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
     }
 

@@ -139,7 +139,7 @@ public class PassthroughHttpClient {
         LOGGER.info("Pass-through: DEVICE --> UPSTREAM_API: [{} {}], body=[{}]", request.getMethod(), request.getURI(),
                 downstreamHttpRequestBody);
 
-        return request.send();
+        return Objects.requireNonNull(request.send());
     }
 
     /**
@@ -166,7 +166,7 @@ public class PassthroughHttpClient {
 
         for (var header : response.getHeaders()) {
             if (HEADERS_TO_IGNORE.stream().noneMatch(x -> x.equalsIgnoreCase(header.getName()))) {
-                targetResponse.setHeader(header.getName(), header.getValue());
+                targetResponse.setHeader(Objects.requireNonNull(header.getName()), header.getValue());
             }
         }
 

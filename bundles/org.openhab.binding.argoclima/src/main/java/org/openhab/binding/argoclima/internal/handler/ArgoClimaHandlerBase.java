@@ -180,7 +180,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
         try {
             if (initializeFuture != null) {
-                initializeFuture.cancel(true);
+                Objects.requireNonNull(initializeFuture).cancel(true);
             }
         } catch (Exception e) {
             logger.warn("Exception during handler disposal", e);
@@ -633,7 +633,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                 return;// false;
             }
             var valuesToUpdate = this.deviceApi.get().getItemsWithPendingUpdates();
-            // logger.info("Will UPDATE the following items: {}", valuesToUpdate);
+            logger.info("Will UPDATE the following items: {}", valuesToUpdate);
 
             // int attempt = 0;
 
@@ -643,7 +643,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             var triesEndTime = Instant.now()
                     .plus(doNotTalkToDevice ? sendCommdndMaxWaitTimeIndirectMode : sendCommandMaxWaitTime);
 
-            var nextCommandSendTime = Instant.MIN; // 1st send is instant
+            var nextCommandSendTime = Objects.requireNonNull(Instant.MIN); // 1st send is instant
             var nextStateUpdateTime = Instant.now().plus(sendCommandStatusPoolFrequency); // 1st poll is delayed
 
             Optional<Exception> lastException = Optional.empty();
@@ -754,7 +754,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             // settingsUpdateFuture = Optional.of(scheduler.submit(() -> CompletableFuture.supplyAsync(fn)));
             // settingsUpdateFuture = Optional.of(CompletableFuture.supplyAsync(fn, scheduler));
             // settingsUpdateFuture = Optional.of(CompletableFuture.supplyAsync(fn2, scheduler));
-            settingsUpdateFuture = Optional.of(scheduler.submit(fn));
+            settingsUpdateFuture = Optional.ofNullable(scheduler.submit(fn));
 
             // settingsUpdateFuture = Optional.of(scheduler.submit(this::removeme));
         }

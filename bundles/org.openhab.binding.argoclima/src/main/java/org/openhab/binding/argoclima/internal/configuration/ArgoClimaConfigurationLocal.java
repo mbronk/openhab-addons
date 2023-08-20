@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -59,7 +60,7 @@ public class ArgoClimaConfigurationLocal extends ArgoClimaConfigurationBase {
      */
     public InetAddress getHostname() throws ArgoConfigurationException {
         try {
-            return InetAddress.getByName(hostname);
+            return Objects.requireNonNull(InetAddress.getByName(hostname));
         } catch (UnknownHostException e) {
             throw new ArgoConfigurationException("Invalid hostname configuration", hostname, e);
         }
@@ -79,7 +80,11 @@ public class ArgoClimaConfigurationLocal extends ArgoClimaConfigurationBase {
             if (this.localDeviceIP.isBlank()) {
                 return Optional.<InetAddress> empty();
             }
-            return Optional.of(InetAddress.getByName(localDeviceIP));
+            return Optional.ofNullable(InetAddress.getByName(localDeviceIP)); // it's actually not Nullable, but
+                                                                              // InetAddress doesn't have null
+                                                                              // annotations... so this useless runtime
+                                                                              // check spares us one compiler warning
+                                                                              // (yay! ;))
         } catch (UnknownHostException e) {
             throw new ArgoConfigurationException("Invalid localDeviceIP configuration", this.localDeviceIP, e);
         }
@@ -123,7 +128,7 @@ public class ArgoClimaConfigurationLocal extends ArgoClimaConfigurationBase {
         var addresses = new LinkedHashSet<InetAddress>();
         for (var t : stubServerListenAddresses) {
             try {
-                addresses.add(InetAddress.getByName(t));
+                addresses.add(Objects.requireNonNull(InetAddress.getByName(t)));
             } catch (UnknownHostException e) {
                 throw new ArgoConfigurationException(
                         "Invalid Stub server listen address configuration: " + e.getMessage(), t, e);

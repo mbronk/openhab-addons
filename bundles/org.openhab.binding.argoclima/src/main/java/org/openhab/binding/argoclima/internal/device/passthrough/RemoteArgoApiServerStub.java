@@ -358,7 +358,7 @@ public class RemoteArgoApiServerStub {
     private String getNtpResponse(Instant time) {
         DateTimeFormatter fmt = DateTimeFormatter
                 .ofPattern("'NTP 'yyyy-MM-dd'T'HH:mm:ssxxx' UI SERVER (M.A.V. srl)'", Locale.ENGLISH)
-                .withZone(ZoneId.of("GMT"));
+                .withZone(Objects.requireNonNull(ZoneId.of("GMT")));
         return fmt.format(time);
     }
 
@@ -438,7 +438,7 @@ public class RemoteArgoApiServerStub {
      */
     private String postProcessUpstreamResponse(DeviceRequestType requestType, ContentResponse upstreamResponse,
             Optional<ArgoClimaLocalDevice> deviceApi) {
-        var originalResponseBody = upstreamResponse.getContentAsString();
+        var originalResponseBody = Objects.requireNonNull(upstreamResponse.getContentAsString());
 
         if (upstreamResponse.getStatus() != 200) {
             logger.debug(
@@ -449,7 +449,8 @@ public class RemoteArgoApiServerStub {
 
         switch (requestType) {
             case GET_UI_FLG: // Only intercepting GET_UI_FLG response
-                var responseDto = RemoteGetUiFlgResponseDTO.fromResponseString(upstreamResponse.getContentAsString());
+                var responseDto = RemoteGetUiFlgResponseDTO
+                        .fromResponseString(Objects.requireNonNull(upstreamResponse.getContentAsString()));
 
                 deviceApi.ifPresent(api -> {
                     if (api.hasPendingCommands() && responseDto.preamble.flag5hasNewUpdate == 0) { // Will hijack

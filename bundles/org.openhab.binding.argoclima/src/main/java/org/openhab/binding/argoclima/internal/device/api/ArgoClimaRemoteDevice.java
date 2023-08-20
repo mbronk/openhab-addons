@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.text.MessageFormat;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.function.Consumer;
@@ -100,26 +101,26 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         } catch (ArgoLocalApiCommunicationException e) {
             logger.debug("Device not reachable: {}", e.getMessage());
             return new ReachabilityStatus(false,
-                    MessageFormat.format(
+                    Objects.requireNonNull(MessageFormat.format(
                             "Failed to communicate with Argo HVAC remote device at [http://{0}:{1,number,#}{2}]. {3}",
                             this.getDeviceStateQueryUrl().getHost(),
                             this.getDeviceStateQueryUrl().getPort() != -1 ? this.getDeviceStateQueryUrl().getPort()
                                     : this.getDeviceStateQueryUrl().getDefaultPort(),
-                            this.getDeviceStateQueryUrl().getPath(), e.getMessage()));
+                            this.getDeviceStateQueryUrl().getPath(), e.getMessage())));
         }
     }
 
     @Override
     protected URL getDeviceStateQueryUrl() {
         // Hard-coded values are part of ARGO protocol
-        return newUrl(this.oemServerHostname.getHostName(), this.oemServerPort, "/UI/UI.php",
+        return newUrl(Objects.requireNonNull(this.oemServerHostname.getHostName()), this.oemServerPort, "/UI/UI.php",
                 String.format("CM=UI_TC&USN=%s&PSW=%s&HMI=&UPD=0", this.username, this.passwordMD5Hash));
     }
 
     @Override
     protected URL getDeviceStateUpdateUrl() {
         // Hard-coded values are part of ARGO protocol
-        return newUrl(this.oemServerHostname.getHostName(), this.oemServerPort, "/UI/UI.php",
+        return newUrl(Objects.requireNonNull(this.oemServerHostname.getHostName()), this.oemServerPort, "/UI/UI.php",
                 String.format("CM=UI_TC&USN=%s&PSW=%s&HMI=%s&UPD=1", this.username, this.passwordMD5Hash,
                         this.deviceStatus.getDeviceCommandStatus()));
     }
@@ -139,10 +140,11 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
         }
 
         // Group names must match regex above
-        var properties = new DeviceProperties(matcher.group("localIP"), matcher.group("lastSeen"),
-                Optional.of(getWebUiUrl(this.oemServerHostname.getHostName(), this.oemServerPort)));
+        var properties = new DeviceProperties(Objects.requireNonNull(matcher.group("localIP")),
+                Objects.requireNonNull(matcher.group("lastSeen")), Optional.of(
+                        getWebUiUrl(Objects.requireNonNull(this.oemServerHostname.getHostName()), this.oemServerPort)));
 
-        return new DeviceStatus(matcher.group("commands"), properties);
+        return new DeviceStatus(Objects.requireNonNull(matcher.group("commands")), properties);
     }
 
     /**

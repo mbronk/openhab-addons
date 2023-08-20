@@ -12,8 +12,13 @@
  */
 package org.openhab.binding.argoclima.internal.device.passthrough.responses;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -69,16 +74,16 @@ public class RemoteGetUiFlgResponseDTO {
          *
          * @param flags Parsed preamble
          */
-        private UiFlgResponsePreamble(int[] flags) {
-            if (flags.length != 6) {
+        private UiFlgResponsePreamble(final List<Integer> flags) {
+            if (flags.size() != 6) {
                 throw new IllegalArgumentException("flags");
             }
-            this.flag0requestPostUiRt = flags[0]; // When Device sends DEL=1, remote API requests it
-            this.flag1alwaysZero = flags[1];
-            this.flag2alwaysOne = flags[2];
-            this.flag3updateWifiFW = flags[3];
-            this.flag4updateUnitFW = flags[4];
-            this.flag5hasNewUpdate = flags[5];
+            this.flag0requestPostUiRt = flags.get(0); // When Device sends DEL=1, remote API requests it
+            this.flag1alwaysZero = flags.get(1);
+            this.flag2alwaysOne = flags.get(2);
+            this.flag3updateWifiFW = flags.get(3);
+            this.flag4updateUnitFW = flags.get(4);
+            this.flag5hasNewUpdate = flags.get(5);
         }
 
         /**
@@ -92,7 +97,8 @@ public class RemoteGetUiFlgResponseDTO {
             if (!PREAMBLE_RX.matcher(preambleString).matches()) {
                 throw new IllegalArgumentException("preambleString");
             }
-            var flags = Stream.of(preambleString.substring(1).split("[|]")).mapToInt(Integer::parseInt).toArray();
+            var flags = Stream.of(preambleString.substring(1).split("[|]")).<Integer> map(Integer::parseInt)
+                    .collect(Collectors.toUnmodifiableList());
             return new UiFlgResponsePreamble(flags);
         }
 
@@ -115,13 +121,14 @@ public class RemoteGetUiFlgResponseDTO {
      * @author Mateusz Bronk - Initial contribution
      */
     public static final class UiFlgResponseCommmands {
-        final String[] commands = new String[ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT];
+        private final List<String> commands;
 
         /**
          * Default C-tor (empty, if constructed vanilla)
          */
         public UiFlgResponseCommmands() {
-            Arrays.fill(this.commands, ArgoDeviceStatus.NO_VALUE);
+            commands = new ArrayList<String>(Objects.requireNonNull(
+                    Collections.nCopies(ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT, ArgoDeviceStatus.NO_VALUE)));
         }
 
         /**
@@ -129,11 +136,11 @@ public class RemoteGetUiFlgResponseDTO {
          *
          * @param commands The device commands to execute (HMI-like syntax)
          */
-        private UiFlgResponseCommmands(String[] commands) {
-            if (commands.length != ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT) {
+        private UiFlgResponseCommmands(List<String> commands) {
+            if (commands.size() != ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT) {
                 throw new IllegalArgumentException("commands");
             }
-            System.arraycopy(commands, 0, this.commands, 0, ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT);
+            this.commands = new ArrayList<>(commands);
         }
 
         /**
@@ -143,11 +150,11 @@ public class RemoteGetUiFlgResponseDTO {
          * @return This DTO
          */
         public static UiFlgResponseCommmands fromResponseString(String commandString) {
-            String[] values = commandString.split(ArgoDeviceStatus.HMI_ELEMENT_SEPARATOR);
+            var values = commandString.split(ArgoDeviceStatus.HMI_ELEMENT_SEPARATOR);
             if (values.length != ArgoDeviceStatus.HMI_COMMAND_ELEMENT_COUNT) {
                 throw new IllegalArgumentException("commandString");
             }
-            return new UiFlgResponseCommmands(values);
+            return new UiFlgResponseCommmands(Arrays.asList(values));
         }
 
         /**
@@ -304,10 +311,11 @@ public class RemoteGetUiFlgResponseDTO {
             throw new IllegalArgumentException("getUiFlgResponse");
         }
 
-        return new RemoteGetUiFlgResponseDTO(UiFlgResponsePreamble.fromResponseString(matcher.group("preamble")),
-                UiFlgResponseCommmands.fromResponseString(matcher.group("commands")),
-                UiFlgResponseUpd.fromResponseString(matcher.group("updsuffix")),
-                UiFlgResponseACN.fromResponseString(matcher.group("acn")));
+        return new RemoteGetUiFlgResponseDTO(
+                UiFlgResponsePreamble.fromResponseString(Objects.requireNonNull(matcher.group("preamble"))),
+                UiFlgResponseCommmands.fromResponseString(Objects.requireNonNull(matcher.group("commands"))),
+                UiFlgResponseUpd.fromResponseString(Objects.requireNonNull(matcher.group("updsuffix"))),
+                UiFlgResponseACN.fromResponseString(Objects.requireNonNull(matcher.group("acn"))));
     }
 
     /**

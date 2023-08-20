@@ -13,6 +13,7 @@
 package org.openhab.binding.argoclima.internal.handler;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -77,8 +78,9 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
                 || config.getConnectionMode() == ConnectionMode.REMOTE_API_STUB) {
             var passthroughClient = Optional.<PassthroughHttpClient> empty();
             if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY) {
-                passthroughClient = Optional.of(new PassthroughHttpClient(config.getOemServerAddress().getHostAddress(),
-                        config.getOemServerPort(), clientFactory));
+                passthroughClient = Optional.of(
+                        new PassthroughHttpClient(Objects.requireNonNull(config.getOemServerAddress().getHostAddress()),
+                                config.getOemServerPort(), clientFactory));
             }
 
             serverStub = new RemoteArgoApiServerStub(config.getStubServerListenAddresses(), config.getStubServerPort(),

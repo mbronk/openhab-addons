@@ -15,6 +15,7 @@ package org.openhab.binding.argoclima.internal.utils;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -48,7 +49,7 @@ public final class StringUtils {
         }
 
         var rxCaptureRange = "[" + Pattern.quote(stripChars) + "]";
-        var stripCharsCaptureRegex = MessageFormat.format("^{0}+|{0}+$", rxCaptureRange);
+        var stripCharsCaptureRegex = Objects.requireNonNull(MessageFormat.format("^{0}+|{0}+$", rxCaptureRange));
         return str.replaceAll(stripCharsCaptureRegex, "");
     }
 
@@ -65,7 +66,8 @@ public final class StringUtils {
      */
     public static List<String> splitByWholeSeparator(final String str, final String separator) {
         var multiSeparatorPattern = "(" + Pattern.quote(separator) + ")+";
-        var stripBeginAndEndPatterns = MessageFormat.format("^{0}+|{0}+$", multiSeparatorPattern);
+        var stripBeginAndEndPatterns = Objects
+                .requireNonNull(MessageFormat.format("^{0}+|{0}+$", multiSeparatorPattern));
 
         var withoutLeadingAndTrailingSeparators = str.replaceAll(stripBeginAndEndPatterns, "");
         if (withoutLeadingAndTrailingSeparators.isEmpty()) {

@@ -12,12 +12,14 @@
  */
 package org.openhab.binding.argoclima.internal.device.api.protocol;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -120,9 +122,12 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
 
     /**
      * The same elements as in {@link #allElements}, but grouped by kind/type for easier access
+     *
+     * @implNote Not using {@code Collectors.toMap()} due to possible false-positive(!) unchecked warnings w/ the
+     *           accumulator|stream
      */
     private final Map<ArgoDeviceSettingType, ArgoApiDataElement<IArgoElement>> dataElements = allElements.stream()
-            .collect(Collectors.toMap(k -> k.settingType, Function.identity()));
+            .collect(TreeMap::new, (m, v) -> m.put(v.settingType, v), TreeMap::putAll);
 
     /**
      * C-tor
@@ -146,7 +151,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      */
     @Override
     public String toString() {
-        return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
+        return dataElements.entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .map(x -> String.format("%s=%s", x.getKey(), x.getValue().toString(false)))
                 .collect(Collectors.joining(", ", "{", "}"));
     }
@@ -164,7 +169,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
     public Map<ArgoDeviceSettingType, State> getCurrentStateMap() {
         return dataElements.entrySet().stream().sorted((a, b) -> a.getKey().compareTo(b.getKey()))
                 .filter(x -> x.getValue().isReadable())
-                .collect(Collectors.toMap(Map.Entry::getKey, y -> y.getValue().getState()));
+                .collect(TreeMap::new, (m, v) -> m.put(v.getKey(), v.getValue().getState()), TreeMap::putAll);
     }
 
     /**
@@ -173,8 +178,8 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      * @param deviceOutput The device-side 'HMI' update
      */
     public void fromDeviceString(String deviceOutput) {
-        String[] values = deviceOutput.split(HMI_ELEMENT_SEPARATOR);
-        if (values.length != HMI_UPDATE_ELEMENT_COUNT) {
+        var values = Arrays.asList(deviceOutput.split(HMI_ELEMENT_SEPARATOR));
+        if (values.size() != HMI_UPDATE_ELEMENT_COUNT) {
             throw new RuntimeException("Invalid device API response: " + deviceOutput); // TODO: consider changing
                                                                                         // exception type here
         }
@@ -195,20 +200,21 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      * @return The command ready to be sent to the device, effecting *this* state (its withstanding/pending part)
      */
     public String getDeviceCommandStatus() {
-        String[] commands = new String[HMI_COMMAND_ELEMENT_COUNT];
-        Arrays.fill(commands, NO_VALUE);
+        var commands = new ArrayList<String>(
+                Objects.requireNonNull(Collections.nCopies(HMI_COMMAND_ELEMENT_COUNT, NO_VALUE)));
 
         var itemsToSend = dataElements.entrySet().stream().filter(x -> x.getValue().shouldBeSentToDevice()).toList();
         logger.info("Sending {} updates to device {}", itemsToSend.size(),
                 itemsToSend.stream().map(x -> x.getKey().toString()).collect(Collectors.joining(", ")));
 
         itemsToSend.stream().map(x -> x.getValue().toDeviceResponse()).forEach(p -> {
-            if (p.orElseThrow().updateIndex() < 0 || p.orElseThrow().updateIndex() > commands.length) {
+            try {
+                commands.set(p.orElseThrow().updateIndex(), p.orElseThrow().apiValue());
+            } catch (IndexOutOfBoundsException e) {
                 throw new RuntimeException(String.format( // TODO: consider different exception type here
                         "Attempting to set device command %d := %s, while only commands 0..%d are supported",
-                        p.orElseThrow().updateIndex(), p.orElseThrow().apiValue(), commands.length));
+                        p.orElseThrow().updateIndex(), p.orElseThrow().apiValue(), commands.size()));
             }
-            commands[p.orElseThrow().updateIndex()] = p.orElseThrow().apiValue();
         });
 
         return String.join(HMI_ELEMENT_SEPARATOR, commands);
@@ -232,9 +238,6 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      * @return List of items with withstanding updates
      */
     public List<ArgoApiDataElement<IArgoElement>> getItemsWithPendingUpdates() {
-        // logger.info("Items with update pending: {}",
-        // this.dataElements.values().stream().filter(x -> x.isUpdatePending()).toArray());
-
         return this.dataElements.values().stream().filter(x -> x.isUpdatePending())
                 .sorted((x, y) -> Integer.compare(x.statusUpdateRequestIndex, y.statusUpdateRequestIndex))
                 .collect(Collectors.toList());

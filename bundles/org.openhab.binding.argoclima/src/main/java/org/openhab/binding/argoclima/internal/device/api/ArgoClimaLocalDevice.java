@@ -17,6 +17,7 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.function.Consumer;
@@ -88,13 +89,13 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     @Override
     protected URL getDeviceStateQueryUrl() {
         // Hard-coded values are part of ARGO protocol
-        return newUrl(this.ipAddress.getHostName(), this.port, "/", "HMI=&UPD=0");
+        return newUrl(Objects.requireNonNull(this.ipAddress.getHostName()), this.port, "/", "HMI=&UPD=0");
     }
 
     @Override
     protected URL getDeviceStateUpdateUrl() {
         // Hard-coded values are part of ARGO protocol
-        return newUrl(this.ipAddress.getHostName(), this.port, "/",
+        return newUrl(Objects.requireNonNull(this.ipAddress.getHostName()), this.port, "/",
                 String.format("HMI=%s&UPD=1", this.deviceStatus.getDeviceCommandStatus()));
     }
 
@@ -110,12 +111,12 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         } catch (ArgoLocalApiCommunicationException e) {
             logger.debug("Device not reachable: {}", e.getMessage());
             return new ReachabilityStatus(false,
-                    MessageFormat.format(
+                    Objects.requireNonNull(MessageFormat.format(
                             "Failed to communicate with Argo HVAC device at [http://{0}:{1,number,#}{2}]. {3}",
                             this.getDeviceStateQueryUrl().getHost(),
                             this.getDeviceStateQueryUrl().getPort() != -1 ? this.getDeviceStateQueryUrl().getPort()
                                     : this.getDeviceStateQueryUrl().getDefaultPort(),
-                            this.getDeviceStateQueryUrl().getPath(), e.getMessage()));
+                            this.getDeviceStateQueryUrl().getPath(), e.getMessage())));
         }
     }
 

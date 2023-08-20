@@ -14,6 +14,7 @@ package org.openhab.binding.argoclima.internal.device.api.protocol.elements;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.device.api.protocol.IArgoSettingProvider;
@@ -42,7 +43,7 @@ public class CurrentTimeParam extends ArgoApiElementBase {
     }
 
     private static ZonedDateTime utcNow() {
-        return ZonedDateTime.now(ZoneId.of("UTC"));
+        return ZonedDateTime.now(Objects.requireNonNull(ZoneId.of("UTC")));
     }
 
     /**

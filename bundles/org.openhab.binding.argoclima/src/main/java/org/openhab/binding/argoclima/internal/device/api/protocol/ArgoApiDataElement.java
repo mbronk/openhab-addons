@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.argoclima.internal.device.api.protocol;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -167,9 +168,9 @@ public class ArgoApiDataElement<T extends IArgoElement> implements IArgoCommanda
      * @param responseElements All "state" response elements sent by the device (device always sends state of ALL knobs)
      * @return OH-compatible representation of current device state
      */
-    public State fromDeviceResponse(String[] responseElements) {
+    public State fromDeviceResponse(List<String> responseElements) {
         if (this.type == DataElementType.READ_WRITE || this.type == DataElementType.READ_ONLY) {
-            return this.rawValue.updateFromApiResponse(responseElements[queryResponseIndex]);
+            return this.rawValue.updateFromApiResponse(responseElements.get(queryResponseIndex));
             // TODO: err handling
         }
         return UnDefType.NULL; // Write-only elements do not have any state reported

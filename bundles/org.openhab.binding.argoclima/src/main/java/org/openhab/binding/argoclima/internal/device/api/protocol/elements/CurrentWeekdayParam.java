@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.TextStyle;
 import java.util.Locale;
+import java.util.Objects;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
@@ -45,7 +46,7 @@ public class CurrentWeekdayParam extends ArgoApiElementBase {
     }
 
     private static DayOfWeek utcToday() {
-        return ZonedDateTime.now(ZoneId.of("UTC")).getDayOfWeek();
+        return ZonedDateTime.now(Objects.requireNonNull(ZoneId.of("UTC"))).getDayOfWeek();
     }
 
     /**

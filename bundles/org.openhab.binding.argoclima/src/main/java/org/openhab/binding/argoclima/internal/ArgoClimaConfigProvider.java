@@ -109,7 +109,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
         if (!uri.getScheme().equalsIgnoreCase("thing")) {
             return null; // Deliberately not supporting "thing-type" (no dynamic parameters there)
         }
-        ThingUID thingUID = new ThingUID(uri.getSchemeSpecificPart());
+        ThingUID thingUID = new ThingUID(Objects.requireNonNull(uri.getSchemeSpecificPart()));
         if (!thingUID.getBindingId().equals(ArgoClimaBindingConstants.BINDING_ID)) {
             return null;
         }

@@ -166,7 +166,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
                         "API request yielded invalid response status %d %s (expected HTTP 200 OK). URL was: %s",
                         resp.getStatus(), resp.getReason(), url));
             }
-            return resp.getContentAsString();
+            return Objects.requireNonNull(resp.getContentAsString());
         } catch (InterruptedException ex) {
             logger.info("Interrupted...");
             return "";
@@ -194,7 +194,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     protected void updateDevicePropertiesFromDeviceResponse(DeviceStatus.DeviceProperties metadata,
             ArgoDeviceStatus status) {
         var metaProperties = metadata.asPropertiesRaw(this.timeZoneProvider);
-        var responseProperties = Map.of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,
+        var responseProperties = Map.<String, String> of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,
                 status.getSetting(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION).toString(false));
 
         synchronized (this) {
