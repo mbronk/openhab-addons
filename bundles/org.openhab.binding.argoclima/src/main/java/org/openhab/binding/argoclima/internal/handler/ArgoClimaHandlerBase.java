@@ -78,6 +78,8 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     private final Duration sendCommandMaxWaitTime; // = Duration.ofSeconds(30);
     private final Duration sendCommdndMaxWaitTimeIndirectMode; // = Duration.ofSeconds(30);
 
+    // TODO: General: https://github.com/openhab/openhab-addons/issues/1289
+    // https://eclipsesource.com/blogs/2013/11/06/get-rid-of-your-stringutils/
     public ArgoClimaHandlerBase(Thing thing, boolean awaitConfirmationAfterSend, Duration poolFrequencyAfterSend,
             Duration sendRetryFrequency, Duration sendMaxRetryTime, Duration sendMaxWaitTimeIndirect) {
         super(thing);

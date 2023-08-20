@@ -15,12 +15,12 @@ package org.openhab.binding.argoclima.internal.device.api.protocol.elements;
 import java.util.EnumSet;
 import java.util.Optional;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
 import org.openhab.binding.argoclima.internal.device.api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device.api.protocol.IArgoSettingProvider;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
+import org.openhab.binding.argoclima.internal.utils.StringUtils;
 import org.openhab.core.library.types.StringType;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;

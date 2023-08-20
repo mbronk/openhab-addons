@@ -17,17 +17,16 @@ import java.net.UnknownHostException;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 
-import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
 import org.openhab.binding.argoclima.internal.device.api.types.IArgoApiEnum;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
+import org.openhab.binding.argoclima.internal.utils.StringUtils;
 
 /**
  * The {@link ArgoClimaConfigurationBase} class contains fields mapping thing configuration parameters.
@@ -196,7 +195,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
             if (items.length == 1 && !(items[0] instanceof Weekday)) {
                 // Text based configuration -> falling back to string parse
                 var strValue = StringUtils.strip(items[0].toString(), "[]- \t\"'").trim();
-                var daysStr = Arrays.stream(StringUtils.splitByWholeSeparator(strValue, ","));
+                var daysStr = StringUtils.splitByWholeSeparator(strValue, ",").stream();
 
                 var result = EnumSet.noneOf(Weekday.class);
                 daysStr.map(ds -> Weekday.valueOf(ds)).forEach(wd -> result.add(wd));
