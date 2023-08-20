@@ -16,7 +16,7 @@ import java.time.LocalTime;
 import java.util.EnumSet;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
+import org.openhab.binding.argoclima.internal.device.api.types.Weekday;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 
 /**

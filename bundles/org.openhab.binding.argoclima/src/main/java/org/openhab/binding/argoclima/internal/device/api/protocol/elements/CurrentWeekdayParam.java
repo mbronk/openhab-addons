@@ -20,8 +20,8 @@ import java.util.Locale;
 import java.util.Objects;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationBase.Weekday;
 import org.openhab.binding.argoclima.internal.device.api.protocol.IArgoSettingProvider;
+import org.openhab.binding.argoclima.internal.device.api.types.Weekday;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.slf4j.Logger;
