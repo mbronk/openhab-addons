@@ -123,7 +123,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         try {
             return new URL(uriStr);
         } catch (MalformedURLException e) {
-            throw new RuntimeException("Failed to build url from: " + uriStr, e);
+            throw new IllegalArgumentException("Failed to build url from: " + uriStr, e);
         }
     }
 
