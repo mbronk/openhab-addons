@@ -407,15 +407,14 @@ public abstract class ArgoApiElementBase implements IArgoElement {
             return false; // no withstanding command
         }
 
-        if (!inFlightCommand.map(c -> c.handled).orElse(false)) {
-            return false; // last command was not handled correctly - there's nothing to update
-        }
-        return true;
+        // If last command was not handled correctly -> there's nothing to update
+        return inFlightCommand.map(c -> c.handled).orElse(false);
     }
 
     private final String getInFlightCommandsRawValueOrDefault() {
-        final String DEFAULT = "N/A";
-        return inFlightCommand.map(c -> c.deviceCommandToSend.orElse(DEFAULT)).orElse(DEFAULT);
+        final String valueNotAvailablePlaceholder = "N/A";
+        return inFlightCommand.map(c -> c.deviceCommandToSend.orElse(valueNotAvailablePlaceholder))
+                .orElse(valueNotAvailablePlaceholder);
     }
 
     /////////////
@@ -494,7 +493,6 @@ public abstract class ArgoApiElementBase implements IArgoElement {
      */
     protected static <T extends Number & Comparable<T>> Number adjustRangeWithAmplification(T newValue,
             Optional<T> currentValue, final T minValue, final T maxValue, final T step, final String unitDescription) {
-
         Number normalized = adjustRange(newValue, minValue, maxValue, Optional.of(step), unitDescription);
 
         if (currentValue.isEmpty() || normalized.doubleValue() == newValue.doubleValue()

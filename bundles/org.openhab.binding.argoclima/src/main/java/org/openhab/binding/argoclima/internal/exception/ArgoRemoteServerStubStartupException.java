@@ -27,9 +27,6 @@ public class ArgoRemoteServerStubStartupException extends Exception {
 
     private static final long serialVersionUID = 3798832375487523670L;
 
-    /**
-     * @param message
-     */
     public ArgoRemoteServerStubStartupException(String message) {
         super(message);
     }

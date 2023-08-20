@@ -38,25 +38,25 @@ public class RemoteGetUiFlgResponseDTO {
      * @author Mateusz Bronk - Initial contribution
      */
     public static final class UiFlgResponsePreamble {
-        static final Pattern preambleRx = Pattern.compile("^[|](\\d[|]){6}$");
+        static final Pattern PREAMBLE_RX = Pattern.compile("^[|](\\d[|]){6}$");
 
-        /** Request the HVAC to send an immediate update via POST (used on cloud-side updates) */
-        public int Flag_0_Request_POST_UI_RT = 0;
+        /** Request the HVAC to send an immediate update via POST UI_RT (used on cloud-side updates) */
+        public int flag0requestPostUiRt = 0;
 
         /** Unknown purpose, always zero */
-        public int Flag_1_Always_Zero = 0;
+        public int flag1alwaysZero = 0;
 
         /** Unknown purpose, always one */
-        public int Flag_2_Always_One = 1;
+        public int flag2alwaysOne = 1;
 
         /** Request to update WiFi firmware of the device */
-        public int Flag_3_Update_Wifi_FW = 0;
+        public int flag3updateWifiFW = 0;
 
         /** Request to update Unit firmware of the device */
-        public int Flag_4_Update_Unit_FW = 0;
+        public int flag4updateUnitFW = 0;
 
         /** Cloud has new updates for the device - request to apply (silently, with no beep) */
-        public int Flag_5_Has_New_Update = 0;
+        public int flag5hasNewUpdate = 0;
 
         /**
          * Default C-tor (empty, if constructed vanilla)
@@ -73,12 +73,12 @@ public class RemoteGetUiFlgResponseDTO {
             if (flags.length != 6) {
                 throw new IllegalArgumentException("flags");
             }
-            this.Flag_0_Request_POST_UI_RT = flags[0]; // When Device sends DEL=1, remote API requests it
-            this.Flag_1_Always_Zero = flags[1];
-            this.Flag_2_Always_One = flags[2];
-            this.Flag_3_Update_Wifi_FW = flags[3];
-            this.Flag_4_Update_Unit_FW = flags[4];
-            this.Flag_5_Has_New_Update = flags[5];
+            this.flag0requestPostUiRt = flags[0]; // When Device sends DEL=1, remote API requests it
+            this.flag1alwaysZero = flags[1];
+            this.flag2alwaysOne = flags[2];
+            this.flag3updateWifiFW = flags[3];
+            this.flag4updateUnitFW = flags[4];
+            this.flag5hasNewUpdate = flags[5];
         }
 
         /**
@@ -89,7 +89,7 @@ public class RemoteGetUiFlgResponseDTO {
          */
         public static UiFlgResponsePreamble fromResponseString(String preambleString) {
             // Preamble: |1|0|1|1|0|0|
-            if (!preambleRx.matcher(preambleString).matches()) {
+            if (!PREAMBLE_RX.matcher(preambleString).matches()) {
                 throw new IllegalArgumentException("preambleString");
             }
             var flags = Stream.of(preambleString.substring(1).split("[|]")).mapToInt(Integer::parseInt).toArray();
@@ -102,8 +102,8 @@ public class RemoteGetUiFlgResponseDTO {
          * @return Preamble in proto-friendly format
          */
         public String toResponseString() {
-            return String.format("|%d|%d|%d|%d|%d|%d|", Flag_0_Request_POST_UI_RT, Flag_1_Always_Zero,
-                    Flag_2_Always_One, Flag_3_Update_Wifi_FW, Flag_4_Update_Unit_FW, Flag_5_Has_New_Update);
+            return String.format("|%d|%d|%d|%d|%d|%d|", flag0requestPostUiRt, flag1alwaysZero, flag2alwaysOne,
+                    flag3updateWifiFW, flag4updateUnitFW, flag5hasNewUpdate);
         }
     }
 

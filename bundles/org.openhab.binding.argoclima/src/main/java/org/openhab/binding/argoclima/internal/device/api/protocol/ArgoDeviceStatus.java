@@ -203,12 +203,12 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
                 itemsToSend.stream().map(x -> x.getKey().toString()).collect(Collectors.joining(", ")));
 
         itemsToSend.stream().map(x -> x.getValue().toDeviceResponse()).forEach(p -> {
-            if (p.orElseThrow().getLeft() < 0 || p.orElseThrow().getLeft() > commands.length) {
+            if (p.orElseThrow().updateIndex() < 0 || p.orElseThrow().updateIndex() > commands.length) {
                 throw new RuntimeException(String.format( // TODO: consider different exception type here
                         "Attempting to set device command %d := %s, while only commands 0..%d are supported",
-                        p.orElseThrow().getLeft(), p.orElseThrow().getRight(), commands.length));
+                        p.orElseThrow().updateIndex(), p.orElseThrow().apiValue(), commands.length));
             }
-            commands[p.orElseThrow().getLeft()] = p.orElseThrow().getRight();
+            commands[p.orElseThrow().updateIndex()] = p.orElseThrow().apiValue();
         });
 
         return String.join(HMI_ELEMENT_SEPARATOR, commands);

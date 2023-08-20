@@ -36,9 +36,6 @@ public class ArgoConfigurationException extends Exception {
         return String.format("%s. Value: [%s]", message, paramValue);
     }
 
-    /**
-     * @param message
-     */
     public ArgoConfigurationException(String message) {
         super(message);
         this.rawValue = "";

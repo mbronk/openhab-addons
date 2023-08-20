@@ -193,7 +193,6 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
      */
     protected void updateDevicePropertiesFromDeviceResponse(DeviceStatus.DeviceProperties metadata,
             ArgoDeviceStatus status) {
-
         var metaProperties = metadata.asPropertiesRaw(this.timeZoneProvider);
         var responseProperties = Map.of(ArgoClimaBindingConstants.PROPERTY_UNIT_FW,
                 status.getSetting(ArgoDeviceSettingType.UNIT_FIRMWARE_VERSION).toString(false));

@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.device.api.protocol.ArgoApiDataElement;
 import org.openhab.binding.argoclima.internal.device.api.protocol.elements.IArgoCommandableElement.IArgoElement;
@@ -32,6 +31,8 @@ import org.openhab.core.types.State;
  */
 @NonNullByDefault
 public interface IArgoClimaDeviceAPI {
+    public static record ReachabilityStatus(Boolean isReachable, String unreachabilityReason) {
+    }
 
     /**
      * Check if Argo device is reachable (this check MAY trigger device communications!)
@@ -39,9 +40,9 @@ public interface IArgoClimaDeviceAPI {
      * For local connection the checking is live (and synchronous!).
      * For remote connection, the status is updated based off of last device's communication
      *
-     * @return A Pair of {@code <REACHABLE, ERROR (if unreachable)>}
+     * @return A 2-tuple with status: {@code <REACHABLE, ERROR (if unreachable)>}
      */
-    Pair<Boolean, String> isReachable();
+    ReachabilityStatus isReachable();
 
     /**
      * Query the Argo device for updated state.

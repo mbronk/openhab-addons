@@ -21,7 +21,6 @@ import java.util.Optional;
 import java.util.SortedMap;
 import java.util.function.Consumer;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
@@ -100,17 +99,17 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     }
 
     @Override
-    public final Pair<Boolean, String> isReachable() {
+    public final ReachabilityStatus isReachable() {
         try {
             var status = extractDeviceStatusFromResponse(pollForCurrentStatusFromDeviceSync(getDeviceStateQueryUrl()));
 
             this.deviceStatus.fromDeviceString(status.getCommandString());
             this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
 
-            return Pair.of(true, "");
+            return new ReachabilityStatus(true, "");
         } catch (ArgoLocalApiCommunicationException e) {
             logger.debug("Device not reachable: {}", e.getMessage());
-            return Pair.of(false,
+            return new ReachabilityStatus(false,
                     MessageFormat.format(
                             "Failed to communicate with Argo HVAC device at [http://{0}:{1,number,#}{2}]. {3}",
                             this.getDeviceStateQueryUrl().getHost(),

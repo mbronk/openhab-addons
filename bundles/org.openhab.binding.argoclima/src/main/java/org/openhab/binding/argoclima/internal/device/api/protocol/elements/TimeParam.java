@@ -224,7 +224,6 @@ public class TimeParam extends ArgoApiElementBase {
             newRawValue = ((Number) command).intValue(); // Raw value, not unit-aware
 
             if (command instanceof QuantityType<?>) { // let's try to get it with unit (opportunistically)
-
                 var inMinutes = ((QuantityType<?>) command).toUnit(Units.MINUTE);
                 if (null != inMinutes) {
                     newRawValue = inMinutes.intValue();

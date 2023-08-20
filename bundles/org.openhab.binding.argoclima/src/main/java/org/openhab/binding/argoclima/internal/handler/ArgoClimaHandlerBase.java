@@ -67,25 +67,25 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     private @Nullable ScheduledFuture<?> refreshTask;
     private @Nullable Future<?> initializeFuture;
     private Optional<Future<?>> settingsUpdateFuture = Optional.empty();
-    private final int MAX_API_RETRIES = 3;
+    private static final int MAX_API_RETRIES = 3;
     // private boolean forceRefresh = false;
     private long lastRefreshTime = 0;
     private long apiRetries = 0;
     // private final int MAX_UPDATE_RETRIES = 3;
-    private final boolean SEND_COMMAND_AWAIT_CONFIRMATION; // = true;
-    private final Duration SEND_COMMAND_STATUS_POLL_FREQUENCY; // = Duration.ofSeconds(3);
-    private final Duration SEND_COMMAND_RESUBMIT_FREQUENCY; // = Duration.ofSeconds(10);
-    private final Duration SEND_COMMAND_MAX_WAIT_TIME; // = Duration.ofSeconds(30);
-    private final Duration SEND_COMMAND_MAX_WAIT_TIME_INDIRECT; // = Duration.ofSeconds(30);
+    private final boolean sendCommandAwaitConfirmation; // = true;
+    private final Duration sendCommandStatusPoolFrequency; // = Duration.ofSeconds(3);
+    private final Duration sendCommandResubmitFrequency; // = Duration.ofSeconds(10);
+    private final Duration sendCommandMaxWaitTime; // = Duration.ofSeconds(30);
+    private final Duration sendCommdndMaxWaitTimeIndirectMode; // = Duration.ofSeconds(30);
 
     public ArgoClimaHandlerBase(Thing thing, boolean awaitConfirmationAfterSend, Duration poolFrequencyAfterSend,
             Duration sendRetryFrequency, Duration sendMaxRetryTime, Duration sendMaxWaitTimeIndirect) {
         super(thing);
-        this.SEND_COMMAND_AWAIT_CONFIRMATION = awaitConfirmationAfterSend;
-        this.SEND_COMMAND_STATUS_POLL_FREQUENCY = poolFrequencyAfterSend;
-        this.SEND_COMMAND_RESUBMIT_FREQUENCY = sendRetryFrequency;
-        this.SEND_COMMAND_MAX_WAIT_TIME = sendMaxRetryTime;
-        this.SEND_COMMAND_MAX_WAIT_TIME_INDIRECT = sendMaxWaitTimeIndirect;
+        this.sendCommandAwaitConfirmation = awaitConfirmationAfterSend;
+        this.sendCommandStatusPoolFrequency = poolFrequencyAfterSend;
+        this.sendCommandResubmitFrequency = sendRetryFrequency;
+        this.sendCommandMaxWaitTime = sendMaxRetryTime;
+        this.sendCommdndMaxWaitTimeIndirectMode = sendMaxWaitTimeIndirect;
     }
 
     protected abstract ConfigT getConfigInternal() throws ArgoConfigurationException;
@@ -224,7 +224,6 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
     @Override
     public final void handleCommand(ChannelUID channelUID, Command command) {
-
         if (command instanceof RefreshType) {
             sendCommandsToDeviceAwaitConfirmation(true); // Irrespective of channel (the API gets all data points in
                                                          // one go)
@@ -495,7 +494,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             // TODO: do a few retries here?
             var isAlive = this.deviceApi.get().isReachable();
 
-            if (isAlive.getLeft()) {
+            if (isAlive.isReachable()) {
                 updateStatus(ThingStatus.ONLINE);
                 // this.updateThingProperties(Map.of(ArgoClimaBindingConstants.PROPERTY_CPU_ID, "something"));
                 updateStateFromDevice(true);
@@ -532,7 +531,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
                 return;
             }
-            message = isAlive.getRight();
+            message = isAlive.unreachabilityReason();
         }
 
         // if (!clientSocket.isPresent()) {
@@ -609,12 +608,10 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     }
 
     private final void sendCommandsToDeviceAwaitConfirmation(boolean forceRefresh) {
-
         boolean doNotTalkToDevice = (this.config.get().getRefreshInterval() == 0); // TODO: this needs to be on the
                                                                                    // separate setting and not interval
-
-        if (SEND_COMMAND_STATUS_POLL_FREQUENCY.isNegative() || SEND_COMMAND_RESUBMIT_FREQUENCY.isNegative()
-                || SEND_COMMAND_MAX_WAIT_TIME.isNegative()) {
+        if (sendCommandStatusPoolFrequency.isNegative() || sendCommandResubmitFrequency.isNegative()
+                || sendCommandMaxWaitTime.isNegative()) {
             throw new IllegalArgumentException("The frequency cannot be negative");
         }
         // TODO: paramcheck (duration > 0)
@@ -642,17 +639,17 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             // // Instant lastStatusRefreshTime = Instant.MIN;
 
             var triesEndTime = Instant.now()
-                    .plus(doNotTalkToDevice ? SEND_COMMAND_MAX_WAIT_TIME_INDIRECT : SEND_COMMAND_MAX_WAIT_TIME);
+                    .plus(doNotTalkToDevice ? sendCommdndMaxWaitTimeIndirectMode : sendCommandMaxWaitTime);
 
             var nextCommandSendTime = Instant.MIN; // 1st send is instant
-            var nextStateUpdateTime = Instant.now().plus(SEND_COMMAND_STATUS_POLL_FREQUENCY); // 1st poll is delayed
+            var nextStateUpdateTime = Instant.now().plus(sendCommandStatusPoolFrequency); // 1st poll is delayed
 
             Optional<Exception> lastException = Optional.empty();
             while (true) { // Handles both polling as well as retries
                 // attempt++;
                 try {
                     if (Instant.now().isAfter(nextCommandSendTime)) {
-                        nextCommandSendTime = Instant.now().plus(SEND_COMMAND_RESUBMIT_FREQUENCY);
+                        nextCommandSendTime = Instant.now().plus(sendCommandResubmitFrequency);
                         if (!this.deviceApi.get().hasPendingCommands()) {
                             if (forceRefresh) {
                                 updateStateFromDevice(doNotTalkToDevice);
@@ -681,13 +678,13 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                         }
                     }
 
-                    if (!SEND_COMMAND_AWAIT_CONFIRMATION) {
+                    if (!sendCommandAwaitConfirmation) {
                         return; // Nothing to do
                     }
 
                     if (Instant.now().isAfter(nextStateUpdateTime)) {
-                        nextStateUpdateTime = Instant.now().plus(SEND_COMMAND_STATUS_POLL_FREQUENCY);// Note: the device
-                                                                                                     // takes
+                        nextStateUpdateTime = Instant.now().plus(sendCommandStatusPoolFrequency);// Note: the device
+                                                                                                 // takes
                         // long to process
                         // commands. Giving it a few sec. before
                         // re-confirming
@@ -774,7 +771,6 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
     private final boolean handleIndividualSettingCommand(ArgoDeviceSettingType settingType, Command command,
             ChannelUID channelUID) {
-
         if (command instanceof RefreshType) {
             // TODO: handle data refresh
             // set value to undef for a while?? drop pending state!!

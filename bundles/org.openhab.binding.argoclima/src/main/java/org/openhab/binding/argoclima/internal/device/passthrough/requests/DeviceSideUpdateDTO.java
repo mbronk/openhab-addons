@@ -23,7 +23,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.xml.bind.DatatypeConverter;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.openhab.binding.argoclima.internal.device.api.protocol.ArgoDeviceStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,7 +200,7 @@ public class DeviceSideUpdateDTO {
 
     /**
      * The {@code HMI} part of the request. Carries current status of the HVAC and may be parsed using
-     * {@link ArgoDeviceStatus#fromDeviceString(String) }
+     * {@link org.openhab.binding.argoclima.internal.device.api.protocol.ArgoDeviceStatus#fromDeviceString(String) }
      */
     public final String currentValues;
 

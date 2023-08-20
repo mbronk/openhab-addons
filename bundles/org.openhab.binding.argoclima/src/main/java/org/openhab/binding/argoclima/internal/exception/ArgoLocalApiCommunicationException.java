@@ -28,21 +28,12 @@ public class ArgoLocalApiCommunicationException extends Exception {
 
     private static final long serialVersionUID = 7770599701572999260L;
 
-    /**
-     * @param message
-     */
     public ArgoLocalApiCommunicationException(String message) {
         super(message);
-        // TODO Auto-generated constructor stub
     }
 
-    /**
-     * @param message
-     * @param cause
-     */
     public ArgoLocalApiCommunicationException(String message, @Nullable Throwable cause) {
         super(message, cause);
-        // TODO Auto-generated constructor stub
     }
 
     @Override

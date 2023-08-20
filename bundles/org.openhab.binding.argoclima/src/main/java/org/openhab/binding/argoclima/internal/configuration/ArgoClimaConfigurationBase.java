@@ -23,7 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
 import org.openhab.binding.argoclima.internal.device.api.types.IArgoApiEnum;
@@ -210,76 +210,79 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
         }
     }
 
+    record ConfigParam<K> (K paramValue, String paramName) {
+    }
+
     @Override
     public EnumSet<Weekday> getScheduleDayOfWeek(ScheduleTimerType scheduleType) throws ArgoConfigurationException {
-        Pair<Set<Weekday>, String> configValue;
+        ConfigParam<Set<Weekday>> configValue;
         switch (scheduleType) {
             case SCHEDULE_1:
-                configValue = Pair.of(schedule1DayOfWeek, "schedule1DayOfWeek");
+                configValue = new ConfigParam<>(schedule1DayOfWeek, "schedule1DayOfWeek");
                 break;
             case SCHEDULE_2:
-                configValue = Pair.of(schedule2DayOfWeek, "schedule2DayOfWeek");
+                configValue = new ConfigParam<>(schedule2DayOfWeek, "schedule2DayOfWeek");
                 break;
             case SCHEDULE_3:
-                configValue = Pair.of(schedule3DayOfWeek, "schedule3DayOfWeek");
+                configValue = new ConfigParam<>(schedule3DayOfWeek, "schedule3DayOfWeek");
                 break;
             default:
                 throw new IllegalArgumentException("Invalid schedule timer: " + scheduleType.toString());
         }
 
-        if (configValue.getLeft().isEmpty()) {
+        if (configValue.paramValue().isEmpty()) {
             return ArgoClimaConfigProvider.getScheduleDefaults(scheduleType).weekdays();
         }
-        return canonizeWeekdaysAfterDeserialization(configValue.getLeft(), configValue.getRight());
+        return canonizeWeekdaysAfterDeserialization(configValue.paramValue(), configValue.paramName());
     }
 
     @Override
     public LocalTime getScheduleOnTime(ScheduleTimerType scheduleType) throws ArgoConfigurationException {
-        Pair<String, String> configValue;
+        ConfigParam<String> configValue;
         switch (scheduleType) {
             case SCHEDULE_1:
-                configValue = Pair.of(schedule1OnTime, "schedule1OnTime");
+                configValue = new ConfigParam<>(schedule1OnTime, "schedule1OnTime");
                 break;
             case SCHEDULE_2:
-                configValue = Pair.of(schedule2OnTime, "schedule2OnTime");
+                configValue = new ConfigParam<>(schedule2OnTime, "schedule2OnTime");
                 break;
             case SCHEDULE_3:
-                configValue = Pair.of(schedule3OnTime, "schedule3OnTime");
+                configValue = new ConfigParam<>(schedule3OnTime, "schedule3OnTime");
                 break;
             default:
                 throw new IllegalArgumentException("Invalid schedule timer: " + scheduleType.toString());
         }
 
         try {
-            return LocalTime.parse(configValue.getLeft());
+            return LocalTime.parse(configValue.paramValue());
         } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException(String.format("Invalid %s format", configValue.getRight()),
-                    configValue.getLeft(), e);
+            throw new ArgoConfigurationException(String.format("Invalid %s format", configValue.paramName()),
+                    configValue.paramValue(), e);
         }
     }
 
     @Override
     public LocalTime getScheduleOffTime(ScheduleTimerType scheduleType) throws ArgoConfigurationException {
-        Pair<String, String> configValue;
+        ConfigParam<String> configValue;
         switch (scheduleType) {
             case SCHEDULE_1:
-                configValue = Pair.of(schedule1OffTime, "schedule1OffTime");
+                configValue = new ConfigParam<>(schedule1OffTime, "schedule1OffTime");
                 break;
             case SCHEDULE_2:
-                configValue = Pair.of(schedule2OffTime, "schedule2OffTime");
+                configValue = new ConfigParam<>(schedule2OffTime, "schedule2OffTime");
                 break;
             case SCHEDULE_3:
-                configValue = Pair.of(schedule3OffTime, "schedule3OffTime");
+                configValue = new ConfigParam<>(schedule3OffTime, "schedule3OffTime");
                 break;
             default:
                 throw new IllegalArgumentException("Invalid schedule timer: " + scheduleType.toString());
         }
 
         try {
-            return LocalTime.parse(configValue.getLeft());
+            return LocalTime.parse(configValue.paramValue());
         } catch (DateTimeParseException e) {
-            throw new ArgoConfigurationException(String.format("Invalid %s format", configValue.getRight()),
-                    configValue.getLeft(), e);
+            throw new ArgoConfigurationException(String.format("Invalid %s format", configValue.paramName()),
+                    configValue.paramValue(), e);
         }
     }
 
@@ -296,7 +299,7 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
      * @return String param value (if parsed correctly), or the default value post-fixed with {@code [raw]} - on parse
      *         failure.
      */
-    protected static <T> String getOrDefault(ConfigValueSupplier<T> fn) {
+    protected static <@NonNull T> String getOrDefault(ConfigValueSupplier<T> fn) {
         try {
             return fn.get().toString();
         } catch (ArgoConfigurationException e) {

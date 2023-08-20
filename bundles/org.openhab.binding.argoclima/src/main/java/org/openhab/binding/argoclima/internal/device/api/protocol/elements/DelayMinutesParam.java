@@ -184,14 +184,12 @@ public class DelayMinutesParam extends ArgoApiElementBase {
      */
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-
         int newRawValue;
 
         if (command instanceof Number) {
             newRawValue = ((Number) command).intValue(); // Raw value, not unit-aware
 
             if (command instanceof QuantityType<?>) { // let's try to get it with unit (opportunistically)
-
                 var inMinutes = ((QuantityType<?>) command).toUnit(Units.MINUTE);
                 if (null != inMinutes) {
                     newRawValue = inMinutes.intValue();

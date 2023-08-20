@@ -21,14 +21,14 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.util.MultiMap;
 import org.eclipse.jetty.util.UrlEncoded;
-import org.openhab.binding.argoclima.internal.device.passthrough.responses.RemoteGetUiFlgResponseDTO;
 
 /**
  * Device's update - sent from AC to manufacturer's remote server (via POST ...CM=UI_RT command)
  *
  * @implNote These updates seem to only be sent if requested by the remote side (when the response to {@code GET UI_FLG}
- *           contains a {@link RemoteGetUiFlgResponseDTO.UiFlgResponsePreamble#Flag_0_Request_POST_UI_RT bit set in the
- *           preamble}
+ *           contains a
+ *           {@link org.openhab.binding.argoclima.internal.device.passthrough.responses.RemoteGetUiFlgResponseDTO.UiFlgResponsePreamble#flag0requestPostUiRt
+ *           flag0requestPostUiRt} bit set in the preamble}
  *
  * @author Mateusz Bronk - Initial contribution
  */

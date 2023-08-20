@@ -356,7 +356,6 @@ public class RemoteArgoApiServerStub {
      * @return Argo protocol response for NTP request (simulating real server)
      */
     private String getNtpResponse(Instant time) {
-
         DateTimeFormatter fmt = DateTimeFormatter
                 .ofPattern("'NTP 'yyyy-MM-dd'T'HH:mm:ssxxx' UI SERVER (M.A.V. srl)'", Locale.ENGLISH)
                 .withZone(ZoneId.of("GMT"));
@@ -453,21 +452,21 @@ public class RemoteArgoApiServerStub {
                 var responseDto = RemoteGetUiFlgResponseDTO.fromResponseString(upstreamResponse.getContentAsString());
 
                 deviceApi.ifPresent(api -> {
-                    if (api.hasPendingCommands() && responseDto.preamble.Flag_5_Has_New_Update == 0) { // Will hijack
-                                                                                                       // body only if
-                                                                                                       // web-side
-                                                                                                       // didn't have
-                                                                                                       // anything for
-                                                                                                       // us on its own
+                    if (api.hasPendingCommands() && responseDto.preamble.flag5hasNewUpdate == 0) { // Will hijack
+                                                                                                   // body only if
+                                                                                                   // web-side
+                                                                                                   // didn't have
+                                                                                                   // anything for
+                                                                                                   // us on its own
                         String before = "";
                         if (logger.isDebugEnabled()) {
                             before = responseDto.toResponseString();
                         }
 
-                        responseDto.preamble.Flag_0_Request_POST_UI_RT = 1; // Request POST confirmation of having
-                                                                            // applied this config (as we don't want to
-                                                                            // wait too long)
-                        responseDto.preamble.Flag_5_Has_New_Update = 1; // Indicate this request carries new content
+                        responseDto.preamble.flag0requestPostUiRt = 1; // Request POST confirmation of having
+                                                                       // applied this config (as we don't want to
+                                                                       // wait too long)
+                        responseDto.preamble.flag5hasNewUpdate = 1; // Indicate this request carries new content
 
                         // Full replace of cloud-side commands (note we could *merge* with it, but seems to be an
                         // overkill)

@@ -14,7 +14,6 @@ package org.openhab.binding.argoclima.internal.device.api.protocol;
 
 import java.util.Optional;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.device.api.protocol.elements.IArgoCommandableElement;
 import org.openhab.binding.argoclima.internal.device.api.protocol.elements.IArgoCommandableElement.IArgoElement;
@@ -202,6 +201,9 @@ public class ArgoApiDataElement<T extends IArgoElement> implements IArgoCommanda
         return rawValue.handleCommand(command, waitForConfirmation);
     }
 
+    public record deviceCommandRequest(Integer updateIndex, String apiValue) {
+    }
+
     /**
      * Convert this elements' current value to a device-compatible command request
      * <p>
@@ -209,9 +211,10 @@ public class ArgoApiDataElement<T extends IArgoElement> implements IArgoCommanda
      *
      * @return A pair of (updateIndex, ApiValue) representing this element as a command (if it had update)
      */
-    public Optional<Pair<Integer, String>> toDeviceResponse() {
+    public Optional<deviceCommandRequest> toDeviceResponse() {
         if (this.rawValue.isUpdatePending() || this.rawValue.isAlwaysSent()) {
-            return Optional.of(Pair.of(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue()));
+            return Optional
+                    .of(new deviceCommandRequest(this.statusUpdateRequestIndex, this.rawValue.getDeviceApiValue()));
         }
         return Optional.empty();
     }

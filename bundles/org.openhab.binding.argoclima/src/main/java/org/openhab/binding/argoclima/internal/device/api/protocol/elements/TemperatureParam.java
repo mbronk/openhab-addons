@@ -114,14 +114,12 @@ public class TemperatureParam extends ArgoApiElementBase {
      */
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-
         double newRawValue;
 
         if (command instanceof Number) {
             newRawValue = ((Number) command).doubleValue(); // Raw value, not unit-aware
 
             if (command instanceof QuantityType<?>) { // let's try to get it with unit (opportunistically)
-
                 var inCelsius = ((QuantityType<?>) command).toUnit(SIUnits.CELSIUS);
                 if (null != inCelsius) {
                     newRawValue = inCelsius.doubleValue();
