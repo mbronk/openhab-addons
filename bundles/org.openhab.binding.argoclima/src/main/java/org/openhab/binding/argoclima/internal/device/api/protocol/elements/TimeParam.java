@@ -110,12 +110,12 @@ public class TimeParam extends ArgoApiElementBase {
 
     private static int normalizeTime(int newValue) {
         if (newValue < MIN_VALUE) {
-            LOGGER.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, MIN_VALUE,
+            LOGGER.debug("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, MIN_VALUE,
                     MIN_VALUE);
             return MIN_VALUE;
         }
         if (newValue > MAX_VALUE) {
-            LOGGER.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, MAX_VALUE,
+            LOGGER.debug("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, MAX_VALUE,
                     MAX_VALUE);
             return MAX_VALUE;
         }
@@ -203,7 +203,7 @@ public class TimeParam extends ArgoApiElementBase {
             currentValue = Optional.of(fromHhMm(configuredValue.getHour(), configuredValue.getMinute()));
             return Integer.toString(currentValue.orElseThrow());
         } catch (ArgoConfigurationException e) {
-            LOGGER.warn("Retrieving default configured value for {} timer failed. Error: {}", paramType,
+            LOGGER.debug("Retrieving default configured value for {} timer failed. Error: {}", paramType,
                     e.getMessage());
             return defaultResult;
         }

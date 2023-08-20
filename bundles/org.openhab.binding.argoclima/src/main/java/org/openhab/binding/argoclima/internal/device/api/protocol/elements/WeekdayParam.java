@@ -177,7 +177,7 @@ public class WeekdayParam extends ArgoApiElementBase {
             currentValue = Optional.of(configuredValue);
             return Integer.toString(toRawValue(currentValue.get()));
         } catch (ArgoConfigurationException e) {
-            logger.warn("Retrieving configured weekdays value for timer failed. Error: {}", e.getMessage());
+            logger.debug("Retrieving configured weekdays value for timer failed. Error: {}", e.getMessage());
             return defaultResult;
         }
     }

@@ -76,7 +76,7 @@ public class ActiveTimerModeParam extends EnumParam<TimerType> {
             var activeDays = settingsProvider.getScheduleProvider().getScheduleDayOfWeek(scheduleTimerKind);
             var scheduleOnTime = settingsProvider.getScheduleProvider().getScheduleOnTime(scheduleTimerKind);
             var scheduleOffTime = settingsProvider.getScheduleProvider().getScheduleOffTime(scheduleTimerKind);
-            logger.info("New timer value is: {}. Days={}, On={}, Off={}", newTimerType, activeDays, scheduleOnTime,
+            logger.debug("New timer value is: {}. Days={}, On={}, Off={}", newTimerType, activeDays, scheduleOnTime,
                     scheduleOffTime);
 
             // get the elements that need to update with additional commands (now that the timer has been selected)
@@ -94,7 +94,7 @@ public class ActiveTimerModeParam extends EnumParam<TimerType> {
             // finally go back to handling the timer type (as a regular enum)
             return super.handleCommandInternalEx(command);
         } catch (ArgoConfigurationException e) {
-            logger.warn("Invalid schedule configuration for {}. Error: {}", newTimerType, e.getMessage());
+            logger.debug("Invalid schedule configuration for {}. Error: {}", newTimerType, e.getMessage());
             return HandleCommandResult.rejected(); // This technically won't ever happen as invalid config would fail
                                                    // binding startup (aka. way before control ever reaches this place)
         }

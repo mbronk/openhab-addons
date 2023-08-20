@@ -101,7 +101,8 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
             throws ArgoRemoteServerStubStartupException, ArgoConfigurationException {
         var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.getLocalDevicePort(),
                 config.getLocalDeviceIP(), config.getDeviceCpuId(), this.commonHttpClient, this.timeZoneProvider,
-                this::updateChannelsFromDevice, this::updateThingStatusToOnline, this::updateThingProperties);
+                this::updateChannelsFromDevice, this::updateThingStatusToOnline, this::updateThingProperties,
+                thing.getUID().toString());
 
         if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY
                 || config.getConnectionMode() == ConnectionMode.REMOTE_API_STUB) {
@@ -154,7 +155,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
                 serverStub = Optional.empty();
             }
         } catch (Exception e) {
-            logger.warn("Exception during handler disposal", e);
+            logger.debug("Exception during handler disposal", e);
         }
         logger.trace("{}: Disposed", getThing().getUID().getId());
     }

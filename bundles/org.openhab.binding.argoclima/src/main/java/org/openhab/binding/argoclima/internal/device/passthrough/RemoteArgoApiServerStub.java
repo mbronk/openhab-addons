@@ -150,7 +150,7 @@ public class RemoteArgoApiServerStub {
                         try {
                             x.updateDeviceStateFromPushRequest(updateDto);
                         } catch (ArgoApiCommunicationException e) {
-                            logger.debug(
+                            logger.trace(
                                     "Received a GET UI_FLG message from Argo device, but it wasn't a valid protocolar message. Ignoring...");
                         }
                     }); // Use for new update
@@ -169,7 +169,7 @@ public class RemoteArgoApiServerStub {
             // Stage2A: If in pass-through mode, get and forward the upstream response (with possible post-process)
             if (passthroughClient.isPresent()) {
                 if (requestType.equals(DeviceRequestType.UNKNOWN)) {
-                    logger.debug(
+                    logger.trace(
                             "The request received byt Argo server stub has unknown syntax. Not forwarding it to upstream server as a precaution");
                     // fall-through to default (canned) response
                 } else {
@@ -181,7 +181,7 @@ public class RemoteArgoApiServerStub {
                     } catch (InterruptedException | TimeoutException | ExecutionException e) {
                         // Deliberately not handling the upstream request exception here and allowing to fall-through to
                         // a "response faking" logic
-                        logger.warn("Passthrough client fail: {}", e.getMessage());
+                        logger.debug("Passthrough client fail: {}", e.getMessage());
                     }
 
                     if (upstreamResponse.isPresent()) { // On upstream request failure, fall back to stubbed response
@@ -283,14 +283,14 @@ public class RemoteArgoApiServerStub {
                             try {
                                 s.stop();
                             } catch (Exception stopException) {
-                                logger.warn(
+                                logger.debug(
                                         "Server startup has failed and subsequent stop has failed as well... Error: {}",
                                         stopException.getMessage());
                             }
                         }
                     }.start();
                 } catch (Exception stopThreadStartException) {
-                    logger.warn("Server startup has failed and subsequent stop has failed as well... Error: {}",
+                    logger.debug("Server startup has failed and subsequent stop has failed as well... Error: {}",
                             stopThreadStartException.getMessage());
                 }
             });
@@ -307,7 +307,7 @@ public class RemoteArgoApiServerStub {
                         // Stopping synchronously (as a client that failed startup is anyway not doing anything)
                         s.stop();
                     } catch (Exception stopException) {
-                        logger.warn(
+                        logger.debug(
                                 "PassthroughClient startup has failed and subsequent stop has failed as well... Error: {}",
                                 stopException.getMessage());
                     }
@@ -333,7 +333,7 @@ public class RemoteArgoApiServerStub {
                 server.get().destroy();
                 this.server = Optional.empty();
             } catch (Exception e) {
-                logger.warn("Unable to stop Remote Argo API Server Stub (listening on port {}). Error: {}",
+                logger.debug("Unable to stop Remote Argo API Server Stub (listening on port {}). Error: {}",
                         this.listenPort, e.getMessage());
             }
         }
@@ -343,7 +343,7 @@ public class RemoteArgoApiServerStub {
                 passthroughClient.get().stop();
                 passthroughClient = Optional.empty();
             } catch (Exception e) {
-                logger.warn("Unable to stop Remote Argo API Passthrough HTTP client. Error: {}", e.getMessage());
+                logger.debug("Unable to stop Remote Argo API Passthrough HTTP client. Error: {}", e.getMessage());
             }
         }
     }
@@ -424,12 +424,12 @@ public class RemoteArgoApiServerStub {
      * @return Parsed request type (or {@link DeviceRequestType#UNKNOWN} if unable to detect)
      */
     public DeviceRequestType detectRequestType(HttpServletRequest request, String requestBody) {
-        logger.debug("Incoming request: {} {}://{}:{}{}?{}", request.getMethod(), request.getScheme(),
+        logger.trace("Incoming request: {} {}://{}:{}{}?{}", request.getMethod(), request.getScheme(),
                 request.getLocalAddr(), request.getLocalPort(), request.getPathInfo(), request.getQueryString());
 
         // if (!request.getPathInfo().equalsIgnoreCase(REMOTE_SERVER_PATH)) {
         if (!REMOTE_SERVER_PATH.equalsIgnoreCase(request.getPathInfo())) {
-            logger.warn("Unknown Argo device-side request path {}. Ignoring...", request.getPathInfo());
+            logger.debug("Unknown Argo device-side request path {}. Ignoring...", request.getPathInfo());
             return DeviceRequestType.UNKNOWN;
         }
 
@@ -467,7 +467,7 @@ public class RemoteArgoApiServerStub {
                                                  // www.termauno.com | 95.254.67.59
         }
 
-        logger.warn("Unknown command: CM(query)=[{}], CM(body)=[{}]", command, commandFromBody);
+        logger.debug("Unknown command: CM(query)=[{}], CM(body)=[{}]", command, commandFromBody);
         return DeviceRequestType.UNKNOWN;
     }
 
@@ -484,7 +484,7 @@ public class RemoteArgoApiServerStub {
         var originalResponseBody = Objects.requireNonNull(upstreamResponse.getContentAsString());
 
         if (upstreamResponse.getStatus() != 200) {
-            logger.debug(
+            logger.trace(
                     "Remote server response for {} command had HTTP status {}. Not parsing further & won't intercept",
                     requestType, upstreamResponse.getStatus());
             return originalResponseBody;
@@ -518,7 +518,7 @@ public class RemoteArgoApiServerStub {
 
                         if (logger.isDebugEnabled()) {
                             var after = responseDto.toResponseString();
-                            logger.debug("REPLACING the response body from [{}] to [{}]", before, after);
+                            logger.trace("REPLACING the response body from [{}] to [{}]", before, after);
                         }
 
                         api.notifyCommandsPassedToDevice(); // Notify the withstanding commands have been consumed by

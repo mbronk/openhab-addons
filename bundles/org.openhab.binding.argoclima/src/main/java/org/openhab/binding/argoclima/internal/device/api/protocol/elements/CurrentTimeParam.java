@@ -53,7 +53,7 @@ public class CurrentTimeParam extends ArgoApiElementBase {
      */
     @Override
     protected void updateFromApiResponseInternal(String responseValue) {
-        logger.warn("Got state: {} for a parameter that doesn't support it!", responseValue);
+        logger.debug("Got state: {} for a parameter that doesn't support it!", responseValue);
     }
 
     @Override
@@ -84,7 +84,7 @@ public class CurrentTimeParam extends ArgoApiElementBase {
 
     @Override
     protected HandleCommandResult handleCommandInternalEx(Command command) {
-        logger.warn("Got command for a parameter that doesn't support it!");
+        logger.debug("Got command for a parameter that doesn't support it!");
         return HandleCommandResult.rejected(); // Does not handle any commands
     }
 }

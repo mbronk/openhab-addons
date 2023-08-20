@@ -164,7 +164,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             config = getConfigInternal();
             this.config = Optional.of(config);
         } catch (ArgoConfigurationException ex) {
-            logger.warn("{}: {}", getThing().getUID().getId(), ex.getMessage());
+            logger.warn("[{}] {}", getThing().getUID().getId(), ex.getMessage());
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, ex.getMessage());
             return;
         }
@@ -173,7 +173,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         var configValidationError = config.validate();
         if (!configValidationError.isEmpty()) {
             var message = "Invalid thing configuration. " + configValidationError;
-            logger.warn("{}: {}", getThing().getUID(), message);
+            logger.warn("[{}] {}", getThing().getUID(), message);
             updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR, message);
             return;
         }
@@ -233,19 +233,19 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         try {
             stopRefreshTask(); // Stop polling for new updates
         } catch (Exception e) {
-            logger.debug("Exception during handler disposal", e);
+            logger.trace("Exception during handler disposal", e);
         }
 
         try {
             initializeFuture.ifPresent(initter -> initter.cancel(true));
         } catch (Exception e) {
-            logger.debug("Exception during handler disposal", e);
+            logger.trace("Exception during handler disposal", e);
         }
 
         try {
             cancelPendingDeviceCommandSenderJob();
         } catch (Exception e) {
-            logger.debug("Exception during handler disposal", e);
+            logger.trace("Exception during handler disposal", e);
         }
     }
 
@@ -487,7 +487,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
             // only one-way update from callback
             updateStatus(ThingStatus.ONLINE);
         } else {
-            logger.debug("The remote stub server attempted to update the thing status to {}. The request was ignored",
+            logger.trace("The remote stub server attempted to update the thing status to {}. The request was ignored",
                     newStatus);
         }
     }
@@ -535,7 +535,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                 if (isMinimumRefreshTimeExceeded()) {
                     // If the device is offline, try to re-initialize it
                     if (getThing().getStatus() == ThingStatus.OFFLINE) {
-                        logger.debug("{}: Re-initialize device", getThing().getUID());
+                        logger.trace("{}: Re-initialize device", getThing().getUID());
                         initializeThing();
                         return;
                     }
@@ -545,7 +545,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
                 }
             } catch (RuntimeException | ArgoApiCommunicationException e) {
                 var retryCount = failedApiCallsCounter.getAndIncrement() + 1; // 1-based
-                logger.debug("[{}] Polling for device-side update for HVAC device failed [{} of {}]. Error=[{}]",
+                logger.trace("[{}] Polling for device-side update for HVAC device failed [{} of {}]. Error=[{}]",
                         getThing().getUID(), retryCount, ArgoClimaBindingConstants.MAX_API_RETRIES, e.getMessage());
                 if (retryCount >= ArgoClimaBindingConstants.MAX_API_RETRIES) {
                     updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.COMMUNICATION_ERROR,
@@ -560,7 +560,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         if (refreshTask.isEmpty()) {
             refreshTask = Optional.ofNullable(scheduler.scheduleWithFixedDelay(refresher, 0,
                     config.get().getRefreshInterval(), TimeUnit.SECONDS));
-            logger.debug("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
+            logger.trace("{}: Automatic refresh started ({} second interval)", getThing().getUID().getId(),
                     config.get().getRefreshInterval());
         }
     }
@@ -638,7 +638,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         } catch (Exception e) {
             // Since isReachable is a no-throw, hitting an exception (ex. during device-side message parsing) is very
             // unlikely, though in case a stray one happens -> let's embed it in the user-facing message
-            logger.debug("{}: Exception", getThing().getUID(), e);
+            logger.debug("{}: Initialization exception", getThing().getUID(), e);
             message = e.getMessage();
         }
 
@@ -697,7 +697,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
             // Stage1: Calculate what to do
             var valuesToUpdate = this.deviceApi.orElseThrow().getItemsWithPendingUpdates();
-            logger.info("[{}] Will UPDATE the following items: {}", getThing().getUID(), valuesToUpdate);
+            logger.debug("[{}] Will UPDATE the following items: {}", getThing().getUID(), valuesToUpdate);
 
             var config = this.config.orElseThrow();
             var deviceApi = this.deviceApi.orElseThrow();

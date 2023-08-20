@@ -70,7 +70,7 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
             try {
                 return Optional.of(Enum.valueOf(cls, newValue));
             } catch (IllegalArgumentException ex) {
-                LOGGER.warn("Failed to convert value: {} to enum. {}", value, ex.getMessage());
+                LOGGER.debug("Failed to convert value: {} to enum. {}", value, ex.getMessage());
                 return Optional.empty();
             }
         }

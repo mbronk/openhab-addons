@@ -52,6 +52,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     private final Optional<InetAddress> localIpAddress; // The indirect IP address (local subnet) - possibly not
                                                         // reachable if behind NAT (optional)
     private final Optional<String> cpuId; // The configured CPU id (if any) - for matching intercepted responses
+    private final String id;
     private final Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate;
     private final Consumer<ThingStatus> onReachableStatusChange;
     private final int port;
@@ -74,12 +75,13 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
      * @param onStateUpdate Callback to be invoked when device status gets updated(device-side channel updates)
      * @param onReachableStatusChange Callback to be invoked when device's reachability status (online) changes
      * @param onDevicePropertiesUpdate Callback to invoke when device properties get refreshed
+     * @param thingUid The UID of the Thing owning this server (used for logging)
      */
     public ArgoClimaLocalDevice(ArgoClimaConfigurationLocal config, InetAddress targetDeviceIpAddress, int port,
             Optional<InetAddress> localDeviceIpAddress, Optional<String> cpuId, HttpClient client,
             TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
-            Consumer<ThingStatus> onReachableStatusChange,
-            Consumer<SortedMap<String, String>> onDevicePropertiesUpdate) {
+            Consumer<ThingStatus> onReachableStatusChange, Consumer<SortedMap<String, String>> onDevicePropertiesUpdate,
+            String thingUid) {
         super(config, client, timeZoneProvider, onDevicePropertiesUpdate, "");
         this.ipAddress = targetDeviceIpAddress;
         this.port = port;
@@ -88,6 +90,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
         this.matchAnyIncomingDeviceIp = config.getMatchAnyIncomingDeviceIp();
         this.onStateUpdate = onStateUpdate;
         this.onReachableStatusChange = onReachableStatusChange;
+        this.id = thingUid;
     }
 
     @Override
@@ -191,9 +194,9 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
                         this.localIpAddress.orElse(this.ipAddress).getHostAddress());
             } else {
                 if (this.cpuId.isEmpty() && this.localIpAddress.isEmpty()) {
-                    logger.warn(
-                            "Got poll update from device {}[IP={}], but was not able to match it to this device with IP={}. Configure {} and/or {} settings to allow detection...",
-                            deviceCpuId, deviceIP, this.ipAddress.getHostAddress(),
+                    logger.info(
+                            "[{}] Got poll update from device {}[IP={}], but was not able to match it to this device with IP={}. Configure {} and/or {} settings to allow detection...",
+                            id, deviceCpuId, deviceIP, this.ipAddress.getHostAddress(),
                             ArgoClimaBindingConstants.PARAMETER_DEVICE_CPU_ID,
                             ArgoClimaBindingConstants.PARAMETER_LOCAL_DEVICE_IP);
                 } else {

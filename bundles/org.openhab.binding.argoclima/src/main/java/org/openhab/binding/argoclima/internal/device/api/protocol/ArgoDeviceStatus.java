@@ -189,7 +189,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
         synchronized (this) {
             dataElements.entrySet().stream().forEach(v -> v.getValue().fromDeviceResponse(values));
         }
-        logger.debug("Current HVAC state(after update): {}", this.toString());
+        logger.trace("Current HVAC state(after update): {}", this.toString());
     }
 
     /**
@@ -207,7 +207,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
                 Objects.requireNonNull(Collections.nCopies(HMI_COMMAND_ELEMENT_COUNT, NO_VALUE)));
 
         var itemsToSend = dataElements.entrySet().stream().filter(x -> x.getValue().shouldBeSentToDevice()).toList();
-        logger.info("Sending {} updates to device {}", itemsToSend.size(),
+        logger.debug("Sending {} updates to device {}", itemsToSend.size(),
                 itemsToSend.stream().map(x -> x.getKey().toString()).collect(Collectors.joining(", ")));
 
         itemsToSend.stream().map(x -> x.getValue().toDeviceResponse()).forEach(p -> {

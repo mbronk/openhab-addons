@@ -72,12 +72,12 @@ public class RangeParam extends ArgoApiElementBase {
      */
     private int normalizeValue(int newValue) {
         if (newValue < minValue) {
-            logger.warn("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
+            logger.debug("Requested value: {} would exceed minimum value: {}. Setting: {}.", newValue, minValue,
                     (int) minValue);
             return (int) minValue;
         }
         if (newValue > maxValue) {
-            logger.warn("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
+            logger.debug("Requested value: {} would exceed maximum value: {}. Setting: {}.", newValue, maxValue,
                     (int) maxValue);
             return (int) maxValue;
         }

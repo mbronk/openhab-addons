@@ -127,7 +127,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
 
         var thing = this.thingRegistry.get(thingUID);
         if (thing == null) {
-            logger.debug("getConfigDescription: No thing found for uri: {}", uri);
+            logger.trace("getConfigDescription: No thing found for uri: {}", uri);
             return null;
         }
 

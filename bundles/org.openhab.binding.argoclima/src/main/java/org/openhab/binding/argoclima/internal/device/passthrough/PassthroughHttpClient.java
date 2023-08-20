@@ -136,7 +136,7 @@ public class PassthroughHttpClient {
             }
         }
 
-        LOGGER.info("Pass-through: DEVICE --> UPSTREAM_API: [{} {}], body=[{}]", request.getMethod(), request.getURI(),
+        LOGGER.debug("Pass-through: DEVICE --> UPSTREAM_API: [{} {}], body=[{}]", request.getMethod(), request.getURI(),
                 downstreamHttpRequestBody);
 
         return Objects.requireNonNull(request.send());
@@ -173,7 +173,7 @@ public class PassthroughHttpClient {
         String responseBodyToReturn = overrideBodyToReturn.orElse(response.getContentAsString());
         targetResponse.getWriter().write(responseBodyToReturn);
         targetResponse.setStatus(response.getStatus());
-        LOGGER.info("  [response]: DEVICE <-- UPSTREAM_API: [{} {} {} - {} bytes], body=[{}]", response.getVersion(),
+        LOGGER.debug("  [response]: DEVICE <-- UPSTREAM_API: [{} {} {} - {} bytes], body=[{}]", response.getVersion(),
                 response.getStatus(), response.getReason(), response.getContent().length, responseBodyToReturn);
     }
 }

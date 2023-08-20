@@ -146,11 +146,11 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
      */
     protected String pollForCurrentStatusFromDeviceSync(URL url) throws ArgoLocalApiCommunicationException {
         try {
-            logger.info("Communication: OPENHAB --> {}: [GET {}]", remoteEndName, url);
+            logger.debug("Communication: OPENHAB --> {}: [GET {}]", remoteEndName, url);
 
             ContentResponse resp = this.client.GET(url.toString()); // sync
 
-            logger.info("   [response]: OPENHAB <-- {}: [{} {} {} - {} bytes], body=[{}]", remoteEndName,
+            logger.debug("   [response]: OPENHAB <-- {}: [{} {} {} - {} bytes], body=[{}]", remoteEndName,
                     resp.getVersion(), resp.getStatus(), resp.getReason(), resp.getContent().length,
                     resp.getContentAsString());
 
@@ -161,7 +161,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
             }
             return Objects.requireNonNull(resp.getContentAsString());
         } catch (InterruptedException ex) {
-            logger.debug("Interrupted...");
+            logger.trace("Interrupted...");
             return "";
         } catch (ExecutionException ex) {
             var cause = Optional.ofNullable(ex.getCause());
@@ -223,7 +223,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         var deviceResponse = pollForCurrentStatusFromDeviceSync(getDeviceStateUpdateUrl());
 
         notifyCommandsPassedToDevice(); // Just sent directly
-        logger.debug("State update command finished. Device response: {}", deviceResponse);
+        logger.trace("State update command finished. Device response: {}", deviceResponse);
     }
 
     @Override
@@ -244,7 +244,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     @Override
     public boolean hasPendingCommands() {
         var itemsWithPendingUpdates = this.deviceStatus.getItemsWithPendingUpdates();
-        logger.debug("Items to update: {}", itemsWithPendingUpdates);
+        logger.trace("Items to update: {}", itemsWithPendingUpdates);
         return !itemsWithPendingUpdates.isEmpty();
     }
 
