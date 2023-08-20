@@ -77,7 +77,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     private final Duration sendCommandMaxWaitTimeIndirectMode;
 
     // Set-up through initialize()
-    private Optional<IArgoClimaDeviceAPI> deviceApi = Optional.empty(); // todo
+    private Optional<IArgoClimaDeviceAPI> deviceApi = Optional.empty();
     private Optional<ConfigT> config = Optional.empty();
 
     // Threading/job related stuff

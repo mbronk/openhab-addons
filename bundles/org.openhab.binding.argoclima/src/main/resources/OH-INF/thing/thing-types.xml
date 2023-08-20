@@ -25,13 +25,7 @@
 		<properties>
 			<property name="vendor">ArgoClima</property>
 			<property name="modelId">Ulisse Eco 13 DCI - compatible device</property>
-			<property name="protocol">WiFi - local network</property> <!--TODO (maybe update dynamically: https://www.openhab.org/docs/developer/bindings/thing-handler.html) -->
-
-			<!--
-				public static final String PROPERTY_CPU_ID = "cpuId";
-				public static final String PROPERTY_LOCAL_IP_ADDRESS = "localIpAddress";
-				public static final String PROPERTY_UNIT_FW = "unitFirmwareVersion";
-				public static final String PROPERTY_WIFI_FW= "wifiFirmwareVersion"; -->
+			<property name="protocol">WiFi - local network</property>
 		</properties>
 
 		<representation-property>hostname</representation-property>
@@ -196,7 +190,7 @@
 		<properties>
 			<property name="vendor">ArgoClima</property>
 			<property name="modelId">Ulisse Eco 13 DCI - compatible device</property>
-			<property name="protocol">Remote connection</property> <!--TODO (maybe update dynamically: https://www.openhab.org/docs/developer/bindings/thing-handler.html) -->
+			<property name="protocol">Remote connection</property>
 		</properties>
 
 		<representation-property>username</representation-property>
@@ -206,7 +200,7 @@
 				<label>Connection</label>
 				<description>Connection settings.</description>
 			</parameter-group>
-			<parameter-group name="oemServerConnection"> <!-- TODO: rename from serverStub -> OEM sth? -->
+			<parameter-group name="oemServerConnection">
 				<label>Argo server connection details</label>
 				<description><![CDATA[Configuration of Argo remote server.]]></description>
 			</parameter-group>
@@ -233,10 +227,8 @@
 				<context>network-address</context>
 				<label>Argo remote server address</label>
 				<description><![CDATA[The OEM server's hostname, used for communications.<br/>
-                <i>This is the same host as for the Web Application (address provided in device's user manual).</i>
+                <i>This is the same host as for the Web Application (address provided in device's user manual). Example: uisetup.ddns.net</i>
                 ]]>
-					<!-- <br/>
-						Note: <i>The address seems to be: uisetup.ddns.net</i> -->
 				</description>
 				<default>31.14.128.210</default>
 				<advanced>true</advanced>
@@ -303,8 +295,6 @@
 
 	<channel-group-type id="settings-group">
 		<label>Settings</label>
-		<!--<description></description>
-			<category></category> -->
 		<channels>
 			<channel id="iFeelEnabled" typeId="iFeel-channel"/>
 			<channel id="deviceLights" typeId="deviceLights-channel"/>
@@ -319,7 +309,7 @@
 	-->
 	<channel-type id="modeBasic-channel">
 		<item-type>String</item-type>
-		<label>Mode</label> <!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
+		<label>Mode</label>
 		<category>Climate</category>
 		<tags>
 			<tag>Control</tag>
@@ -328,7 +318,6 @@
 		<state readOnly="false">
 			<options>
 				<option value="COOL">Cool</option>
-				<!--<option value="HEAT">Heat</option> -->
 				<option value="DRY">Dry</option>
 				<option value="FAN">Fan</option>
 				<option value="AUTO">Auto</option>
@@ -338,7 +327,7 @@
 
 	<channel-type id="setTemperature-channel">
 		<item-type>Number:Temperature</item-type>
-		<label>Set Temperature</label><!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
+		<label>Set Temperature</label>
 		<description>The device's target temperature</description>
 		<category>Temperature</category>
 		<tags>
@@ -361,7 +350,6 @@
 
 	<channel-type id="fanSpeed-channel">
 		<item-type>String</item-type>
-		<!-- todo: string or number? -->
 		<label>Fan speed</label>
 		<category>Fan</category>
 		<state readOnly="false">
@@ -435,7 +423,7 @@
 
 	<channel-type id="modeExtended-channel" advanced="true">
 		<item-type>String</item-type>
-		<label>Extended Mode</label> <!-- Use uppercase words, except prepositions. 2-3 words, max 25 chars -->
+		<label>Extended Mode</label>
 		<category>Heating</category>
 		<state readOnly="false">
 			<options>
@@ -449,9 +437,7 @@
 	</channel-type>
 
 	<channel-type id="swingMode-channel" advanced="true">
-		<!-- <item-type>Number:Dimensionless</item-type> -->
 		<item-type>String</item-type>
-		<!-- todo: string or number? -->
 		<label>Airflow Direction</label>
 		<category>Flow</category>
 		<state readOnly="false">

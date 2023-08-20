@@ -47,6 +47,7 @@ import org.openhab.binding.argoclima.internal.device.passthrough.requests.Device
 import org.openhab.binding.argoclima.internal.device.passthrough.responses.RemoteGetUiFlgResponseDTO;
 import org.openhab.binding.argoclima.internal.device.passthrough.responses.RemoteGetUiFlgResponseDTO.UiFlgResponseCommmands;
 import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
+import org.openhab.binding.argoclima.internal.exception.ArgoRemoteServerStubStartupException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -259,8 +260,10 @@ public class RemoteArgoApiServerStub {
 
     /**
      * Start the stub server (and upstream API client, if used)
+     *
+     * @throws ArgoRemoteServerStubStartupException on startup failure (of either the server or the client)
      */
-    public synchronized void start() {
+    public synchronized void start() throws ArgoRemoteServerStubStartupException {
         // High log level is deliberate (it's no small feat to open a new HTTP socket!)
         logger.info("[{}] Starting Argo API Stub listening at: {}", this.id,
                 this.listenIpAddresses.stream().map(x -> String.format("%s:%s", x.toString(), this.listenPort))
@@ -291,7 +294,7 @@ public class RemoteArgoApiServerStub {
                             stopThreadStartException.getMessage());
                 }
             });
-            throw new RuntimeException(
+            throw new ArgoRemoteServerStubStartupException(
                     String.format("Starting stub server at port %d failed. %s", this.listenPort, e.getMessage()), e);
         }
 
@@ -309,7 +312,7 @@ public class RemoteArgoApiServerStub {
                                 stopException.getMessage());
                     }
                 });
-                throw new RuntimeException(
+                throw new ArgoRemoteServerStubStartupException(
                         String.format("Starting passthrough API client for host=%s, port=%d failed. %s",
                                 this.passthroughClient.get().upstreamTargetHost,
                                 this.passthroughClient.get().upstreamTargetPort, e.getMessage()),

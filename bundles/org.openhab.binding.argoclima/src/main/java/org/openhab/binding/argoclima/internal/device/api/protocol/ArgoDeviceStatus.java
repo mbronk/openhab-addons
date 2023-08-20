@@ -144,7 +144,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
         if (dataElements.containsKey(type)) {
             return Objects.requireNonNull(dataElements.get(type));
         }
-        throw new RuntimeException("Wrong setting type: " + type.toString()); // TODO: consider changing exception type
+        throw new IllegalArgumentException("Wrong setting type: " + type.toString());
     }
 
     /**
@@ -214,7 +214,7 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
             try {
                 commands.set(p.orElseThrow().updateIndex(), p.orElseThrow().apiValue());
             } catch (IndexOutOfBoundsException e) {
-                throw new RuntimeException(String.format( // TODO: consider different exception type here
+                throw new IllegalArgumentException(String.format(
                         "Attempting to set device command %d := %s, while only commands 0..%d are supported",
                         p.orElseThrow().updateIndex(), p.orElseThrow().apiValue(), commands.size()));
             }

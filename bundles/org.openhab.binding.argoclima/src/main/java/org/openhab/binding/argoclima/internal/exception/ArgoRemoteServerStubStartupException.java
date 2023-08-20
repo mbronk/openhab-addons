@@ -30,4 +30,8 @@ public class ArgoRemoteServerStubStartupException extends Exception {
     public ArgoRemoteServerStubStartupException(String message) {
         super(message);
     }
+
+    public ArgoRemoteServerStubStartupException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
