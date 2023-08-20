@@ -12,12 +12,10 @@
  */
 package org.openhab.binding.argoclima.internal.handler;
 
-import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
-import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.MultiException;
 import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
@@ -37,25 +35,39 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The {@link ArgoClimaHandlerLocal} is responsible for handling commands, which are
- * sent to one of the channels.
+ * sent to one of the channels. Supports local device (either through direct connection or pass-through)
+ *
+ * @see ArgoClimaHandlerBase
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
 public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigurationLocal> {
-
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final HttpClient client;
-    private final HttpClientFactory clientFactory;
+    private final HttpClient commonHttpClient;
     private final TimeZoneProvider timeZoneProvider;
-    private @Nullable RemoteArgoApiServerStub serverStub;
+    private final HttpClientFactory clientFactory;
 
+    private Optional<RemoteArgoApiServerStub> serverStub = Optional.empty();
+
+    /**
+     * C-tor
+     *
+     * @param thing The @code Thing} this handler serves (provided by the framework through
+     *            {@link org.openhab.binding.argoclima.internal.ArgoClimaHandlerFactory ArgoClimaHandlerFactory}
+     * @param clientFactory The framework's HTTP client factory (injected by the runtime to the
+     *            {@code ArgoClimaHandlerFactory})
+     * @param timeZoneProvider The framework's time zone provider (injected by the runtime to the
+     *            {@code ArgoClimaHandlerFactory})
+     */
     public ArgoClimaHandlerLocal(Thing thing, HttpClientFactory clientFactory, TimeZoneProvider timeZoneProvider) {
-        super(thing, ArgoClimaBindingConstants.AWAIT_DEVICE_CONFIRMATIONS_AFTER_COMMANDS, Duration.ofSeconds(3),
-                Duration.ofSeconds(10), Duration.ofSeconds(20), Duration.ofSeconds(120)); // device polls every minute,
-                                                                                          // so give it 2 to catch up
-        this.client = clientFactory.getCommonHttpClient();
+        super(thing, ArgoClimaBindingConstants.AWAIT_DEVICE_CONFIRMATIONS_AFTER_COMMANDS,
+                ArgoClimaBindingConstants.POLL_FREQUENCY_AFTER_COMMAND_SENT_LOCAL,
+                ArgoClimaBindingConstants.SEND_COMMAND_RETRY_FREQUENCY_LOCAL,
+                ArgoClimaBindingConstants.SEND_COMMAND_MAX_WAIT_TIME_LOCAL_DIRECT,
+                ArgoClimaBindingConstants.SEND_COMMAND_MAX_WAIT_TIME_LOCAL_INDIRECT);
+        this.commonHttpClient = clientFactory.getCommonHttpClient();
         this.clientFactory = clientFactory;
         this.timeZoneProvider = timeZoneProvider;
     }
@@ -63,39 +75,52 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     @Override
     protected ArgoClimaConfigurationLocal getConfigInternal() throws ArgoConfigurationException {
         try {
-            return getConfigAs(ArgoClimaConfigurationLocal.class); // this may return null if class is not
-                                                                   // default-constructible
+            return getConfigAs(ArgoClimaConfigurationLocal.class); // This can **theoretically** return null if class is
+                                                                   // not default-constructible (but this one is, so not
+                                                                   // handling!)
         } catch (IllegalArgumentException ex) {
             throw new ArgoConfigurationException("Error loading thing configuration", "", ex);
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * For any {@code REMOTE_API_*} <b>Connection mode<b>, this starts a new HTTP server (with its own thread pool!)
+     * listening for HVAC connections.
+     * <p>
+     * Additionally for a {@code REMOTE_API_PROXY}, a custom HTTP client is also created, proxying the calls from device
+     * to Argo servers. The device follows a strange protocol (not fully-compatible with HTTP spec, it seems), which
+     * drives the need for a custom client with separate set of settings
+     *
+     * @implNote The intercepting proxy (if enabled) WILL asynchronously trigger channel/state/properties updates
+     *           through respective callbacks (these are thread-safe!)
+     */
     @Override
     protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationLocal config)
             throws ArgoRemoteServerStubStartupException, ArgoConfigurationException {
-        // TODO Auto-generated method stub
-
         var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.getLocalDevicePort(),
-                config.getLocalDeviceIP(), config.getDeviceCpuId(), this.client, this.timeZoneProvider,
-                this::updateChannelsFromDevice, this::updateStatus, this::updateThingProperties);
+                config.getLocalDeviceIP(), config.getDeviceCpuId(), this.commonHttpClient, this.timeZoneProvider,
+                this::updateChannelsFromDevice, this::updateThingStatusToOnline, this::updateThingProperties);
 
         if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY
                 || config.getConnectionMode() == ConnectionMode.REMOTE_API_STUB) {
             var passthroughClient = Optional.<PassthroughHttpClient> empty();
             if (config.getConnectionMode() == ConnectionMode.REMOTE_API_PROXY) {
+                // new passthrough client for PROXY mode (its lifecycle will be managed by proxy server on startup)
                 passthroughClient = Optional.of(
                         new PassthroughHttpClient(Objects.requireNonNull(config.getOemServerAddress().getHostAddress()),
                                 config.getOemServerPort(), clientFactory));
             }
 
-            serverStub = new RemoteArgoApiServerStub(config.getStubServerListenAddresses(), config.getStubServerPort(),
-                    this.getThing().getUID().toString(), passthroughClient, Optional.of(deviceApi),
-                    config.getShowCleartextPasswords());
+            var simulatedServer = new RemoteArgoApiServerStub(config.getStubServerListenAddresses(),
+                    config.getStubServerPort(), this.getThing().getUID().toString(), passthroughClient,
+                    Optional.of(deviceApi), config.getShowCleartextPasswords());
+            serverStub = Optional.of(simulatedServer);
+
             try {
-                serverStub.start();
+                simulatedServer.start();
             } catch (Exception e1) {
-                // TODO Auto-generated catch block
-                // logger.error("Failed to start RPC server", e1); // TODO: crash
                 var message = e1.getMessage();
                 if (e1.getCause() instanceof MultiException) {
                     // This may cause multiple exceptions in case multiple bind addresses are in use
@@ -111,19 +136,26 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
         return deviceApi;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * In addition to common binding cleanup, also stops passthrough server. The custom HTTP client's lifecycle is
+     * managed by the server itself, hence will be
+     * disposed with it
+     */
     @Override
     protected void stopRunningTasks() {
+        // Stop all common tasks
         super.stopRunningTasks();
+
         try {
             synchronized (this) {
-                if (this.serverStub != null) {
-                    this.serverStub.shutdown();
-                    this.serverStub = null;
-                }
+                serverStub.ifPresent(s -> s.shutdown());
+                serverStub = Optional.empty();
             }
         } catch (Exception e) {
             logger.warn("Exception during handler disposal", e);
         }
-        logger.debug("{}: Disposed", getThing().getUID().getId());
+        logger.trace("{}: Disposed", getThing().getUID().getId());
     }
 }

@@ -171,7 +171,6 @@ public class ArgoApiDataElement<T extends IArgoElement> implements IArgoCommanda
     public State fromDeviceResponse(List<String> responseElements) {
         if (this.type == DataElementType.READ_WRITE || this.type == DataElementType.READ_ONLY) {
             return this.rawValue.updateFromApiResponse(responseElements.get(queryResponseIndex));
-            // TODO: err handling
         }
         return UnDefType.NULL; // Write-only elements do not have any state reported
     }

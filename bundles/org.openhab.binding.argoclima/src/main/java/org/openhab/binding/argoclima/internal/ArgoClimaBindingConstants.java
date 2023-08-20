@@ -108,15 +108,6 @@ public class ArgoClimaBindingConstants {
     public static final int MAX_API_RETRIES = 3;
 
     /**
-     * Time to wait for (confirmable) command to be reported back by the device (by changing its state to the requested
-     * value). If this period elapses w/o the device confirming, the command is considered not handled and REJECTED
-     * (would not be retried any more, and the reported device's state will be the actual one device sent, not the
-     * "in-flight" desired one)
-     */
-    public static final Duration PENDING_COMMAND_EXPIRE_TIME = Duration.ofSeconds(120); // TODO: THIS SHOULD MATCH MAX
-                                                                                        // TRY TIME
-
-    /**
      * Time to wait between command issue and communicating with the device. Allows to include multiple commands in one
      * device communication session (preferred).
      * Time window chosen so that it is not (too) perceptible by an user, while still enough for rules/groups to be able
@@ -142,5 +133,71 @@ public class ArgoClimaBindingConstants {
      */
     public static final boolean AWAIT_DEVICE_CONFIRMATIONS_AFTER_COMMANDS = true;
 
-    // ArgoClimaHandlerRemote:: 60s (or not)
+    /**
+     * The frequency to poll the device with, waiting for the command confirmation
+     */
+    public static final Duration POLL_FREQUENCY_AFTER_COMMAND_SENT_LOCAL = Duration.ofSeconds(3);
+
+    /**
+     * The frequency to poll the Argo servers with, waiting for the command confirmation
+     */
+    public static final Duration POLL_FREQUENCY_AFTER_COMMAND_SENT_REMOTE = Duration.ofSeconds(5);
+
+    /**
+     * The frequency to re-send the pending command to the device at (if it hadn't been confirmed yet).
+     * Aka. the optimistic time when the device "should acknowledge. Should be greater than
+     * {@link #POLL_FREQUENCY_AFTER_COMMAND_SENT_LOCAL}
+     *
+     * @see {@link #SEND_COMMAND_MAX_WAIT_TIME_LOCAL_DIRECT}
+     * @see {@link #SEND_COMMAND_MAX_WAIT_TIME_LOCAL_INDIRECT}
+     */
+    public static final Duration SEND_COMMAND_RETRY_FREQUENCY_LOCAL = Duration.ofSeconds(10);
+
+    /**
+     * The frequency to re-send the pending command to the remote Argo server at (if it hadn't been confirmed yet).
+     * Aka. the optimistic time when the server "should acknowledge. Should be greater than
+     * {@link #POLL_FREQUENCY_AFTER_COMMAND_SENT_REMOTE}
+     *
+     * @see {@link #SEND_COMMAND_MAX_WAIT_TIME_REMOTE}
+     */
+    public static final Duration SEND_COMMAND_RETRY_FREQUENCY_REMOTE = Duration.ofSeconds(20);
+
+    /**
+     * Max time to wait for a pending command to be confirmed by the device in a local-direct mode (when we are issuing
+     * communications to a device in local LAN).
+     * <p>
+     * During this time, the commands may get {@link SEND_COMMAND_RETRY_FREQUENCY retried} and the device status may be
+     * {@link POLL_FREQUENCY_AFTER_COMMAND_SENT re-fetched}
+     */
+    public static final Duration SEND_COMMAND_MAX_WAIT_TIME_LOCAL_DIRECT = Duration.ofSeconds(20); // 60-remote
+
+    /**
+     * Max time to wait for a pending command to be confirmed in an *indirect* mode (where we're only
+     * sniffing/intercepting communications)
+     * <p>
+     * A healthy device seems to be polling Argo servers every minute (and if the server returns a pending command
+     * request, does a few more more frequent exchanges as well), so 2 minutes seem safe
+     */
+    public static final Duration SEND_COMMAND_MAX_WAIT_TIME_LOCAL_INDIRECT = Duration.ofSeconds(120);
+
+    /**
+     * Max time to wait for a pending command to be confirmed in an *remote* mode (where we're talking to a remote Argo
+     * server)
+     * <p>
+     * The server seems to confirm a bit faster than our intercepting proxy and we want to minimize traffic our binding
+     * issues against remote side, hence a more conservative value
+     */
+    public static final Duration SEND_COMMAND_MAX_WAIT_TIME_REMOTE = Duration.ofSeconds(60);
+
+    /**
+     * Time to wait for (confirmable) command to be reported back by the device (by changing its state to the requested
+     * value). If this period elapses w/o the device confirming, the command is considered not handled and REJECTED
+     * (would not be retried any more, and the reported device's state will be the actual one device sent, not the
+     * "in-flight" desired one)
+     *
+     * @implNote This is just a final "give up" time (not affecting any send logic). Should be no shorter than max try
+     *           time
+     */
+    public static final Duration PENDING_COMMAND_EXPIRE_TIME = SEND_COMMAND_MAX_WAIT_TIME_LOCAL_INDIRECT
+            .plus(Duration.ofSeconds(1));
 }

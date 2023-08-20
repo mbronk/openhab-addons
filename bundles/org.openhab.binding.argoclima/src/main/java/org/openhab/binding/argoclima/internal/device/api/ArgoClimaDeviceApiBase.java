@@ -39,7 +39,6 @@ import org.openhab.binding.argoclima.internal.device.api.types.ArgoDeviceSetting
 import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
-import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
 import org.slf4j.Logger;
@@ -56,8 +55,6 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     private final HttpClient client;
     protected final TimeZoneProvider timeZoneProvider;
     protected final ArgoDeviceStatus deviceStatus;
-    protected Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate;
-    protected Consumer<ThingStatus> onReachableStatusChange;
     protected Consumer<SortedMap<String, String>> onDevicePropertiesUpdate;
     protected SortedMap<String, String> deviceProperties;
     private final String remoteEndName;
@@ -68,20 +65,15 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
      * @param config The configuration class (common part)
      * @param client The common HTTP client used for making connections from OH to the device
      * @param timeZoneProvider The common TZ provider
-     * @param onStateUpdate Callback to invoke on device-side state update (one or more of channels)
-     * @param onReachableStatusChange Callback to invoke on device-side status update (ex. going OFFLINE)
      * @param onDevicePropertiesUpdate Callback to invoke on device-side dynamic property update (ex. lastSeen)
      * @param remoteEndName The name of the "remote end" party, for use in logging
      */
     public ArgoClimaDeviceApiBase(ArgoClimaConfigurationBase config, HttpClient client,
-            TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
-            Consumer<ThingStatus> onReachableStatusChange, Consumer<SortedMap<String, String>> onDevicePropertiesUpdate,
+            TimeZoneProvider timeZoneProvider, Consumer<SortedMap<String, String>> onDevicePropertiesUpdate,
             String remoteEndName) {
         this.client = client;
         this.timeZoneProvider = timeZoneProvider;
         this.deviceStatus = new ArgoDeviceStatus(config);
-        this.onStateUpdate = onStateUpdate;
-        this.onReachableStatusChange = onReachableStatusChange;
         this.onDevicePropertiesUpdate = onDevicePropertiesUpdate;
         this.deviceProperties = new TreeMap<String, String>();
         this.remoteEndName = remoteEndName.isBlank() ? "DEVICE" : remoteEndName.trim().toUpperCase();

@@ -52,6 +52,8 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
     private final Optional<InetAddress> localIpAddress; // The indirect IP address (local subnet) - possibly not
                                                         // reachable if behind NAT (optional)
     private final Optional<String> cpuId; // The configured CPU id (if any) - for matching intercepted responses
+    private final Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate;
+    private final Consumer<ThingStatus> onReachableStatusChange;
     private final int port;
     private final boolean matchAnyIncomingDeviceIp;
 
@@ -70,7 +72,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
      * @param client The common HTTP client used for issuing direct requests
      * @param timeZoneProvider System-wide TZ provider, for parsing/displaying local dates
      * @param onStateUpdate Callback to be invoked when device status gets updated(device-side channel updates)
-     * @param onReachableStatusChange Callback to be invoked when device's reachability status (online/offline) changes
+     * @param onReachableStatusChange Callback to be invoked when device's reachability status (online) changes
      * @param onDevicePropertiesUpdate Callback to invoke when device properties get refreshed
      */
     public ArgoClimaLocalDevice(ArgoClimaConfigurationLocal config, InetAddress targetDeviceIpAddress, int port,
@@ -78,12 +80,14 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
             TimeZoneProvider timeZoneProvider, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
             Consumer<ThingStatus> onReachableStatusChange,
             Consumer<SortedMap<String, String>> onDevicePropertiesUpdate) {
-        super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate, "");
+        super(config, client, timeZoneProvider, onDevicePropertiesUpdate, "");
         this.ipAddress = targetDeviceIpAddress;
         this.port = port;
         this.localIpAddress = localDeviceIpAddress;
         this.cpuId = cpuId;
         this.matchAnyIncomingDeviceIp = config.getMatchAnyIncomingDeviceIp();
+        this.onStateUpdate = onStateUpdate;
+        this.onReachableStatusChange = onReachableStatusChange;
     }
 
     @Override

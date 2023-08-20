@@ -87,9 +87,6 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
     private AtomicLong lastRefreshTime = new AtomicLong(Instant.now().toEpochMilli());
     private AtomicInteger failedApiCallsCounter = new AtomicInteger(0);
 
-    // TODO: General: https://github.com/openhab/openhab-addons/issues/1289
-    // TODO Logging to INFO should be avoided normally. https://www.openhab.org/docs/developer/guidelines.html#f-logging
-
     /**
      * C-tor
      *
@@ -351,6 +348,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
      *           more values than the typical HVAC device. Hence, the full list of modes is available in its own
      *           advanced ("_EX") channel, and the regular one is providing most common options for better usability.
      *           Both Channels get updated off of the same API field though.
+     * @apiNote This method is also called asynchronously from an intercepting/stub server
      */
     protected final void updateChannelsFromDevice(Map<ArgoDeviceSettingType, State> deviceState) {
         if (deviceApi.isEmpty()) {
@@ -467,6 +465,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
      * @implNote Unfortunately framework's {@link BaseThingHandler#updateProperties()} implementation clones the map
      *           into a {@code HashMap}, which means the edited properties will lose their sorting, yet still providing
      *           it via a {@code TreeMap} in hopes framework may respect the ordering some day ;)
+     * @apiNote This method is also called asynchronously from an intercepting/stub server
      */
     protected final void updateThingProperties(SortedMap<String, String> entries) {
         if (deviceApi.isEmpty()) {
@@ -476,6 +475,21 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
         TreeMap<String, String> currentProps = new TreeMap<>(this.editProperties()); // This unfortunately loses sorting
         entries.entrySet().stream().forEach(x -> currentProps.put(x.getKey(), x.getValue()));
         this.updateProperties(currentProps);
+    }
+
+    /**
+     * Updates the status of the thing to ONLINE (no details)
+     *
+     * @apiNote This method is also called asynchronously from an intercepting/stub server
+     */
+    protected final void updateThingStatusToOnline(ThingStatus newStatus) {
+        if (ThingStatus.ONLINE.equals(newStatus)) {
+            // only one-way update from callback
+            updateStatus(ThingStatus.ONLINE);
+        } else {
+            logger.debug("The remote stub server attempted to update the thing status to {}. The request was ignored",
+                    newStatus);
+        }
     }
 
     /**
@@ -671,9 +685,6 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
 
         // Note: While a lot of checks could be done before the thread launches, it deliberately has been moved to
         // WITHIN the thread, b/c this function may be called many times in case multiple items receive command at once
-
-        // boolean doNotTalkToDevice = (this.config.get().getRefreshInterval() == 0); // TODO: this needs to be on the
-        // // separate setting and not interval
 
         Runnable commandSendWorker = () -> {
             // Stage0: Naive debounce (not to overflow the device if multiple commands are sent at once). We *want* to

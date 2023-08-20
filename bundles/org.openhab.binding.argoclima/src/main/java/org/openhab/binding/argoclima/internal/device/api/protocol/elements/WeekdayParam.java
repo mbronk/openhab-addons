@@ -102,7 +102,7 @@ public class WeekdayParam extends ArgoApiElementBase {
         if (value.isEmpty()) {
             return UnDefType.UNDEF;
         }
-        return new StringType(value.orElseThrow().toString()); // TODO: checkme
+        return new StringType(value.orElseThrow().toString());
     }
 
     /**

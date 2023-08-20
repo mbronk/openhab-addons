@@ -15,7 +15,6 @@ package org.openhab.binding.argoclima.internal.device.api;
 import java.net.InetAddress;
 import java.net.URL;
 import java.text.MessageFormat;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
@@ -26,12 +25,9 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device.api.DeviceStatus.DeviceProperties;
-import org.openhab.binding.argoclima.internal.device.api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
-import org.openhab.core.thing.ThingStatus;
-import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,17 +70,12 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
      * @param username The username used for authenticating to the remote server
      * @param passwordMD5 A MD5 hash of the password used for authenticating to the remote server (custom Basic-like
      *            auth)
-     * @param onStateUpdate Callback to be invoked when device status gets updated(device-side channel updates)
-     * @param onReachableStatusChange Callback to be invoked when device's reachability status (online/offline) changes
      * @param onDevicePropertiesUpdate Callback to invoke when device properties get refreshed
      */
     public ArgoClimaRemoteDevice(ArgoClimaConfigurationRemote config, HttpClient client,
             TimeZoneProvider timeZoneProvider, InetAddress oemServerHostname, int oemServerPort, String username,
-            String passwordMD5, Consumer<Map<ArgoDeviceSettingType, State>> onStateUpdate,
-            Consumer<ThingStatus> onReachableStatusChange,
-            Consumer<SortedMap<String, String>> onDevicePropertiesUpdate) {
-        super(config, client, timeZoneProvider, onStateUpdate, onReachableStatusChange, onDevicePropertiesUpdate,
-                "REMOTE_API");
+            String passwordMD5, Consumer<SortedMap<String, String>> onDevicePropertiesUpdate) {
+        super(config, client, timeZoneProvider, onDevicePropertiesUpdate, "REMOTE_API");
         this.oemServerHostname = oemServerHostname;
         this.oemServerPort = oemServerPort;
         this.username = username;
