@@ -58,6 +58,13 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
     private static final int SCHEDULE_TIMERS_COUNT = 3;
 
     public record ScheduleDefaults(String startTime, String endTime, EnumSet<Weekday> weekdays) {
+        /**
+         * @implNote Overriding the default-generated method, as it doesn't preserve {@code NonNull} annotation on the
+         *           element set.
+         */
+        public EnumSet<Weekday> weekdays() {
+            return weekdays;
+        }
     }
 
     private static final Map<ScheduleTimerType, ScheduleDefaults> SCHEDULE_DEFAULTS = Map.of(
@@ -102,6 +109,10 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
      * @param uri URI of the config description (may be either thing or thing-type URI)
      * @param locale locale
      * @return config description or null if no config description could be found
+     *
+     * @implNote {@code ConfigDescriptionParameterBuilder} doesn't have non-null-defaults, while
+     *           {@code ConfigDescriptionBuilder} does... so while it's quite redundant, using Objects.requireNonNull()
+     *           to keep number of warnings low
      */
     @Override
     @Nullable
@@ -145,35 +156,35 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
 
         for (int i = 1; i <= SCHEDULE_TIMERS_COUNT; ++i) {
             // NOTE: Deliberately *not* using .withContext("dayOfWeek") - doesn't seem to work correctly :(
-            parameters.add(ConfigDescriptionParameterBuilder
+            parameters.add(Objects.requireNonNull(ConfigDescriptionParameterBuilder
                     .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_DAYS, i), Type.TEXT)
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))//
                     .withLabel("Days").withDescription("Days when the schedule is run").withOptions(daysOfWeek)
                     .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).weekdays().toString())
-                    .withMultiple(true).withMultipleLimit(7).build());
+                    .withMultiple(true).withMultipleLimit(7).build()));
 
             // NOTE: Deliberately *not* using .withContext("time") - does work, but causes UI to detect each entry to
             // the page as a change
-            parameters.add(ConfigDescriptionParameterBuilder
+            parameters.add(Objects.requireNonNull(ConfigDescriptionParameterBuilder
                     .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_ON_TIME, i), Type.TEXT)
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
                     .withPattern("\\d{1-2}:\\d{1-2}").withLabel("On time").withDescription("Time when the A/C turns on")
-                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).startTime()).build());
-            parameters.add(ConfigDescriptionParameterBuilder
+                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).startTime()).build()));
+            parameters.add(Objects.requireNonNull(ConfigDescriptionParameterBuilder
                     .create(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_X_OFF_TIME, i), Type.TEXT)
                     .withRequired(true)
                     .withGroupName(String.format(ArgoClimaBindingConstants.PARAMETER_SCHEDULE_GROUP_NAME, i))
                     .withLabel("Off time").withDescription("Time when the A/C turns off")
-                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).endTime()).build());
+                    .withDefault(getScheduleDefaults(ScheduleTimerType.fromInt(i)).endTime()).build()));
         }
         if (thing.isEnabled()) {
-            parameters.add(ConfigDescriptionParameterBuilder
+            parameters.add(Objects.requireNonNull(ConfigDescriptionParameterBuilder
                     .create(ArgoClimaBindingConstants.PARAMETER_RESET_TO_FACTORY_DEFAULTS, Type.BOOLEAN)
                     .withRequired(false).withGroupName(ArgoClimaBindingConstants.PARAMETER_ACTIONS_GROUP_NAME)
                     .withLabel("Reset settings").withDescription("Reset device settings to factory defaults")
-                    .withDefault("false").withVerify(true).build());
+                    .withDefault("false").withVerify(true).build()));
         }
 
         var config = ConfigDescriptionBuilder.create(uri).withParameterGroups(paramGroups).withParameters(parameters)
