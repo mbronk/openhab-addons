@@ -104,7 +104,7 @@ public class ArgoClimaBindingConstants {
     /////////////
     // Binding's hard-coded configuration (not parameterized)
     /////////////
-    public static final int REFRESH_INTERVAL_SEC = 5;
+    /** Maximum number of failed status polls after which the device will be considered offline */
     public static final int MAX_API_RETRIES = 3;
 
     /**
@@ -115,5 +115,32 @@ public class ArgoClimaBindingConstants {
      */
     public static final Duration PENDING_COMMAND_EXPIRE_TIME = Duration.ofSeconds(120); // TODO: THIS SHOULD MATCH MAX
                                                                                         // TRY TIME
+
+    /**
+     * Time to wait between command issue and communicating with the device. Allows to include multiple commands in one
+     * device communication session (preferred).
+     * Time window chosen so that it is not (too) perceptible by an user, while still enough for rules/groups to be able
+     * to fit
+     */
+    public static final Duration SEND_COMMAND_DEBOUNCE_TIME = Duration.ofMillis(100);
+
+    /**
+     * The minimum resolution during which the command sending background thread does any meaningful action. This is
+     * merely to avoid busy wait and doesn't mean the thread is doing anything of use on every cycle. There are separate
+     * configurable "update" and "(re)send" frequencies governing that. This parameter only controls the lowest possible
+     * resolution of those (a "tick")
+     */
+    public static final Duration SEND_COMMAND_DUTY_CYCLE = Duration.ofSeconds(1);
+
+    /**
+     * Whether the binding shall wait for the device confirming commands have been received (by flipping to the desired
+     * state) or work in a fire&forget mode and stop tracking upon first send.
+     * <p>
+     * This applies only to confirmable commands (read-write) and is a default behavior of Argo's own web implementation
+     *
+     * @implNote This is a debug-only switch (makes little to no sense to disable it in real-world usage)
+     */
+    public static final boolean AWAIT_DEVICE_CONFIRMATIONS_AFTER_COMMANDS = true;
+
     // ArgoClimaHandlerRemote:: 60s (or not)
 }

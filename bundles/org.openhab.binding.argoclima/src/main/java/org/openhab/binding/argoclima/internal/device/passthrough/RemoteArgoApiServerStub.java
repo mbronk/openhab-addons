@@ -46,6 +46,7 @@ import org.openhab.binding.argoclima.internal.device.passthrough.requests.Device
 import org.openhab.binding.argoclima.internal.device.passthrough.requests.DeviceSideUpdateDTO;
 import org.openhab.binding.argoclima.internal.device.passthrough.responses.RemoteGetUiFlgResponseDTO;
 import org.openhab.binding.argoclima.internal.device.passthrough.responses.RemoteGetUiFlgResponseDTO.UiFlgResponseCommmands;
+import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -144,7 +145,14 @@ public class RemoteArgoApiServerStub {
                 case GET_UI_FLG:
                     var updateDto = DeviceSideUpdateDTO.fromDeviceRequest(request, this.showCleartextPasswords);
                     logger.trace("Got device-side update: {}", updateDto);
-                    deviceApi.ifPresent(x -> x.updateDeviceStateFromPushRequest(updateDto)); // Use for new update
+                    deviceApi.ifPresent(x -> {
+                        try {
+                            x.updateDeviceStateFromPushRequest(updateDto);
+                        } catch (ArgoApiCommunicationException e) {
+                            logger.debug(
+                                    "Received a GET UI_FLG message from Argo device, but it wasn't a valid protocolar message. Ignoring...");
+                        }
+                    }); // Use for new update
                     break;
                 case POST_UI_RT:
                     var postRtDto = DeviceSidePostRtUpdateDTO.fromDeviceRequestBody(body);
@@ -261,6 +269,28 @@ public class RemoteArgoApiServerStub {
         try {
             startJettyServer();
         } catch (Exception e) {
+            server.ifPresent(s -> {
+                // Cleaning up after ourselves async (as the server may have multiple connectors open and take some time
+                // to stop, actually)
+                s.setStopTimeout(1000L);
+                try {
+                    new Thread() {
+                        @Override
+                        public void run() {
+                            try {
+                                s.stop();
+                            } catch (Exception stopException) {
+                                logger.warn(
+                                        "Server startup has failed and subsequent stop has failed as well... Error: {}",
+                                        stopException.getMessage());
+                            }
+                        }
+                    }.start();
+                } catch (Exception stopThreadStartException) {
+                    logger.warn("Server startup has failed and subsequent stop has failed as well... Error: {}",
+                            stopThreadStartException.getMessage());
+                }
+            });
             throw new RuntimeException(
                     String.format("Starting stub server at port %d failed. %s", this.listenPort, e.getMessage()), e);
         }
@@ -269,6 +299,16 @@ public class RemoteArgoApiServerStub {
             try {
                 this.passthroughClient.get().start();
             } catch (Exception e) {
+                passthroughClient.ifPresent(s -> {
+                    try {
+                        // Stopping synchronously (as a client that failed startup is anyway not doing anything)
+                        s.stop();
+                    } catch (Exception stopException) {
+                        logger.warn(
+                                "PassthroughClient startup has failed and subsequent stop has failed as well... Error: {}",
+                                stopException.getMessage());
+                    }
+                });
                 throw new RuntimeException(
                         String.format("Starting passthrough API client for host=%s, port=%d failed. %s",
                                 this.passthroughClient.get().upstreamTargetHost,

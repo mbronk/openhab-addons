@@ -12,19 +12,17 @@
  */
 package org.openhab.binding.argoclima.internal.exception;
 
-import java.util.Objects;
-
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * The class {@code ArgoLocalApiCommunicationException} is thrown in case of any issues when communicating with the Argo
- * HVAC device
+ * HVAC device - specifically in a direct/local mode
  *
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public class ArgoLocalApiCommunicationException extends Exception {
+public class ArgoLocalApiCommunicationException extends ArgoApiCommunicationException {
 
     private static final long serialVersionUID = 7770599701572999260L;
 
@@ -34,14 +32,5 @@ public class ArgoLocalApiCommunicationException extends Exception {
 
     public ArgoLocalApiCommunicationException(@Nullable String message, @Nullable Throwable cause) {
         super(message, cause);
-    }
-
-    @Override
-    public @Nullable String getMessage() {
-        var msg = super.getMessage();
-        if (this.getCause() != null) {
-            msg += ". Caused by: " + Objects.requireNonNull(this.getCause()).getMessage();
-        }
-        return msg;
     }
 }

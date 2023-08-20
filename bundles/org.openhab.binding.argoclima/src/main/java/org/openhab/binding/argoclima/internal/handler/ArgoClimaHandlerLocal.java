@@ -19,6 +19,8 @@ import java.util.Optional;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.util.MultiException;
+import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal.ConnectionMode;
 import org.openhab.binding.argoclima.internal.device.api.ArgoClimaLocalDevice;
@@ -50,8 +52,9 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     private @Nullable RemoteArgoApiServerStub serverStub;
 
     public ArgoClimaHandlerLocal(Thing thing, HttpClientFactory clientFactory, TimeZoneProvider timeZoneProvider) {
-        super(thing, true, Duration.ofSeconds(3), Duration.ofSeconds(10), Duration.ofSeconds(20),
-                Duration.ofSeconds(120)); // device polls every minute, so give it 2 to catch up
+        super(thing, ArgoClimaBindingConstants.AWAIT_DEVICE_CONFIRMATIONS_AFTER_COMMANDS, Duration.ofSeconds(3),
+                Duration.ofSeconds(10), Duration.ofSeconds(20), Duration.ofSeconds(120)); // device polls every minute,
+                                                                                          // so give it 2 to catch up
         this.client = clientFactory.getCommonHttpClient();
         this.clientFactory = clientFactory;
         this.timeZoneProvider = timeZoneProvider;
@@ -60,14 +63,16 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     @Override
     protected ArgoClimaConfigurationLocal getConfigInternal() throws ArgoConfigurationException {
         try {
-            return getConfigAs(ArgoClimaConfigurationLocal.class);
+            return getConfigAs(ArgoClimaConfigurationLocal.class); // this may return null if class is not
+                                                                   // default-constructible
         } catch (IllegalArgumentException ex) {
             throw new ArgoConfigurationException("Error loading thing configuration", "", ex);
         }
     }
 
     @Override
-    protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationLocal config) throws Exception {
+    protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationLocal config)
+            throws ArgoRemoteServerStubStartupException, ArgoConfigurationException {
         // TODO Auto-generated method stub
 
         var deviceApi = new ArgoClimaLocalDevice(config, config.getHostname(), config.getLocalDevicePort(),
@@ -90,19 +95,25 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
                 serverStub.start();
             } catch (Exception e1) {
                 // TODO Auto-generated catch block
-                logger.error("Failed to start RPC server", e1); // TODO: crash
+                // logger.error("Failed to start RPC server", e1); // TODO: crash
+                var message = e1.getMessage();
+                if (e1.getCause() instanceof MultiException) {
+                    // This may cause multiple exceptions in case multiple bind addresses are in use
+                    var multiCause = Objects.requireNonNull((MultiException) e1.getCause());
+                    message = multiCause.toString();
+                }
+
                 throw new ArgoRemoteServerStubStartupException(
                         String.format("[%s mode] Failed to start RPC server at port: %d. Error: %s",
-                                config.getConnectionMode(), config.getStubServerPort(), e1.getMessage()));
+                                config.getConnectionMode(), config.getStubServerPort(), message));
             }
         }
         return deviceApi;
     }
 
     @Override
-    public void dispose() {
-        super.dispose();
-
+    protected void stopRunningTasks() {
+        super.stopRunningTasks();
         try {
             synchronized (this) {
                 if (this.serverStub != null) {
@@ -113,7 +124,6 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
         } catch (Exception e) {
             logger.warn("Exception during handler disposal", e);
         }
-
         logger.debug("{}: Disposed", getThing().getUID().getId());
     }
 }

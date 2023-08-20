@@ -42,6 +42,7 @@ import org.openhab.binding.argoclima.internal.device.api.types.FanLevel;
 import org.openhab.binding.argoclima.internal.device.api.types.FlapLevel;
 import org.openhab.binding.argoclima.internal.device.api.types.OperationMode;
 import org.openhab.binding.argoclima.internal.device.api.types.TemperatureScale;
+import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.core.types.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,12 +177,14 @@ public class ArgoDeviceStatus implements IArgoSettingProvider {
      * Update *this* state from device-side update
      *
      * @param deviceOutput The device-side 'HMI' update
+     * @throws ArgoApiCommunicationException If API response doesn't match protocol format
      */
-    public void fromDeviceString(String deviceOutput) {
+    public void fromDeviceString(String deviceOutput) throws ArgoApiCommunicationException {
         var values = Arrays.asList(deviceOutput.split(HMI_ELEMENT_SEPARATOR));
         if (values.size() != HMI_UPDATE_ELEMENT_COUNT) {
-            throw new RuntimeException("Invalid device API response: " + deviceOutput); // TODO: consider changing
-                                                                                        // exception type here
+            throw new ArgoApiCommunicationException(
+                    "Invalid device API response: [%s]. Expected to contain %d elements while has %d."
+                            .formatted(deviceOutput, HMI_UPDATE_ELEMENT_COUNT, values.size()));
         }
         synchronized (this) {
             dataElements.entrySet().stream().forEach(v -> v.getValue().fromDeviceResponse(values));

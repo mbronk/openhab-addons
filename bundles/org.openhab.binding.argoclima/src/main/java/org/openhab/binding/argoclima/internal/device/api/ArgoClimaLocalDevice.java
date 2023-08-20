@@ -29,7 +29,7 @@ import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurati
 import org.openhab.binding.argoclima.internal.device.api.types.ArgoDeviceSettingType;
 import org.openhab.binding.argoclima.internal.device.passthrough.requests.DeviceSidePostRtUpdateDTO;
 import org.openhab.binding.argoclima.internal.device.passthrough.requests.DeviceSideUpdateDTO;
-import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
+import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.thing.ThingStatus;
 import org.openhab.core.types.State;
@@ -108,7 +108,7 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
             this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
 
             return new ReachabilityStatus(true, "");
-        } catch (ArgoLocalApiCommunicationException e) {
+        } catch (ArgoApiCommunicationException e) {
             logger.debug("Device not reachable: {}", e.getMessage());
             return new ReachabilityStatus(false,
                     Objects.requireNonNull(MessageFormat.format(
@@ -166,7 +166,8 @@ public class ArgoClimaLocalDevice extends ArgoClimaDeviceApiBase {
      *
      * @param deviceUpdate The device-side update request
      */
-    public void updateDeviceStateFromPushRequest(DeviceSideUpdateDTO deviceUpdate) {
+    public void updateDeviceStateFromPushRequest(DeviceSideUpdateDTO deviceUpdate)
+            throws ArgoApiCommunicationException {
         String hmiStringFromDevice = deviceUpdate.currentValues;
         String deviceIP = deviceUpdate.deviceIp;
         String deviceCpuId = deviceUpdate.cpuId;

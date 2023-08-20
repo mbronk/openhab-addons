@@ -27,6 +27,7 @@ import org.eclipse.jetty.client.HttpClient;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device.api.DeviceStatus.DeviceProperties;
 import org.openhab.binding.argoclima.internal.device.api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.thing.ThingStatus;
@@ -98,7 +99,7 @@ public class ArgoClimaRemoteDevice extends ArgoClimaDeviceApiBase {
             this.updateDevicePropertiesFromDeviceResponse(status.getProperties(), this.deviceStatus);
             status.throwIfStatusIsStale();
             return new ReachabilityStatus(true, "");
-        } catch (ArgoLocalApiCommunicationException e) {
+        } catch (ArgoApiCommunicationException e) {
             logger.debug("Device not reachable: {}", e.getMessage());
             return new ReachabilityStatus(false,
                     Objects.requireNonNull(MessageFormat.format(

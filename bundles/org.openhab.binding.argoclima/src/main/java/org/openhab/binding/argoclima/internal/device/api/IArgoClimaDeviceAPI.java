@@ -20,6 +20,7 @@ import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.openhab.binding.argoclima.internal.device.api.protocol.ArgoApiDataElement;
 import org.openhab.binding.argoclima.internal.device.api.protocol.elements.IArgoCommandableElement.IArgoElement;
 import org.openhab.binding.argoclima.internal.device.api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.types.Command;
 import org.openhab.core.types.State;
@@ -52,7 +53,7 @@ public interface IArgoClimaDeviceAPI {
      * @return A map of {@code Setting->Value} read from device
      * @throws ArgoLocalApiCommunicationException thrown when unable to communicate with the Argo device
      */
-    Map<ArgoDeviceSettingType, State> queryDeviceForUpdatedState() throws ArgoLocalApiCommunicationException;
+    Map<ArgoDeviceSettingType, State> queryDeviceForUpdatedState() throws ArgoApiCommunicationException;
 
     /**
      * Returns last-retrieved device state

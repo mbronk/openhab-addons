@@ -27,6 +27,7 @@ import org.openhab.binding.argoclima.internal.ArgoClimaConfigProvider;
 import org.openhab.binding.argoclima.internal.device.api.types.Weekday;
 import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationException;
 import org.openhab.binding.argoclima.internal.utils.StringUtils;
+import org.openhab.core.config.core.Configuration;
 
 /**
  * The {@link ArgoClimaConfigurationBase} class contains fields mapping thing configuration parameters.
@@ -35,7 +36,7 @@ import org.openhab.binding.argoclima.internal.utils.StringUtils;
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault
-public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurationProvider {
+public abstract class ArgoClimaConfigurationBase extends Configuration implements IScheduleConfigurationProvider {
     /////////////////////
     // TYPES
     /////////////////////
@@ -90,6 +91,29 @@ public abstract class ArgoClimaConfigurationBase implements IScheduleConfigurati
      */
     public int getRefreshInterval() {
         return this.refreshInterval;
+    }
+
+    /**
+     * If true, allows the binding to directly communicate with the device (or vendor's server - for remote thing type).
+     * When false, binding will not communicate directly with the device and wait for it to call it (through
+     * intercepting/stub server)
+     * <p>
+     * <b>Mode-specific considerations</b>:
+     * <ul>
+     * <li>in {@code REMOTE_API_STUB} mode - will not issue any outbound connections on its own</li>
+     * <li>in {@code REMOTE_API_PROXY} mode - will still communicate with vendor's servers but ONLY when queried by the
+     * device (a pass-through)</li>
+     * </ul>
+     *
+     * @implNote While this is configured by its dedicated settings (for better UX) and valid only for Local Thing
+     *           types, internal implementation uses {@code refreshInterval == 0} to signify no comms. This is because
+     *           without a refresh, the binding would have to function in a fire&forget mode sending commands back to
+     *           HVAC and never receiving any ACK... which makes little sense, hence is not supported
+     *
+     * @return True if the Thing is allowed to communicate outwards on its own, False otherwise
+     */
+    public boolean useDirectConnection() {
+        return this.refreshInterval > 0;
     }
 
     /**

@@ -36,6 +36,7 @@ import org.openhab.binding.argoclima.internal.device.api.protocol.ArgoApiDataEle
 import org.openhab.binding.argoclima.internal.device.api.protocol.ArgoDeviceStatus;
 import org.openhab.binding.argoclima.internal.device.api.protocol.elements.IArgoCommandableElement.IArgoElement;
 import org.openhab.binding.argoclima.internal.device.api.types.ArgoDeviceSettingType;
+import org.openhab.binding.argoclima.internal.exception.ArgoApiCommunicationException;
 import org.openhab.binding.argoclima.internal.exception.ArgoLocalApiCommunicationException;
 import org.openhab.core.i18n.TimeZoneProvider;
 import org.openhab.core.thing.ThingStatus;
@@ -155,7 +156,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
         try {
             logger.info("Communication: OPENHAB --> {}: [GET {}]", remoteEndName, url);
 
-            ContentResponse resp = this.client.GET(url.toString());
+            ContentResponse resp = this.client.GET(url.toString()); // sync
 
             logger.info("   [response]: OPENHAB <-- {}: [{} {} {} - {} bytes], body=[{}]", remoteEndName,
                     resp.getVersion(), resp.getStatus(), resp.getReason(), resp.getContent().length,
@@ -168,13 +169,13 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
             }
             return Objects.requireNonNull(resp.getContentAsString());
         } catch (InterruptedException ex) {
-            logger.info("Interrupted...");
+            logger.debug("Interrupted...");
             return "";
         } catch (ExecutionException ex) {
             var cause = Optional.ofNullable(ex.getCause());
             if (cause.isPresent() && cause.get() instanceof EOFException) {
                 throw new ArgoLocalApiCommunicationException(
-                        "Cause is: EOF: " + ((EOFException) cause.get()).getMessage(), cause.get());
+                        "Device did not respond on its socket (EOF). Check that the device is correctly communicating with Argo servers (or OpenHab stub server)");
             }
             throw new ArgoLocalApiCommunicationException(
                     "Device communication error: " + Objects.requireNonNullElse(ex.getCause(), ex).getMessage(),
@@ -211,7 +212,7 @@ public abstract class ArgoClimaDeviceApiBase implements IArgoClimaDeviceAPI {
     }
 
     @Override
-    public Map<ArgoDeviceSettingType, State> queryDeviceForUpdatedState() throws ArgoLocalApiCommunicationException {
+    public Map<ArgoDeviceSettingType, State> queryDeviceForUpdatedState() throws ArgoApiCommunicationException {
         var deviceResponse = extractDeviceStatusFromResponse(
                 pollForCurrentStatusFromDeviceSync(getDeviceStateQueryUrl()));
         this.deviceStatus.fromDeviceString(deviceResponse.getCommandString());

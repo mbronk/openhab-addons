@@ -16,6 +16,7 @@ import java.time.Duration;
 
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jetty.client.HttpClient;
+import org.openhab.binding.argoclima.internal.ArgoClimaBindingConstants;
 import org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationRemote;
 import org.openhab.binding.argoclima.internal.device.api.ArgoClimaRemoteDevice;
 import org.openhab.binding.argoclima.internal.device.api.IArgoClimaDeviceAPI;
@@ -40,8 +41,8 @@ public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfig
     private final TimeZoneProvider timeZoneProvider;
 
     public ArgoClimaHandlerRemote(Thing thing, HttpClientFactory clientFactory, TimeZoneProvider timeZoneProvider) {
-        super(thing, true, Duration.ofSeconds(5), Duration.ofSeconds(20), Duration.ofSeconds(60),
-                Duration.ofSeconds(60));
+        super(thing, ArgoClimaBindingConstants.AWAIT_DEVICE_CONFIRMATIONS_AFTER_COMMANDS, Duration.ofSeconds(5),
+                Duration.ofSeconds(20), Duration.ofSeconds(60), Duration.ofSeconds(60));
         this.client = clientFactory.getCommonHttpClient();
         this.timeZoneProvider = timeZoneProvider;
     }
@@ -56,15 +57,10 @@ public class ArgoClimaHandlerRemote extends ArgoClimaHandlerBase<ArgoClimaConfig
     }
 
     @Override
-    protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationRemote config) throws Exception {
+    protected IArgoClimaDeviceAPI initializeDeviceApi(ArgoClimaConfigurationRemote config)
+            throws ArgoConfigurationException {
         return new ArgoClimaRemoteDevice(config, this.client, this.timeZoneProvider, config.getOemServerAddress(),
                 config.getOemServerPort(), config.getUsername(), config.getPasswordMD5Hash(),
                 this::updateChannelsFromDevice, this::updateStatus, this::updateThingProperties);
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        logger.debug("{}: Disposed", getThing().getUID().getId());
     }
 }
