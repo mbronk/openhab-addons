@@ -41,7 +41,7 @@ public interface IScheduleConfigurationProvider {
      *
      * @author Mateusz Bronk - Initial contribution
      */
-    public static enum ScheduleTimerType {
+    public enum ScheduleTimerType {
         SCHEDULE_1,
         SCHEDULE_2,
         SCHEDULE_3;

@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * actual vendor's servers)
  *
  * <p>
- * Use of this mode is actually NOT recommended for advanced users as cleartext device & Wi-Fi passwords are sent to
+ * Use of this mode is actually NOT recommended for advanced users as cleartext device and Wi-Fi passwords are sent to
  * Argo servers through unencrypted HTTP connection (sic!). If the Argo UI access is desired (ex. for FW update or IR
  * remote-like experience), consider using this mode only on a dedicated Wi-Fi network (and possibly through VPN)
  *

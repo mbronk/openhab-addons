@@ -196,8 +196,8 @@ public class ArgoApiDataElement<T extends IArgoElement> implements IArgoCommanda
      *
      * @param command The command to handle
      * @return Status on whether the command has been handled (accepted). Note "handled" here doesn't mean
-     *         sent&confirmed by the device, merely recognized by the framework and accepted for subsequent device-side
-     *         communication (which happens asynchronously to this call)
+     *         sent and confirmed by the device, merely recognized by the framework and accepted for subsequent
+     *         device-side communication (which happens asynchronously to this call)
      */
     public boolean handleCommand(Command command) {
         if (this.type != DataElementType.WRITE_ONLY && this.type != DataElementType.READ_WRITE) {

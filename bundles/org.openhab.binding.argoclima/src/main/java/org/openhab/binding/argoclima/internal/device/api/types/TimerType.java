@@ -21,7 +21,7 @@ import org.openhab.binding.argoclima.internal.configuration.IScheduleConfigurati
  * The device supports a "delay" timer + 3 configurable "schedule" timers. All the schedule timers share the same API
  * fields for configuring days of week when they are active as well as start/stop time
  *
- * @see {@link ScheduleTimerType} - for schedule-specific enum (used in binding configuration)
+ * @see ScheduleTimerType - for schedule-specific enum (used in binding configuration)
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault

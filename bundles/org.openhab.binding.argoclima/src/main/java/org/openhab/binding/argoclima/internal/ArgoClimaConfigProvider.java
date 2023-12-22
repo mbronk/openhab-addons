@@ -120,7 +120,7 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
     @Override
     @Nullable
     public ConfigDescription getConfigDescription(URI uri, @Nullable Locale locale) {
-        if (!uri.getScheme().equalsIgnoreCase("thing")) {
+        if (!"thing".equalsIgnoreCase(uri.getScheme())) {
             return null; // Deliberately not supporting "thing-type" (no dynamic parameters there)
         }
         ThingUID thingUID = new ThingUID(Objects.requireNonNull(uri.getSchemeSpecificPart()));
@@ -211,8 +211,6 @@ public class ArgoClimaConfigProvider implements ConfigDescriptionProvider {
                     .withDefault("false").withVerify(true).build()));
         }
 
-        var config = ConfigDescriptionBuilder.create(uri).withParameterGroups(paramGroups).withParameters(parameters)
-                .build();
-        return config;
+        return ConfigDescriptionBuilder.create(uri).withParameterGroups(paramGroups).withParameters(parameters).build();
     }
 }

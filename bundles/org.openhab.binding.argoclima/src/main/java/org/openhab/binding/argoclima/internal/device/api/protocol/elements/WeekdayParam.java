@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Weekdays element (accepting sets of days for schedule to run on)
  *
- * @see {@link TimeParam}
+ * @see TimeParam
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault

@@ -92,7 +92,7 @@ public class ArgoClimaHandlerLocal extends ArgoClimaHandlerBase<ArgoClimaConfigu
     /**
      * {@inheritDoc}
      * <p>
-     * For any {@code REMOTE_API_*} <b>Connection mode<b>, this starts a new HTTP server (with its own thread pool!)
+     * For any {@code REMOTE_API_*} <b>Connection mode</b>, this starts a new HTTP server (with its own thread pool!)
      * listening for HVAC connections.
      * <p>
      * Additionally for a {@code REMOTE_API_PROXY}, a custom HTTP client is also created, proxying the calls from device

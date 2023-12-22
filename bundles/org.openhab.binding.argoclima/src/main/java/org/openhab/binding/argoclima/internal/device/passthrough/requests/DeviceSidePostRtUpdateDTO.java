@@ -43,7 +43,7 @@ public class DeviceSidePostRtUpdateDTO {
     /** A MD5 hash of password to the remote server (and hence the UI) */
     public final String passwordHash;
 
-    /** The CPU_ID (unique & immutable HVAC identifier) send by the device */
+    /** The CPU_ID (unique and immutable HVAC identifier) send by the device */
     public final String cpuId;
 
     /** Unknown purpose, seems to be set to 1 in all requests observed. DEL is for delta? */

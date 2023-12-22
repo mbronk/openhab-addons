@@ -130,8 +130,8 @@ public abstract class ArgoClimaConfigurationBase extends Configuration implement
      *
      * @implNote While this is configured by its dedicated settings (for better UX) and valid only for Local Thing
      *           types, internal implementation uses {@code refreshInterval == 0} to signify no comms. This is because
-     *           without a refresh, the binding would have to function in a fire&forget mode sending commands back to
-     *           HVAC and never receiving any ACK... which makes little sense, hence is not supported
+     *           without a refresh, the binding would have to function in a fire and forget mode sending commands back
+     *           to HVAC and never receiving any ACK... which makes little sense, hence is not supported
      *
      * @return True if the Thing is allowed to communicate outwards on its own, False otherwise
      */

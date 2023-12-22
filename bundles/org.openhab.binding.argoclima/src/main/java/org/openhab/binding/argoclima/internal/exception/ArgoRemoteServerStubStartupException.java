@@ -20,8 +20,7 @@ import org.openhab.binding.argoclima.internal.ArgoClimaTranslationProvider;
  * The class {@code ArgoRemoteServerStubStartupException} is thrown in case of any issues when starting the stub Argo
  * server (for intercepting mode)
  *
- * @see {@link org.openhab.binding.argoclima.internal.device.passthrough.RemoteArgoApiServerStub
- *      RemoteArgoApiServerStub}
+ * @see org.openhab.binding.argoclima.internal.device.passthrough.RemoteArgoApiServerStub
  * @author Mateusz Bronk - Initial contribution
  */
 @NonNullByDefault

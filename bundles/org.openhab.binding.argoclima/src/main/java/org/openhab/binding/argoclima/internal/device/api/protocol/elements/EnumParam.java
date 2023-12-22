@@ -57,7 +57,7 @@ public class EnumParam<E extends Enum<E> & IArgoApiEnum> extends ArgoApiElementB
     /**
      * Gets the raw enum value from {@link Type} ({@link Command} or {@link State}) which are themselves strings
      *
-     * @see {@link #valueToState(Optional)} for a reverse conversion
+     * @see #valueToState(Optional) for a reverse conversion
      *
      * @param <E> The type of underlying enum - implementing {@link IArgoApiEnum}
      * @param value Value to convert

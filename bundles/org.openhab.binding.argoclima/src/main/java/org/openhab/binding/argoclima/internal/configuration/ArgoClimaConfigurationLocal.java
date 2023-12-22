@@ -32,13 +32,13 @@ import org.openhab.binding.argoclima.internal.exception.ArgoConfigurationExcepti
  */
 @NonNullByDefault
 public class ArgoClimaConfigurationLocal extends ArgoClimaConfigurationBase {
-    public static enum ConnectionMode {
+    public enum ConnectionMode {
         LOCAL_CONNECTION,
         REMOTE_API_STUB,
         REMOTE_API_PROXY
     }
 
-    public static enum DeviceSidePasswordDisplayMode {
+    public enum DeviceSidePasswordDisplayMode {
         NEVER,
         MASKED,
         CLEARTEXT

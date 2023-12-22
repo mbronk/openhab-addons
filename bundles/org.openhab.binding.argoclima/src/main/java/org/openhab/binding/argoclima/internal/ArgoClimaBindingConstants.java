@@ -138,8 +138,8 @@ public class ArgoClimaBindingConstants {
      * Aka. the optimistic time when the device "should acknowledge. Should be greater than
      * {@link #POLL_FREQUENCY_AFTER_COMMAND_SENT_LOCAL}
      *
-     * @see {@link #SEND_COMMAND_MAX_WAIT_TIME_LOCAL_DIRECT}
-     * @see {@link #SEND_COMMAND_MAX_WAIT_TIME_LOCAL_INDIRECT}
+     * @see #SEND_COMMAND_MAX_WAIT_TIME_LOCAL_DIRECT
+     * @see #SEND_COMMAND_MAX_WAIT_TIME_LOCAL_INDIRECT
      */
     public static final Duration SEND_COMMAND_RETRY_FREQUENCY_LOCAL = Duration.ofSeconds(10);
 
@@ -148,7 +148,7 @@ public class ArgoClimaBindingConstants {
      * Aka. the optimistic time when the server "should acknowledge. Should be greater than
      * {@link #POLL_FREQUENCY_AFTER_COMMAND_SENT_REMOTE}
      *
-     * @see {@link #SEND_COMMAND_MAX_WAIT_TIME_REMOTE}
+     * @see #SEND_COMMAND_MAX_WAIT_TIME_REMOTE
      */
     public static final Duration SEND_COMMAND_RETRY_FREQUENCY_REMOTE = Duration.ofSeconds(20);
 
@@ -156,8 +156,9 @@ public class ArgoClimaBindingConstants {
      * Max time to wait for a pending command to be confirmed by the device in a local-direct mode (when we are issuing
      * communications to a device in local LAN).
      * <p>
-     * During this time, the commands may get {@link SEND_COMMAND_RETRY_FREQUENCY retried} and the device status may be
-     * {@link POLL_FREQUENCY_AFTER_COMMAND_SENT re-fetched}
+     * During this time, the commands may get {@link #SEND_COMMAND_RETRY_FREQUENCY_LOCAL retried} and the device status
+     * may be
+     * {@link #POLL_FREQUENCY_AFTER_COMMAND_SENT_LOCAL re-fetched}
      */
     public static final Duration SEND_COMMAND_MAX_WAIT_TIME_LOCAL_DIRECT = Duration.ofSeconds(20); // 60-remote
 
@@ -201,7 +202,7 @@ public class ArgoClimaBindingConstants {
     /////////////
     /**
      * Whether the binding shall wait for the device confirming commands have been received (by flipping to the desired
-     * state) or work in a fire&forget mode and stop tracking upon first send.
+     * state) or work in a fire and forget mode and stop tracking upon first send.
      * <p>
      * This applies only to confirmable commands (read-write) and is a default behavior of Argo's own web implementation
      *

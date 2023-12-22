@@ -53,8 +53,8 @@ import org.slf4j.LoggerFactory;
  * The {@code ArgoClimaHandlerBase} is an abstract base class for common logic (across local and remote thing
  * implementations) responsible for handling commands, which are sent to one of the channels.
  *
- * @see {@link ArgoClimaHandlerLocal}
- * @see {@link ArgoClimaHandlerRemote}
+ * @see ArgoClimaHandlerLocal
+ * @see ArgoClimaHandlerRemote
  *
  * @param <ConfigT> Type of configuration class used:
  *            {@link org.openhab.binding.argoclima.internal.configuration.ArgoClimaConfigurationLocal
@@ -137,7 +137,7 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
      * @return Initialized Device API
      * @throws ArgoConfigurationException In case the API initialization fails due to Thing configuration issues
      * @throws ArgoRemoteServerStubStartupException In case the Device API startup involved launching an intercepting
-     *             server (thing type && configuration-dependent), and the startup has failed
+     *             server (thing type and configuration-dependent), and the startup has failed
      */
     protected abstract IArgoClimaDeviceAPI initializeDeviceApi(ConfigT config)
             throws ArgoRemoteServerStubStartupException, ArgoConfigurationException;
@@ -487,9 +487,9 @@ public abstract class ArgoClimaHandlerBase<ConfigT extends ArgoClimaConfiguratio
      *
      * @param entries The new properties to append/replace (this does not clear existing properties!)
      *
-     * @implNote Unfortunately framework's {@link BaseThingHandler#updateProperties()} implementation clones the map
-     *           into a {@code HashMap}, which means the edited properties will lose their sorting, yet still providing
-     *           it via a {@code TreeMap} in hopes framework may respect the ordering some day ;)
+     * @implNote Unfortunately framework's {@link BaseThingHandler#updateProperties(Map<String, String>)} implementation
+     *           clones the map into a {@code HashMap}, which means the edited properties will lose their sorting, yet
+     *           still providing it via a {@code TreeMap} in hopes framework may respect the ordering some day ;)
      * @apiNote This method is also called asynchronously from an intercepting/stub server
      */
     protected final void updateThingProperties(SortedMap<String, String> entries) {
